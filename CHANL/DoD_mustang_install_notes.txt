@@ -4,11 +4,19 @@
 module load cseinit-noloads
 module load cse/python3/latest
 module load cse/cmake/latest
-export CC=/p/app/hpe/mpt-2.21/bin/mpicc
-export CXX=/p/app/hpe/mpt-2.21/bin/mpicxx
+
+module unload mpt
+module load mpt/2.26
+
+module unload compiler/intel/18.0.3.222
+module load compiler/intel/2022.0.2
+
+export CC=/opt/hpe/hpc/mpt/mpt-2.26/bin/mpicc
+export CXX=/opt/hpe/hpc/mpt/mpt-2.26/bin/mpicxx
 
 git clone git@github.com:hypersonic-lab/SU2.git; cd SU2
 export PATH=$PWD:$PATH;
+mkdir install
 ./meson.py --prefix=$HOME/REPO build -Denable-mpp=true;
 export DESTDIR=$SU2_HOME/install;
 ./ninja -C build install;
