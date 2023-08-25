@@ -1,0 +1,27 @@
+#!/bin/bash
+module load cseinit-noloads
+module load cse/python3/latest
+module load cse/cmake/latest
+ 
+module unload PrgEnv-cray
+module load PrgEnv-intel
+module unload intel
+module load intel-classic/2021.3.0
+ 
+export CC=/opt/cray/pe/craype/2.7.10/bin/cc
+export CXX=/opt/cray/pe/craype/2.7.10/bin/CC
+
+# This pulls our fork of SU2
+git clone https://github.com/hypersonic-lab/SU2.git; cd SU2
+mkdir install
+export PATH=$PWD:$PATH
+
+# Onyx needs to be forced to build in parallel
+./meson.py --prefix=$HOME/REPO/SU2/install build -Denable-mpp=true -Dcustom-mpi=true
+./ninja -C build install
+
+# With this type of build configuration this needs added to PBS script
+module unload PrgEnv-cray
+module load PrgEnv-intel
+module unload intel
+module load intel-classic/2021.3.0

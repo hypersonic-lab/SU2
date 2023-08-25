@@ -1,0 +1,62 @@
+SU2 -Nemo Installation Guide
+
+The following steps need to be followed to build and install SU2-NEMO from source onto HPC PUMA for a clean installation. 
+
+1.	Please make sure to be on the ‘interactive’ node by using the following commands:
+>>puma
+>>interactive
+
+2.	Create a folder called ‘REPO’ (or ‘Source_Code’ etc.) where you can install the executable files of CFD solvers such as SU2.
+>>mkdir REPO
+>>cd REPO
+
+3.	Git clone the SU2 repo using: 
+>>git clone git@github.com:hypersonic-lab/SU2.git
+>>cd SU2
+
+4.	Load the Python and cmake modules and set compiler variables:
+>> module load python/3.9 cmake
+>> export CC=$(which gcc)
+>>export CXX=$(which g++)
+
+
+5.	Add the SU2 absolute file path to the PATH environment variable:
+>>export PATH=$PWD:$PATH
+
+6.	Build the source code:
+>>./meson.py build -Denable-mpp=true --prefix=$PWD/SU2_Install
+
+•	‘build’ is the name of the folder for the current build
+•	-Denable-mpp=true can be left out if Mutation ++ is not required
+•	--prefix will create a specific location to store the ‘Install’ files for SU2
+
+7.	Make a note of the instructions at the end of the build about changing environment variables in the .bashrc file.
+
+8.	Make changes to current environmental variables in command line:
+>> export SU2_RUN=~/REPO/SU2/SU2_Install/bin
+>>export SU2_HOME=~/REPO/SU2
+>>export PATH=$PATH:$SU2_RUN
+>>export PYTHONPATH=$PYTHONPATH:$SU2_RUN
+
+9.	Install the build created
+>>./ninja -C build install
+
+10.	Add the following to the .bashrc file (as per the instructions at the end of build, excepting for LD_LIBRARY_PATH):
+
+#*****************SU2****************************************
+export SU2_RUN=~/REPO/SU2/SU2_Install/bin
+export SU2_HOME=~/REPO/SU2
+export PATH=$PATH:$SU2_RUN
+export PYTHONPATH=$PYTHONPATH:$SU2_RUN
+#**************Mutation++************************************
+export MPP_DATA_DIRECTORY=$SU2_HOME/subprojects/Mutationpp/data
+export LD_LIBRARY_PATH=$SU2_HOME/install/usr/local/lib64:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$SU2_HOME/build/subprojects/Mutationpp:$LD_LIBRARY_PATH
+
+
+
+
+
+
+
+

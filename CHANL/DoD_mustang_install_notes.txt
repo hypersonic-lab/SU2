@@ -1,0 +1,34 @@
+### The following instructions are for bash. ###
+### Created by K. Hanquist - 11 Nov 22 ###
+
+module load cseinit-noloads
+module load cse/python3/latest
+module load cse/cmake/latest
+
+module unload mpt
+module load mpt/2.26
+
+module unload compiler/intel/18.0.3.222
+module load compiler/intel/2022.0.2
+
+export CC=/opt/hpe/hpc/mpt/mpt-2.26/bin/mpicc
+export CXX=/opt/hpe/hpc/mpt/mpt-2.26/bin/mpicxx
+
+git clone git@github.com:hypersonic-lab/SU2.git; cd SU2
+export PATH=$PWD:$PATH;
+mkdir install
+./meson.py --prefix=$HOME/REPO/SU2/install build -Denable-mpp=true;
+export DESTDIR=$SU2_HOME/install;
+./ninja -C build install;
+
+# Update  ~/.personal.bashrc with the following:
+
+export SU2_RUN=$SU2_HOME/install/bin
+export SU2_HOME=~/REPO/SU2
+export PATH=$PATH:$SU2_RUN
+export PYTHONPATH=$PYTHONPATH:$SUN_RUN
+export MPP_DIRECTORY=$SU2_HOME/subprojects/Mutationpp
+export MPP_DATA_DIRECTORY=$MPP_DIRECTORY/data
+export LD_LIBRARY_PATH="$SU2_HOME/install/lib64:$LD_LIBRARY_PATH"
+
+# Notes: compilation can be improved so install does not include a lot of subdirectories
