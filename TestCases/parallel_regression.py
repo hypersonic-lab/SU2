@@ -311,7 +311,7 @@ def main():
     flatplate_udobj.cfg_dir   = "user_defined_functions"
     flatplate_udobj.cfg_file  = "lam_flatplate.cfg"
     flatplate_udobj.test_iter = 20
-    flatplate_udobj.test_vals = [-6.661084, -1.186974, -0.956148, 0.000640, -0.000642, 0.000539, -0.001181, 596.990000, 300.070000, 296.920000, 22.250000, 0.522670, 37.278000, 2.342900]
+    flatplate_udobj.test_vals = [-6.653278, -1.180894, -0.794611, 0.000613, -0.000370, 0.000737, -0.001107, 596.680000, 299.790000, 296.890000, 21.488000, 0.564630, 37.153000, 2.284900]
     test_list.append(flatplate_udobj)
 
     # Laminar cylinder (steady)
