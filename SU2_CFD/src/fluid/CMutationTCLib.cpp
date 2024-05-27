@@ -39,6 +39,7 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   es.resize(nEnergyEq*nSpecies,0.0);
   omega_vec.resize(1,0.0);
   CatRecombTable.resize(nSpecies,2) = 0;
+  NoneqStateModel = config->GetNoneqStateModel();
 
   /*--- Set up inputs to define type of mixture in the Mutation++ library ---*/
 
@@ -49,8 +50,14 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
     transport_model = "Gupta-Yos";
   else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
     transport_model = "Chapmann-Enskog_LDLT";
+  if (NoneqStateModel == "2T") {
+      opt.setStateModel("ChemNonEqTTv");
+  }
+  else if (NoneqStateModel == "1T"){
+      opt.setStateModel("ChemNonEq1T");
+  }
 
-  opt.setStateModel("ChemNonEqTTv");
+
   if (frozen) opt.setMechanism("none");
   opt.setViscosityAlgorithm(transport_model);
   opt.setThermalConductivityAlgorithm(transport_model);
