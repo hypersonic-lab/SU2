@@ -344,8 +344,8 @@ def main():
     poiseuille_profile.cfg_dir   = "navierstokes/poiseuille"
     poiseuille_profile.cfg_file  = "profile_poiseuille.cfg"
     poiseuille_profile.test_iter = 10
-    poiseuille_profile.test_vals         = [-12.027089, -6.349320, -0.000000, 2.085790]
-    poiseuille_profile.test_vals_aarch64 = [-12.027089, -6.349320, -0.000000, 2.085790]
+    poiseuille_profile.test_vals         = [-12.492865, -7.672526, -0.000000, 2.085796]
+    poiseuille_profile.test_vals_aarch64 = [-12.492864, -7.671632, -0.000000, 2.085796]
     test_list.append(poiseuille_profile)
 
     ##########################
@@ -1019,7 +1019,7 @@ def main():
     flatplate_unsteady.cfg_dir   = "navierstokes/flatplate"
     flatplate_unsteady.cfg_file  = "lam_flatplate_unst.cfg"
     flatplate_unsteady.test_iter = 3
-    flatplate_unsteady.test_vals = [0.000008, -8.874953, -8.250030, -6.306009, -5.468992, -3.398179, 0.002075, -0.326075]
+    flatplate_unsteady.test_vals = [0.000008, -8.869318, -8.232471, -6.283031, -5.467151, -3.391524, 0.002078, -0.343471]
     flatplate_unsteady.unsteady  = True
     test_list.append(flatplate_unsteady)
 
