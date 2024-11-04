@@ -4024,6 +4024,10 @@ void CConfig::SetPostprocessing(SU2_COMPONENT val_software, unsigned short val_i
                      CURRENT_FUNCTION);
     }
 
+    if (Kind_FluidModel == MUTATIONPP && (Kind_TransCoeffModel == TRANSCOEFFMODEL::GUPTAYOS)) {
+      cout << "Gupta-Yos viscosity model chosen for M++. Chapman-Enskog model will be used for Thermal Conductivity." << endl;
+    }
+
     if (Kind_FluidModel == SU2_NONEQ && GasModel == "AIR-7" && nWall_Catalytic != 0) {
       SU2_MPI::Error("Catalytic wall recombination is not yet available for ionized flows in SU2_NEMO.", CURRENT_FUNCTION);
     }
