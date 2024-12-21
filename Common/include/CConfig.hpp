@@ -1014,10 +1014,12 @@ private:
   su2double *Int_Coeffs;         /*!< \brief Time integration coefficients for structural method. */
   unsigned short nElasticityMod, /*!< \brief Number of different values for the elasticity modulus. */
   nPoissonRatio,                    /*!< \brief Number of different values for the Poisson ratio modulus. */
-  nMaterialDensity;                 /*!< \brief Number of different values for the Material density. */
+  nMaterialDensity,                 /*!< \brief Number of different values for the Material density. */
+  nMaterialThermalExpansion;        /*!< \brief Number of different values for thermal expansion coefficient. */
   su2double *ElasticityMod,         /*!< \brief Value of the elasticity moduli. */
   *PoissonRatio,                    /*!< \brief Value of the Poisson ratios. */
-  *MaterialDensity;                 /*!< \brief Value of the Material densities. */
+  *MaterialDensity,                 /*!< \brief Value of the Material densities. */
+  *MaterialThermalExpansion;        /*!< \brief Value of the thermal expansion coefficients. */
   unsigned short nElectric_Field,   /*!< \brief Number of different values for the electric field in the membrane. */
   nDim_Electric_Field;              /*!< \brief Dimensionality of the problem. */
   unsigned short nDim_RefNode;      /*!< \brief Dimensionality of the vector . */
@@ -2390,6 +2392,11 @@ public:
    * \return Value of the Material Density.
    */
   su2double GetMaterialDensity(unsigned short id_val) const { return MaterialDensity[id_val]; }
+
+  /*!
+   * \brief Get the thermal expansion coefficient.
+   */
+  su2double GetMaterialThermalExpansion(unsigned short id_val) const { return MaterialThermalExpansion[id_val]; }
 
   /*!
    * \brief Compressibility/incompressibility of the solids analysed using the structural solver.
