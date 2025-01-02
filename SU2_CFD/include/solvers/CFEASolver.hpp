@@ -28,6 +28,7 @@
 #pragma once
 
 #include "CFEASolverBase.hpp"
+#include "CHeatSolver.hpp"
 
 /*!
  * \class CFEASolver
@@ -99,6 +100,22 @@ protected:
   bool topol_filter_applied;   /*!< \brief True if density filtering has been performed. */
   bool initial_calc = true;    /*!< \brief Becomes false after first call to Preprocessing. */
   bool body_forces = false;    /*!< \brief Whether any body force is active. */
+
+  /*!
+ * \brief Pointer to the heat solver for coupled simulations.
+ *
+ * This member stores a pointer to the heat solver, which handles
+ * the solution of the heat equation in weakly coupled simulations.
+ * It is initialized during the preprocessing step if the configuration
+ * enables the weak coupling of heat and elasticity solvers. This solver
+ * provides temperature information to the finite element elasticity solver
+ * and contributes to the coupled residuals.
+ *
+ * The `heat_solver` pointer remains `nullptr` when the heat solver is not enabled
+ * in the configuration. Memory for the heat solver is dynamically allocated
+ * during initialization and released in the destructor to avoid memory leaks.
+ */
+  CSolver* heat_solver = nullptr;
 
   /*!
    * \brief The highest level in the variable hierarchy this solver can safely use,
