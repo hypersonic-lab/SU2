@@ -1172,12 +1172,6 @@ class CGeometry {
 
   /*!
    * \brief A virtual member.
-   * \param[in] config - Definition of the particular problem.
-   */
-  inline virtual void FindNearest_Neighbor(const CConfig* config) {}
-
-  /*!
-   * \brief A virtual member.
    */
   inline virtual void SetGlobal_to_Local_Point() {}
 
