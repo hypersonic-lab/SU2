@@ -2,7 +2,7 @@
  * \file CMutationTCLib.hpp
  * \brief Defines the class for the link to Mutation++ ThermoChemistry library.
  * \author C. Garbacz
- * \version 8.1.0 "Harrier"
+ * \version 8.0.1 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -38,6 +38,9 @@
  * \author:  C. Garbacz
  */
 class CMutationTCLib : public CNEMOGas {
+
+protected:
+  string NoneqStateModel;                 /*!< \brief String nonequilibrium state model. */
 
 private:
 
@@ -131,11 +134,6 @@ public:
    * \brief Get species molar mass.
    */
   vector<su2double>& GetSpeciesMolarMass() final;
-
-  /*!
-   * \brief Get species charge.
-   */
-   vector<su2double>& GetSpeciesCharge() final;
 
   /*!
    * \brief Get reference temperature.

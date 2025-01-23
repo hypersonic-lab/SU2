@@ -2,7 +2,7 @@
  * \file CMutationTCLib.cpp
  * \brief Source of the Mutation++ 2T nonequilibrium gas model.
  * \author C. Garbacz
- * \version 8.1.0 "Harrier"
+ * \version 8.0.1 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -39,6 +39,7 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   es.resize(nEnergyEq*nSpecies,0.0);
   omega_vec.resize(1,0.0);
   CatRecombTable.resize(nSpecies,2) = 0;
+  NoneqStateModel = config->GetNoneqStateModel();
 
   /*--- Set up inputs to define type of mixture in the Mutation++ library ---*/
 
@@ -49,14 +50,19 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
     transport_model = "Gupta-Yos";
   else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
     transport_model = "Chapmann-Enskog_LDLT";
+  if (NoneqStateModel == "2T") {
+      opt.setStateModel("ChemNonEqTTv");
+  }
+  else if (NoneqStateModel == "1T"){
+      opt.setStateModel("ChemNonEq1T");
+  }
 
-  opt.setStateModel("ChemNonEqTTv");
+
   if (frozen) opt.setMechanism("none");
-  
   if (transport_model == "Gupta-Yos")
   {
       opt.setViscosityAlgorithm(transport_model);
-      opt.setThermalConductivityAlgorithm("Chapmann-Enskog_LDLT");
+      opt.setThermalConductivityAlgorithm("Wilke");
   }
   else
   {
@@ -68,12 +74,8 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   mix.reset(new Mutation::Mixture(opt));
 
   // x1000 to have Molar Mass in kg/kmol
-  // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
-  // TODO: Check if this is correct and pull in the constant from M++
-  for(iSpecies = 0; iSpecies < nSpecies; iSpecies++){
+  for(iSpecies = 0; iSpecies < nSpecies; iSpecies++)
     MolarMass[iSpecies] = 1000* mix->speciesMw(iSpecies);
-    ChargeSpecies[iSpecies] = mix->speciesCharge(iSpecies)/1.602176565E-19;
-  }
 
   if (mix->hasElectrons()) { nHeavy = nSpecies-1; nEl = 1; }
   else { nHeavy = nSpecies; nEl = 0; }
@@ -136,14 +138,6 @@ vector<su2double>& CMutationTCLib::GetSpeciesMolarMass(){
    return MolarMass;
 }
 
-// TODO: Create or pull in a constant for elementary charge
-vector<su2double>& CMutationTCLib::GetSpeciesCharge(){
-
-   for(iSpecies = 0; iSpecies < nSpecies; iSpecies++) ChargeSpecies[iSpecies] = mix->speciesCharge(iSpecies)/1.602176565E-19; // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
-
-   return ChargeSpecies;
-}
-
 vector<su2double>& CMutationTCLib::GetSpeciesCvTraRot(){
 
    mix->getCvsMass(Cv_ks.data());
@@ -188,6 +182,10 @@ vector<su2double>& CMutationTCLib::ComputeNetProductionRates(bool implicit, cons
                                                su2double **val_jacobian){
 
   mix->netProductionRates(ws.data());
+  // test = mix->netProductionRates(ws.data());
+  // if (implicit){
+  //   val_jacobian = ... //Mutation++
+  // }
 
   return ws;
 }
