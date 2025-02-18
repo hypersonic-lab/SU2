@@ -1437,9 +1437,17 @@ vector<su2double>& CSU2TCLib::ComputeNetProductionRates(bool implicit, const su2
       if (iSpecies != nSpecies)
         ws[iSpecies] -= MolarMass[iSpecies] * (fwdRxn-bkwRxn);
     }
-
+    
+    unsigned short nVar = nSpecies+nDim+2;
     if (implicit) {
       ChemistryJacobian(iReaction, V, eve, cvve, dTdU, dTvedU, val_jacobian);
+      for (auto iVar = 0ul; iVar < nVar; iVar++)
+        for (auto jVar = 0ul; jVar < nVar; jVar++){
+        //  jacobian[iVar][jVar] = 0.0;
+          cout << "iVar " << iVar << " " << "jVar " << jVar << endl;
+          cout << val_jacobian[iVar][jVar] << endl;
+          cout << endl;
+    }
     }
   } //iReaction
 

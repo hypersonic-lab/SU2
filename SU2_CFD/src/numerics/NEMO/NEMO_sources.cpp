@@ -78,8 +78,10 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeChemistry(const CConfig *config) 
 
   if (implicit)
     for (auto iVar = 0ul; iVar < nVar; iVar++)
-      for (auto jVar = 0ul; jVar < nVar; jVar++)
+      for (auto jVar = 0ul; jVar < nVar; jVar++){
         jacobian[iVar][jVar] = 0.0;
+        cout << "iVar " << iVar << " " << "jVar " << jVar << endl;
+    }
 
   /*--- Rename for convenience ---*/
   su2double T = V_i[T_INDEX];

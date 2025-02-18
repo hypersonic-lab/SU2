@@ -187,8 +187,34 @@ vector<su2double>& CMutationTCLib::ComputeNetProductionRates(bool implicit, cons
                                                const su2double* cvve, const su2double* dTdU, const su2double* dTvedU,
                                                su2double **val_jacobian){
 
-  mix->netProductionRates(ws.data());
+    mix->netProductionRates(ws.data());
+    unsigned short nVar = nSpecies+nDim+2;
+    // su2double* jacobian_ptr = new su2double [nVar];
+    // su2double** jacobian_ptr_ptr = &jacobian_ptr;
+    // for(auto iVar = 0ul; iVar < nVar; ++iVar){
+    // jacobian_ptr_ptr[iVar] = new su2double [nVar]();}
+    // for(auto iVar = 0ul; iVar < nVar; ++iVar)
+    //   test[iVar] = new su2double [nVar]();
+    // mix->jacobianRho(jacobian_ptr);
+    if (implicit) {
+      mix->jacobianRho(*val_jacobian);
+      for (auto iVar = 0ul; iVar < nVar; iVar++)
+        for (auto jVar = 0ul; jVar < nVar; jVar++){
+        //  jacobian[iVar][jVar] = 0.0;
+          cout << "iVar " << iVar << " " << "jVar " << jVar << endl;
+          cout << val_jacobian[iVar][jVar] << endl;
+          cout << endl;
+    }
+    }
 
+    // cout << test2 << endl;
+    // // su2double value = *test2; 
+    // for(iSpecies = 0; iSpecies < nSpecies; iSpecies++) cout << test[iSpecies] << endl;
+    // for(auto iVar = 0ul; iVar < nVar; ++iVar){
+    //   cout << jacobian_ptr_ptr[iVar] << endl; }
+    // for(auto iVar = 0ul; iVar < nVar; ++iVar){
+    //   cout << jacobian_ptr[iVar] << endl;
+    // }  
   return ws;
 }
 
