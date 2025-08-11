@@ -1234,9 +1234,9 @@ void CConfig::SetConfig_Options() {
   /*!\brief 2T_STEP_SIZE  \n DESCRIPTION: M++ 2T Newton Pertubation Step Size \ingroup Config*/
   addDoubleOption("2T_STEP_SIZE", Step_Size_2T, 0.001);
     /* DESCRIPTION: CentralScheme */
-  addBoolOption("2T_CENTRAL_SCHEME", CentralScheme, false);
+  addStringOption("2T_FD_SCHEME", Finite_Difference_2T, string("none"));
   /* DESCRIPTION: FollowUp */
-  addBoolOption("2T_FOLLOW_UP", Follow_Up, false);
+  addBoolOption("2T_NEWTON", Newton_2T, true);
 
 
   /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */

@@ -42,6 +42,7 @@ class CMutationTCLib : public CNEMOGas {
 protected:
 
   string NoneqStateModel;                 /*!< \brief String nonequilibrium state model. */
+  string Finite_Difference;                 /*!< \brief String nonequilibrium state model. */
 
 private:
 
@@ -54,8 +55,9 @@ private:
   su2double Tref;                         /*!< \brief Reference temperature. */
 
   double m_h;
+  bool m_NEWTON;
+  bool m_FORWARD;
   bool m_CENTRAL;
-  bool m_FOLLOW_UP;
 
 public:
 
