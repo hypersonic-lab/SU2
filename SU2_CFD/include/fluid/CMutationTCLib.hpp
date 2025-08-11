@@ -53,6 +53,10 @@ private:
 
   su2double Tref;                         /*!< \brief Reference temperature. */
 
+  double m_h;
+  bool m_CENTRAL;
+  bool m_FOLLOW_UP;
+
 public:
 
   /*!

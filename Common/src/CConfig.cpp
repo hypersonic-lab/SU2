@@ -1230,6 +1230,15 @@ void CConfig::SetConfig_Options() {
   addStringOption("GAS_MODEL", GasModel, string("N2"));
   /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */
   addStringOption("NONEQ_STATE_MODEL", NoneqStateModel, string("2T"));
+
+  /*!\brief 2T_STEP_SIZE  \n DESCRIPTION: M++ 2T Newton Pertubation Step Size \ingroup Config*/
+  addDoubleOption("2T_STEP_SIZE", Step_Size_2T, 0.001);
+    /* DESCRIPTION: CentralScheme */
+  addBoolOption("2T_CENTRAL_SCHEME", CentralScheme, false);
+  /* DESCRIPTION: FollowUp */
+  addBoolOption("2T_FOLLOW_UP", Follow_Up, false);
+
+
   /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */
   addEnumOption("TRANSPORT_COEFF_MODEL", Kind_TransCoeffModel, TransCoeffModel_Map, TRANSCOEFFMODEL::WILKE);
   /* DESCRIPTION: Specify mass fraction of each species */
