@@ -72,6 +72,7 @@ void CFluidIteration::Iterate(COutput* output, CIntegration**** integration, CGe
   /*--- Update global parameters ---*/
 
   const auto main_solver = config[val_iZone]->GetKind_Solver();
+
   config[val_iZone]->SetGlobalParam(main_solver, RUNTIME_FLOW_SYS);
 
   /*--- Solve the Euler, Navier-Stokes or Reynolds-averaged Navier-Stokes (RANS) equations (one iteration) ---*/
@@ -178,8 +179,8 @@ void CFluidIteration::Update(COutput* output, CIntegration**** integration, CGeo
     /*--- Update dual time solver for the turbulence model ---*/
 
     if ((config[val_iZone]->GetKind_Solver() == MAIN_SOLVER::RANS) || (config[val_iZone]->GetKind_Solver() == MAIN_SOLVER::DISC_ADJ_RANS) ||
-        (config[val_iZone]->GetKind_Solver() == MAIN_SOLVER::INC_RANS) ||
-        (config[val_iZone]->GetKind_Solver() == MAIN_SOLVER::DISC_ADJ_INC_RANS)) {
+        (config[val_iZone]->GetKind_Solver() == MAIN_SOLVER::NEMO_RANS) ||
+        (config[val_iZone]->GetKind_Solver() == MAIN_SOLVER::INC_RANS) || (config[val_iZone]->GetKind_Solver() == MAIN_SOLVER::DISC_ADJ_INC_RANS)) {
       integration[val_iZone][val_iInst][TURB_SOL]->SetDualTime_Solver(geometry[val_iZone][val_iInst][MESH_0],
                                                                       solver[val_iZone][val_iInst][MESH_0][TURB_SOL],
                                                                       config[val_iZone], MESH_0);
