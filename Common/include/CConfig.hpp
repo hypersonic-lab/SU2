@@ -1253,7 +1253,8 @@ private:
   Supercatalytic_Wall;                      /*!< \brief Flag for supercatalytic wall. */
   string GasModel,                          /*!< \brief Gas Model. */
   *Wall_Catalytic;                          /*!< \brief Pointer to catalytic walls. */
-  string NoneqStateModel;                   /*!< \brief Nonequilibtrium State Model. */
+  string NoneqStateModel;                   /*!< \brief Nonequilibrium State Model. */
+  bool Newton_2T;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
@@ -3953,6 +3954,13 @@ public:
    * \return Nonequilibrium state model that we are using.
    */
   string GetNoneqStateModel(void) const {return NoneqStateModel;}
+
+    /*!
+   * \brief 2T Nonequilibrium numerical method to solve for temperatures.
+   * \return Bool to use M++ implementation vs. Perturbation Method.
+   */
+  bool Get2TNewton(void) const {return Newton_2T;}
+
 
   /*!
    * \brief Get the transport coefficient model.
