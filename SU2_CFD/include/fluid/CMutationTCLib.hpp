@@ -58,6 +58,8 @@ private:
 
   su2double Tref;                         /*!< \brief Reference temperature. */
 
+  bool NEWTON;                             /*!< \brief Boolean to use Newton-Raphson h/cp or Perturbation Method to calculate Jacobian. */
+
 public:
 
   /*!
