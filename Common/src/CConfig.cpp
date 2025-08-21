@@ -1228,8 +1228,10 @@ void CConfig::SetConfig_Options() {
   /*--- Reading gas model as string or integer depending on TC library used. ---*/
   /* DESCRIPTION: Specify chemical model for multi-species simulations - read by Mutation++ library*/
   addStringOption("GAS_MODEL", GasModel, string("N2"));
-  /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */
+  /* DESCRIPTION: Specify Nonequilibrium Temperature Model */
   addStringOption("NONEQ_STATE_MODEL", NoneqStateModel, string("2T"));
+  /* DESCRIPTION: Specify M++ Derivative vs. Perturbation Method for Newton's Method solving for temperatures */
+  addBoolOption("2T_NEWTON", Newton_2T, true);
   /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */
   addEnumOption("TRANSPORT_COEFF_MODEL", Kind_TransCoeffModel, TransCoeffModel_Map, TRANSCOEFFMODEL::WILKE);
   /* DESCRIPTION: Specify mass fraction of each species */
