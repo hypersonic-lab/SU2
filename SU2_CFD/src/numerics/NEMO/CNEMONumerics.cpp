@@ -241,7 +241,6 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   }
 
   /*--- Rename variables for convenience ---*/
-  const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& Ds  = val_diffusioncoeff;
   const su2double mu  = val_lam_viscosity+val_eddy_viscosity;
   su2double ktr = val_therm_conductivity;
