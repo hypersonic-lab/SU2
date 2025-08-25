@@ -1226,7 +1226,9 @@ private:
   string GasModel,                          /*!< \brief Gas Model. */
   *Wall_Catalytic;                          /*!< \brief Pointer to catalytic walls. */
   string NoneqStateModel;                   /*!< \brief Nonequilibrium State Model. */
-  bool Newton_2T;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
+  su2double Step_Size_2T;                   /*!< \brief 2T_Step_Size. */
+  string Finite_Difference_2T;                   /*!< \brief Nonequilibtrium State Model. */
+  bool Newton_2T;                   /*!< \brief Nonequilibtrium State Model. */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
@@ -3863,11 +3865,24 @@ public:
    */
   string GetNoneqStateModel(void) const {return NoneqStateModel;}
 
-    /*!
+  /*!
    * \brief 2T Nonequilibrium numerical method to solve for temperatures.
    * \return Bool to use M++ implementation vs. Perturbation Method.
    */
   bool Get2TNewton(void) const {return Newton_2T;}
+    
+  /*!
+   * \brief 2T Nonequilibrium step size to solve for temperatures with perturbations.
+   * \return Step size value.
+   */
+  su2double Get2TStepSize(void) const {return Step_Size_2T;}
+
+  /*!
+   * \brief 2T Nonequilibrium numerical method to solve for temperatures.
+   * \return Define forward or central method.
+   */
+  string Get2TFiniteDifferenceScheme(void) const {return Finite_Difference_2T;}
+
 
 
   /*!

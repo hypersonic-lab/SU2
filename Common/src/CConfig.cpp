@@ -1230,7 +1230,11 @@ void CConfig::SetConfig_Options() {
   addStringOption("GAS_MODEL", GasModel, string("N2"));
   /* DESCRIPTION: Specify Nonequilibrium Temperature Model */
   addStringOption("NONEQ_STATE_MODEL", NoneqStateModel, string("2T"));
-  /* DESCRIPTION: Specify M++ Derivative vs. Perturbation Method for Newton's Method solving for temperatures */
+  /*!\brief 2T_STEP_SIZE  \n DESCRIPTION: M++ 2T Newton Pertubation Step Size \ingroup Config*/
+  addDoubleOption("2T_STEP_SIZE", Step_Size_2T, 0.001);
+    /* DESCRIPTION: Forward or CentralScheme */
+  addStringOption("2T_FD_SCHEME", Finite_Difference_2T, string("none"));
+  /* DESCRIPTION: Use default M++ Newton's method */
   addBoolOption("2T_NEWTON", Newton_2T, true);
   /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */
   addEnumOption("TRANSPORT_COEFF_MODEL", Kind_TransCoeffModel, TransCoeffModel_Map, TRANSCOEFFMODEL::WILKE);

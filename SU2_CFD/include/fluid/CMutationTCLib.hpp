@@ -42,6 +42,7 @@ class CMutationTCLib : public CNEMOGas {
 protected:
 
   string NoneqStateModel;                 /*!< \brief String nonequilibrium state model. */
+  string Finite_Difference; 
 
 private:
 
@@ -59,6 +60,10 @@ private:
   su2double Tref;                         /*!< \brief Reference temperature. */
 
   bool NEWTON;                             /*!< \brief Boolean to use Newton-Raphson h/cp or Perturbation Method to calculate Jacobian. */
+  double m_h;
+  bool FORWARD;
+  bool CENTRAL;
+
 
 public:
 

@@ -57,6 +57,20 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
     transport_model = "Chapmann-Enskog_LDLT";
 
   NEWTON = config->Get2TNewton();
+  m_h = config->Get2TStepSize();
+  Finite_Difference = config->Get2TFiniteDifferenceScheme();
+  if (Finite_Difference == "FORWARD") {
+    FORWARD = true;
+    CENTRAL = false;
+  }
+  else if (Finite_Difference == "CENTRAL"){
+    FORWARD = false;
+    CENTRAL = true;
+  }
+  else {
+    FORWARD = false;
+    CENTRAL = false;
+  }
   if (NoneqStateModel == "2T") {
       opt.setStateModel("ChemNonEqTTv");
   }
@@ -138,7 +152,7 @@ void CMutationTCLib::SetTDStateRhosTTv(vector<su2double>& val_rhos, su2double va
 
   Pressure = ComputePressure();
 
-  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON);
+  mix->setState(rhos.data(), temperatures.data(), 1, m_h, NEWTON, FORWARD, CENTRAL);
 
 }
 
@@ -296,7 +310,7 @@ vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rh
   energies[0] = rhoE - rhoEvel;
   energies[1] = rhoEve;
 
-  mix->setState(rhos.data(), energies.data(), 0, NEWTON);
+  mix->setState(rhos.data(), energies.data(), 0, m_h, NEWTON, FORWARD, CENTRAL);
 
   mix->getTemperatures(temperatures.data());
 
