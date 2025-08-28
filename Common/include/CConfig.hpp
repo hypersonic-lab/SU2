@@ -1227,8 +1227,8 @@ private:
   *Wall_Catalytic;                          /*!< \brief Pointer to catalytic walls. */
   string NoneqStateModel;                   /*!< \brief Nonequilibrium State Model. */
   su2double Step_Size_2T;                   /*!< \brief 2T_Step_Size. */
-  string Finite_Difference_2T;                   /*!< \brief Nonequilibtrium State Model. */
-  bool Newton_2T;                   /*!< \brief Nonequilibtrium State Model. */
+  string Finite_Difference_2T;              /*!< \brief 2T optimization method solve for energies. */
+  bool Newton_2T;                           /*!< \brief Use Newton-Raphson with h/cp. */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
