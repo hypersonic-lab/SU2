@@ -232,8 +232,8 @@ void CNEMOGas::ComputedPdU(const su2double *V, const vector<su2double>& val_eves
   val_dPdU[nSpecies+nDim]   = conc*Ru / rhoCvtr;
 
   /*--- Vib.-el energy derivative ---*/
-  val_dPdU[nSpecies+nDim+1] = -val_dPdU[nSpecies+nDim] +
-                               rho_el*Ru/MolarMass[0]*1.0/rhoCvve;
+  val_dPdU[nSpecies+nDim+1] = -val_dPdU[nSpecies+nDim];
+  if (rhoCvve != 0.) val_dPdU[nSpecies+nDim+1] += rho_el*Ru/MolarMass[0]*1.0/rhoCvve; //Added by RSCD
 
 }
 
@@ -280,15 +280,21 @@ void CNEMOGas::ComputedTvedU(const su2double *V, const vector<su2double>& val_ev
   su2double rhoCvve = V[RHOCVVE_INDEX];
 
   /*--- Species density derivatives ---*/
-  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
-    val_dTvedU[iSpecies] = -val_eves[iSpecies]/rhoCvve;
+  if(rhoCvve == 0.) {
+    for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) 
+      val_dTvedU[iSpecies] = 0.0;
+  } else {
+    for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) 
+      val_dTvedU[iSpecies] = -val_eves[iSpecies]/rhoCvve;
   }
+
   /*--- Momentum derivatives ---*/
   for (iDim = 0; iDim < nDim; iDim++)
     val_dTvedU[nSpecies+iDim] = 0.0;
 
   /*--- Energy derivatives ---*/
   val_dTvedU[nSpecies+nDim]   = 0.0;
-  val_dTvedU[nSpecies+nDim+1] = 1.0 / rhoCvve;
+  if (rhoCvve == 0.) val_dTvedU[nSpecies+nDim+1] = 0.0;
+  else val_dTvedU[nSpecies+nDim+1] = 1.0 / rhoCvve;
 
 }

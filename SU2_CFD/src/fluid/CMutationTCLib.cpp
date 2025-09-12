@@ -211,24 +211,27 @@ void CMutationTCLib::ChemistryJacobian(unsigned short iReaction, const su2double
                                   const su2double* dTdU, const su2double* dTvedU, su2double **val_jacobian){
 
   unsigned short iVar, jVar, iSpecies;
-  unsigned short nEve = nSpecies+nDim+1;
   unsigned short nVar = nSpecies+nDim+2;
 
   mix->jacobianRho(JacRho.data());
   mix->jacobianT(JacT.data());
-  mix->jacobianTv(JacTv.data());
 
-  for(iSpecies = 0; iSpecies < nSpecies; iSpecies++)
-      for(jSpecies = 0; jSpecies < nSpecies; jSpecies++) 
-          val_jacobian[iSpecies][jSpecies] = JacRho[iSpecies*nSpecies+jSpecies];
-  
   for(iSpecies = 0; iSpecies < nSpecies; iSpecies++){
+      for(jSpecies = 0; jSpecies < nSpecies; jSpecies++){ 
+          val_jacobian[iSpecies][jSpecies] = JacRho[iSpecies*nSpecies+jSpecies];}
       for(iVar = 0; iVar < nVar; iVar++){
-          val_jacobian[iSpecies][iVar] += JacT[iSpecies]*dTdU[iVar];
-          val_jacobian[iSpecies][iVar] += JacTv[iSpecies]*dTvedU[iVar];
-      }
-  }  
+          val_jacobian[iSpecies][iVar] += JacT[iSpecies]*dTdU[iVar];}
+  }
 
+
+  if (NoneqStateModel == "2T") {  
+  	mix->jacobianTv(JacTv.data());
+  	for(iSpecies = 0; iSpecies < nSpecies; iSpecies++){
+      		for(iVar = 0; iVar < nVar; iVar++){
+          		val_jacobian[iSpecies][iVar] += JacTv[iSpecies]*dTvedU[iVar];}
+        }
+  }    
+    
 }
 
 su2double CMutationTCLib::ComputeEveSourceTerm(){
@@ -242,6 +245,8 @@ su2double CMutationTCLib::ComputeEveSourceTerm(){
 
 void CMutationTCLib::GetEveSourceTermJacobian(const su2double *V, const su2double *eve, const su2double *cvve, const su2double *dTdU, 
                                   const su2double* dTvedU, su2double **val_jacobian){
+
+   if (NoneqStateModel == "1T") return;
 
    unsigned short iVar, jVar, iSpecies;
    unsigned short nEve = nSpecies+nDim+1;

@@ -346,10 +346,10 @@ void CNEMONumerics::GetViscousProjJacs(const su2double *val_Mean_PrimVar,
       switch (nSpecies) {
         case 5: return COMPUTE_VISCOUS_JACS(10, 5);
 
-	case 6: return COMPUTE_VISCOUS_JACS(10, 6);
+        case 6: return COMPUTE_VISCOUS_JACS(10, 6);
 
-	default: SU2_MPI::Error("nVar and nSpecies mismatch.", CURRENT_FUNCTION);
-      }	 	 
+        default: SU2_MPI::Error("nVar and nSpecies mismatch.", CURRENT_FUNCTION);
+      }
     break;
     case 11:
       return COMPUTE_VISCOUS_JACS(11, 7);
