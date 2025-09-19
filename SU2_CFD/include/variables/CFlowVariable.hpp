@@ -52,6 +52,8 @@ class CFlowVariable : public CVariable {
   MatrixType Vorticity; /*!< \brief Vorticity of the flow field. */
   VectorType StrainMag; /*!< \brief Magnitude of rate of strain tensor. */
 
+  MatrixType AxisymmetricSource; /*!< \brief Axisymmetric source terms. */
+
   /*!
    * \brief Constructor of the class.
    * \note This class is not meant to be instantiated directly, it is only a building block.
@@ -267,4 +269,32 @@ class CFlowVariable : public CVariable {
    * \return Vector of magnitudes.
    */
   inline su2activevector& GetStrainMag() { return StrainMag; }
+
+  /*!
+   * \brief Set an axisymmetric source term value.
+   * \param[in] iPoint - Point index.
+   * \param[in] iVar - Variable index.
+   * \param[in] val_source - Source term value.
+   */
+  inline void SetAxisymmetricSource(unsigned long iPoint, unsigned long iVar, su2double val_source) override {
+    AxisymmetricSource(iPoint, iVar) = val_source;
+  }
+
+  /*!
+   * \brief Get an axisymmetric source term value.
+   * \param[in] iPoint - Point index.
+   * \param[in] iVar - Variable index.
+   * \return Source term value.
+   */
+  inline su2double GetAxisymmetricSource(unsigned long iPoint, unsigned long iVar) const override {
+    return AxisymmetricSource(iPoint, iVar);
+  }
+
+  /*!
+   * \brief Get the axisymmetric source terms for a point.
+   * \param[in] iPoint - Point index.
+   * \return Axisymmetric source term array.
+   */
+  inline su2double* GetAxisymmetricSource(unsigned long iPoint) override { return AxisymmetricSource[iPoint]; }
+  inline const su2double* GetAxisymmetricSource(unsigned long iPoint) const override { return AxisymmetricSource[iPoint]; }
 };

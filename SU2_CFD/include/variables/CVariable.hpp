@@ -1173,6 +1173,30 @@ public:
   /*!
    * \brief A virtual member.
    * \param[in] iPoint - Point index.
+   * \param[in] iVar - Variable index.
+   * \param[in] val_source - Source term value.
+   */
+  inline virtual void SetAxisymmetricSource(unsigned long iPoint, unsigned long iVar, su2double val_source) {}
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
+   * \param[in] iVar - Variable index.
+   * \return Value of the axisymmetric source term.
+   */
+  inline virtual su2double GetAxisymmetricSource(unsigned long iPoint, unsigned long iVar) const { return 0.0; }
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
+   * \return Pointer to the axisymmetric source terms array.
+   */
+  inline virtual su2double* GetAxisymmetricSource(unsigned long iPoint) { return nullptr; }
+  inline virtual const su2double* GetAxisymmetricSource(unsigned long iPoint) const { return nullptr; }
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
    * \param[in] val_ForceProj_Vector - Pointer to the force projection vector.
    */
   inline virtual void SetForceProj_Vector(unsigned long iPoint, const su2double *val_ForceProj_Vector) {}

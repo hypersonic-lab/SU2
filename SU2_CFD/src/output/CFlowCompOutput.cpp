@@ -291,6 +291,19 @@ void CFlowCompOutput::SetVolumeOutputFields(CConfig *config){
 
   SetVolumeOutputFieldsScalarSource(config);
 
+  /*--- Axisymmetric source terms ---*/
+  if (config->GetAxisymmetric()) {
+    AddVolumeOutput("AXISYM_SOURCE_MASS", "Axisym_Source_Mass", "SOURCE", "Axisymmetric source term for mass equation");
+    AddVolumeOutput("AXISYM_SOURCE_MOMX", "Axisym_Source_MomX", "SOURCE", "Axisymmetric source term for x-momentum equation");
+    AddVolumeOutput("AXISYM_SOURCE_MOMY", "Axisym_Source_MomY", "SOURCE", "Axisymmetric source term for y-momentum equation");
+    if (nDim == 3) {
+      AddVolumeOutput("AXISYM_SOURCE_MOMZ", "Axisym_Source_MomZ", "SOURCE", "Axisymmetric source term for z-momentum equation");
+      AddVolumeOutput("AXISYM_SOURCE_ENERGY", "Axisym_Source_Energy", "SOURCE", "Axisymmetric source term for energy equation");
+    } else {
+      AddVolumeOutput("AXISYM_SOURCE_ENERGY", "Axisym_Source_Energy", "SOURCE", "Axisymmetric source term for energy equation");
+    }
+  }
+
   SetVolumeOutputFieldsScalarLookup(config);
 
   SetVolumeOutputFieldsScalarMisc(config);
@@ -376,6 +389,19 @@ void CFlowCompOutput::LoadVolumeData(CConfig *config, CGeometry *geometry, CSolv
 
   if (config->GetKind_RoeLowDiss() != NO_ROELOWDISS){
     SetVolumeOutputValue("ROE_DISSIPATION", iPoint, Node_Flow->GetRoe_Dissipation(iPoint));
+  }
+
+  /*--- Load axisymmetric source terms if axisymmetric case ---*/
+  if (config->GetAxisymmetric()) {
+    SetVolumeOutputValue("AXISYM_SOURCE_MASS", iPoint, Node_Flow->GetAxisymmetricSource(iPoint, 0));
+    SetVolumeOutputValue("AXISYM_SOURCE_MOMX", iPoint, Node_Flow->GetAxisymmetricSource(iPoint, 1));
+    SetVolumeOutputValue("AXISYM_SOURCE_MOMY", iPoint, Node_Flow->GetAxisymmetricSource(iPoint, 2));
+    if (nDim == 3) {
+      SetVolumeOutputValue("AXISYM_SOURCE_MOMZ", iPoint, Node_Flow->GetAxisymmetricSource(iPoint, 3));
+      SetVolumeOutputValue("AXISYM_SOURCE_ENERGY", iPoint, Node_Flow->GetAxisymmetricSource(iPoint, 4));
+    } else {
+      SetVolumeOutputValue("AXISYM_SOURCE_ENERGY", iPoint, Node_Flow->GetAxisymmetricSource(iPoint, 3));
+    }
   }
 
   LoadVolumeDataScalar(config, solver, geometry, iPoint);

@@ -2156,6 +2156,11 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
       /*--- Compute Source term Residual ---*/
       auto residual = numerics->ComputeResidual(config);
 
+      /*--- Store axisymmetric source terms for output ---*/
+      for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+        nodes->SetAxisymmetricSource(iPoint, iVar, residual.residual[iVar]);
+      }
+
       /*--- Add Residual ---*/
       LinSysRes.AddBlock(iPoint, residual);
 
