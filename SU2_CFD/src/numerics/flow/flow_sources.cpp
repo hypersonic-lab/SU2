@@ -118,15 +118,36 @@ CNumerics::ResidualType<> CSourceAxisymmetric_Flow::ComputeResidual(const CConfi
 
   else {
 
-    for (iVar=0; iVar < nVar; iVar++)
-      residual[iVar] = 0.0;
+    /*--- At the axis of symmetry, use L'Hôpital's rule: lim(v/r) = dv/dr ---*/
+    su2double dv_dr = PrimVar_Grad_i[2][1];  // ∂v/∂r (radial velocity gradient)
+    su2double u = U_i[1]/U_i[0];             // u-velocity 
+    su2double rho = U_i[0];                  // density
+    
+    // Compute pressure and enthalpy (same as in main branch)
+    su2double sq_vel = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++) {
+      Velocity_i = U_i[iDim+1] / U_i[0];
+      sq_vel += Velocity_i * Velocity_i;
+    }
+    Pressure_i = Gamma_Minus_One*U_i[0]*(U_i[nDim+1]/U_i[0]-0.5*sq_vel);
+    Enthalpy_i = (U_i[nDim+1] + Pressure_i) / U_i[0];
+
+    /*--- Apply L'Hôpital's rule to axisymmetric source terms ---*/
+    residual[0] = Volume * rho * dv_dr;              // ρ(∂v/∂r)
+    residual[1] = Volume * rho * u * dv_dr;          // ρu(∂v/∂r) 
+    residual[2] = 0.0;                               // ρv(∂v/∂r) = 0 since v=0 at axis
+    residual[3] = Volume * rho * Enthalpy_i * dv_dr; // ρH(∂v/∂r)
 
     if (implicit) {
+      // For now, set Jacobian to zero at axis (can be improved later)
       for (iVar=0; iVar < nVar; iVar++) {
         for (jVar=0; jVar < nVar; jVar++)
           jacobian[iVar][jVar] = 0.0;
       }
     }
+
+    /*--- Add the viscous terms if necessary. ---*/
+    if (viscous) ResidualDiffusion();
 
   }
 
