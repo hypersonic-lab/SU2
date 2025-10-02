@@ -91,6 +91,11 @@ protected:
   su2double Max_CFL_Local;  /*!< \brief Maximum value of the CFL across all the control volumes. */
   su2double Min_CFL_Local;  /*!< \brief Minimum value of the CFL across all the control volumes. */
   su2double Avg_CFL_Local;  /*!< \brief Average value of the CFL across all the control volumes. */
+  
+  /*--- File-based CFL adaptation variables for NEMO solvers ---*/
+  vector<pair<unsigned long, su2double>> CFL_Schedule; /*!< \brief Vector of (iteration, CFL) pairs from file. */
+  bool CFL_Schedule_Loaded; /*!< \brief Flag indicating if CFL schedule has been loaded. */
+  
   vector<su2double> Residual_RMS;      /*!< \brief Vector with the mean residual for each variable. */
   vector<su2double> Residual_Max;      /*!< \brief Vector with the maximal residual for each variable. */
   vector<su2double> Residual_BGS;      /*!< \brief Vector with the mean residual for each variable for BGS subiterations. */
@@ -1414,6 +1419,19 @@ public:
    * \param[in] solver_container - Container vector with all the solutions.
    */
   void AdaptCFLNumber(CGeometry **geometry, CSolver ***solver_container, CConfig *config);
+
+  /*!
+   * \brief Load CFL schedule from file for fluid solvers
+   * \param[in] config - Definition of the particular problem.
+   */
+  void LoadCFLSchedule(const CConfig *config);
+
+  /*!
+   * \brief Get CFL value from schedule based on current iteration for fluid solvers
+   * \param[in] iteration - Current iteration number.
+   * \return CFL value for the current iteration.
+   */
+  su2double GetCFLFromSchedule(unsigned long iteration) const;
 
   /*!
    * \brief Reset the local CFL adaption variables

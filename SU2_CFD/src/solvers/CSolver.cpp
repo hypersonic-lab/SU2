@@ -113,6 +113,10 @@ CSolver::CSolver(LINEAR_SOLVER_MODE linear_solver_mode) : System(linear_solver_m
   Old_Func = 0;
   New_Func = 0;
   NonLinRes_Counter = 0;
+  
+  /*--- File-based CFL adaptation for NEMO solvers. ---*/
+  
+  CFL_Schedule_Loaded = false;
 
   nPrimVarGrad = 0;
   nPrimVar     = 0;
@@ -1703,10 +1707,142 @@ void CSolver::ResetCFLAdapt() {
   NonLinRes_Counter = 0;
 }
 
+void CSolver::LoadCFLSchedule(const CConfig *config) {
+  
+  /*--- Only load the schedule once and only for fluid solvers ---*/
+  if (CFL_Schedule_Loaded) return;
+  
+  /*--- Check if this is a fluid solver ---*/
+  if (!config->GetFluidProblem()) return;
+  
+  /*--- Construct the CFL schedule filename ---*/
+  string cfl_filename = "cfl_schedule.dat";
+  
+  /*--- Only the master process reads the file ---*/
+  if (rank == MASTER_NODE) {
+    ifstream cfl_file(cfl_filename);
+    if (!cfl_file.is_open()) {
+      cout << "Warning: CFL schedule file '" << cfl_filename << "' not found. Using default CFL adaptation." << endl;
+      return;
+    }
+    
+    /*--- Read the CFL schedule ---*/
+    string line;
+    vector<pair<unsigned long, su2double>> temp_schedule;
+    
+    while (getline(cfl_file, line)) {
+      /*--- Skip empty lines and comments ---*/
+      if (line.empty() || line[0] == '#' || line[0] == '%') continue;
+      
+      istringstream iss(line);
+      unsigned long iteration;
+      su2double cfl_value;
+      
+      if (iss >> iteration >> cfl_value) {
+        temp_schedule.push_back(make_pair(iteration, cfl_value));
+      }
+    }
+    cfl_file.close();
+    
+    /*--- Sort the schedule by iteration number ---*/
+    sort(temp_schedule.begin(), temp_schedule.end());
+    
+    /*--- Store locally ---*/
+    CFL_Schedule = temp_schedule;
+    
+    if (!CFL_Schedule.empty()) {
+      cout << "Loaded CFL schedule with " << CFL_Schedule.size() << " entries for fluid solver:" << endl;
+      for (size_t i = 0; i < min(size_t(5), CFL_Schedule.size()); i++) {
+        cout << "  Iteration " << CFL_Schedule[i].first << ": CFL = " << CFL_Schedule[i].second << endl;
+      }
+      if (CFL_Schedule.size() > 5) {
+        cout << "  ... and " << (CFL_Schedule.size() - 5) << " more entries" << endl;
+      }
+    }
+  }
+  
+#ifdef HAVE_MPI
+  /*--- Broadcast the schedule to all processes ---*/
+  unsigned long schedule_size = CFL_Schedule.size();
+  SU2_MPI::Bcast(&schedule_size, 1, MPI_UNSIGNED_LONG, MASTER_NODE, SU2_MPI::GetComm());
+  
+  if (rank != MASTER_NODE) {
+    CFL_Schedule.resize(schedule_size);
+  }
+  
+  for (unsigned long i = 0; i < schedule_size; i++) {
+    SU2_MPI::Bcast(&CFL_Schedule[i].first, 1, MPI_UNSIGNED_LONG, MASTER_NODE, SU2_MPI::GetComm());
+    SU2_MPI::Bcast(&CFL_Schedule[i].second, 1, MPI_DOUBLE, MASTER_NODE, SU2_MPI::GetComm());
+  }
+#endif
+
+  CFL_Schedule_Loaded = true;
+}
+
+su2double CSolver::GetCFLFromSchedule(unsigned long iteration) const {
+  
+  /*--- If no schedule is loaded, return 0 to indicate fallback to default ---*/
+  if (CFL_Schedule.empty()) return 0.0;
+  
+  /*--- Find the appropriate CFL value for the current iteration ---*/
+  su2double cfl_value = CFL_Schedule[0].second; // Default to first value
+  
+  for (size_t i = 0; i < CFL_Schedule.size(); i++) {
+    if (iteration >= CFL_Schedule[i].first) {
+      cfl_value = CFL_Schedule[i].second;
+    } else {
+      break;
+    }
+  }
+  
+  return cfl_value;
+}
+
 
 void CSolver::AdaptCFLNumber(CGeometry **geometry,
                              CSolver   ***solver_container,
                              CConfig   *config) {
+
+  /*--- Check if this is a fluid solver and if file-based CFL schedule should be used ---*/
+  if (config->GetFluidProblem()) {
+    /*--- Load the CFL schedule if not already loaded ---*/
+    LoadCFLSchedule(config);
+    
+    /*--- Use file-based CFL if schedule is available ---*/
+    if (!CFL_Schedule.empty()) {
+      unsigned long current_iter = config->GetMultizone_Problem() ? config->GetOuterIter() : config->GetInnerIter();
+      su2double scheduled_cfl = GetCFLFromSchedule(current_iter);
+      
+      /*--- Apply the scheduled CFL to all mesh levels and points ---*/
+      for (unsigned short iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
+        CSolver *solverFlow = solver_container[iMesh][FLOW_SOL];
+        
+        /*--- Apply multigrid reduction factor ---*/
+        su2double mesh_cfl = scheduled_cfl;
+        if (iMesh > 0) {
+          const su2double CFLRatio = config->GetCFL(iMesh)/config->GetCFL(iMesh-1);
+          mesh_cfl *= CFLRatio;
+        }
+        
+        /*--- Set CFL for all points on this mesh level ---*/
+        SU2_OMP_FOR_STAT(roundUpDiv(geometry[iMesh]->GetnPointDomain(),omp_get_max_threads()))
+        for (unsigned long iPoint = 0; iPoint < geometry[iMesh]->GetnPointDomain(); iPoint++) {
+          solverFlow->GetNodes()->SetLocalCFL(iPoint, mesh_cfl);
+        }
+        END_SU2_OMP_FOR
+        
+        /*--- Update CFL statistics for reporting on fine grid ---*/
+        if ((iMesh == MESH_0) && (config->GetComm_Level() == COMM_FULL)) {
+          Min_CFL_Local = mesh_cfl;
+          Max_CFL_Local = mesh_cfl;
+          Avg_CFL_Local = mesh_cfl;
+        }
+      }
+      
+      /*--- Exit early as we've applied the file-based CFL ---*/
+      return;
+    }
+  }
 
   /* Adapt the CFL number on all multigrid levels using an
    exponential progression with under-relaxation approach. */
