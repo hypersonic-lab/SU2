@@ -996,3 +996,54 @@ void CNEMONSSolver::SetTau_Wall_WF(CGeometry *geometry, CSolver **solver_contain
     SU2_MPI::Error("Wall Functions not yet operational in NEMO.", CURRENT_FUNCTION);
 }
 
+void CNEMONSSolver::AdaptCFLNumber(CGeometry **geometry,
+                                   CSolver   ***solver_container,
+                                   CConfig   *config) {
+
+  /* Enhanced CFL adaptation for NEMO Navier-Stokes solver.
+     This method extends the NEMO Euler CFL adaptation with additional
+     considerations for viscous effects in real gas flows. */
+
+  /* Additional viscous-specific parameters for NEMO NS */
+  const su2double ViscousCFLReduction = 0.9;  // Additional reduction for viscous terms
+  const su2double NEMOViscousThreshold = 100.0;  // Threshold for viscous CFL limit
+  
+  /* Call the parent NEMO Euler CFL adaptation first */
+  CNEMOEulerSolver::AdaptCFLNumber(geometry, solver_container, config);
+  
+  /* Apply additional Navier-Stokes specific CFL adjustments for NEMO */
+  for (unsigned short iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
+    
+    CSolver *solverFlow = solver_container[iMesh][FLOW_SOL];
+    
+    SU2_OMP_FOR_STAT(roundUpDiv(geometry[iMesh]->GetnPointDomain(),omp_get_max_threads()))
+    for (unsigned long iPoint = 0; iPoint < geometry[iMesh]->GetnPointDomain(); iPoint++) {
+
+      /* Get current CFL and viscous eigenvalue information */
+      su2double currentCFL = solverFlow->GetNodes()->GetLocalCFL(iPoint);
+      su2double viscousLambda = solverFlow->GetNodes()->GetMax_Lambda_Visc(iPoint);
+      su2double inviscidLambda = solverFlow->GetNodes()->GetMax_Lambda_Inv(iPoint);
+      
+      /* For NEMO NS, apply additional CFL reduction when viscous effects dominate.
+         This is particularly important for high-temperature real gas flows where
+         transport properties can vary significantly. */
+      if (viscousLambda > 0.0 && inviscidLambda > 0.0) {
+        su2double viscousRatio = viscousLambda / inviscidLambda;
+        
+        /* If viscous effects are significant, apply additional CFL reduction */
+        if (viscousRatio > NEMOViscousThreshold) {
+          su2double additionalReduction = ViscousCFLReduction * min(1.0, NEMOViscousThreshold / viscousRatio);
+          currentCFL *= additionalReduction;
+          
+          /* Ensure we don't go below minimum CFL */
+          const su2double CFLMin = config->GetCFL_AdaptParam(2);
+          currentCFL = max(currentCFL, CFLMin);
+          
+          solverFlow->GetNodes()->SetLocalCFL(iPoint, currentCFL);
+        }
+      }
+    }
+    END_SU2_OMP_FOR
+  }
+}
+

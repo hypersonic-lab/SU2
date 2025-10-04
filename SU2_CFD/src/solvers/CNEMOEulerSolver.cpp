@@ -2365,3 +2365,242 @@ void CNEMOEulerSolver::SetPressureDiffusionSensor(CGeometry *geometry, CConfig *
   CompleteComms(geometry, config, MPI_QUANTITIES::SENSOR);
 
 }
+
+void CNEMOEulerSolver::AdaptCFLNumber(CGeometry **geometry,
+                                      CSolver   ***solver_container,
+                                      CConfig   *config) {
+
+  /* Enhanced CFL adaptation for NEMO solvers, incorporating NEMO-specific
+     physics considerations and multi-species under-relaxation factors. */
+
+  vector<su2double> MGFactor(config->GetnMGLevels()+1,1.0);
+  const su2double CFLFactorDecrease = config->GetCFL_AdaptParam(0);
+  const su2double CFLFactorIncrease = config->GetCFL_AdaptParam(1);
+  const su2double CFLMin            = config->GetCFL_AdaptParam(2);
+  const su2double CFLMax            = config->GetCFL_AdaptParam(3);
+  const su2double acceptableLinTol  = config->GetCFL_AdaptParam(4);
+  const su2double startingIter      = config->GetCFL_AdaptParam(5);
+  const bool fullComms              = (config->GetComm_Level() == COMM_FULL);
+
+  /* NEMO-specific CFL adaptation parameters */
+  const su2double NEMOCFLReductionFactor = 0.8;  // More conservative for NEMO
+  const su2double NEMOSpeciesRelaxationThreshold = 0.05;  // Threshold for species under-relaxation
+  
+  /* Number of iterations considered to check for stagnation. */
+  const auto Res_Count = min(100ul, config->GetnInner_Iter()-1);
+
+  static bool reduceCFL, resetCFL, canIncrease;
+
+  for (unsigned short iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
+
+    /* Store the mean flow, and turbulence solvers more clearly. */
+    CSolver *solverFlow = solver_container[iMesh][FLOW_SOL];
+    CSolver *solverTurb = solver_container[iMesh][TURB_SOL];
+    CSolver *solverSpecies = solver_container[iMesh][SPECIES_SOL];
+
+    /* Compute the reduction factor for CFLs on the coarse levels. */
+    if (iMesh == MESH_0) {
+      MGFactor[iMesh] = 1.0;
+    } else {
+      const su2double CFLRatio = config->GetCFL(iMesh)/config->GetCFL(iMesh-1);
+      MGFactor[iMesh] = MGFactor[iMesh-1]*CFLRatio;
+    }
+
+    /* Check whether we achieved the requested reduction in the linear
+     solver residual within the specified number of linear iterations. */
+    su2double linResTurb = 0.0;
+    su2double linResSpecies = 0.0;
+    if ((iMesh == MESH_0) && solverTurb) linResTurb = solverTurb->GetResLinSolver();
+    if ((iMesh == MESH_0) && solverSpecies) linResSpecies = solverSpecies->GetResLinSolver();
+
+    /* Max linear residual between flow and turbulence/species transport. */
+    const su2double linRes = max(solverFlow->GetResLinSolver(), max(linResTurb, linResSpecies));
+
+    /* Tolerance limited to an acceptable value. */
+    const su2double linTol = max(acceptableLinTol, config->GetLinear_Solver_Error());
+
+    /* Check that we are meeting our nonlinear residual reduction target
+     over time so that we do not get stuck in limit cycles, this is done
+     on the fine grid and applied to all others. */
+
+    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
+    { /* Only the master thread updates the shared variables. */
+
+      /* Check if we should decrease or if we can increase, the 20% is to avoid flip-flopping. */
+      resetCFL = linRes > 0.99;
+      unsigned long iter = config->GetMultizone_Problem() ? config->GetOuterIter() : config->GetInnerIter();
+
+      /* NEMO-specific: Check for non-physical points and reset CFL if detected.
+         When NEMO solvers encounter warnings like "The initial solution contains X points 
+         that are not physical", force CFL to minimum to improve stability. */
+      unsigned long nonPhysicalPoints = config->GetNonphysical_Points();
+      unsigned long nonPhysicalReconstr = config->GetNonphysical_Reconstr();
+      if (nonPhysicalPoints > 0 || nonPhysicalReconstr > 0) {
+        resetCFL = true;  // Force CFL reset when non-physical points/reconstruction are detected
+      }
+
+      /* only change CFL number when larger than starting iteration */
+      reduceCFL = (linRes > 1.2*linTol) && (iter >= startingIter);
+      canIncrease = (linRes < linTol) && (iter >= startingIter);
+
+      if ((iMesh == MESH_0) && (Res_Count > 0)) {
+        Old_Func = New_Func;
+        if (NonLinRes_Series.empty()) NonLinRes_Series.resize(Res_Count,0.0);
+
+        /* Sum the RMS residuals for all equations. */
+        New_Func = 0.0;
+        for (unsigned short iVar = 0; iVar < solverFlow->GetnVar(); iVar++) {
+          New_Func += log10(solverFlow->GetRes_RMS(iVar));
+        }
+        if ((iMesh == MESH_0) && solverTurb) {
+          for (unsigned short iVar = 0; iVar < solverTurb->GetnVar(); iVar++) {
+            New_Func += log10(solverTurb->GetRes_RMS(iVar));
+          }
+        }
+        if ((iMesh == MESH_0) && solverSpecies) {
+          for (unsigned short iVar = 0; iVar < solverSpecies->GetnVar(); iVar++) {
+            New_Func += log10(solverSpecies->GetRes_RMS(iVar));
+          }
+        }
+
+        /* Compute the difference in the nonlinear residuals between the
+         current and previous iterations, taking care with very low initial
+         residuals (due to initialization). */
+        if ((config->GetInnerIter() == 1) && (New_Func - Old_Func > 10)) {
+          Old_Func = New_Func;
+        }
+        NonLinRes_Series[NonLinRes_Counter] = New_Func - Old_Func;
+
+        /* Increment the counter, if we hit the max size, then start over. */
+        NonLinRes_Counter++;
+        if (NonLinRes_Counter == Res_Count) NonLinRes_Counter = 0;
+
+        /* Detect flip-flop convergence to reduce CFL and large increases
+         to reset to minimum value, in that case clear the history. */
+        if (config->GetInnerIter() >= Res_Count) {
+          unsigned long signChanges = 0;
+          su2double totalChange = 0.0;
+          auto prev = NonLinRes_Series.front();
+          for (const auto& val : NonLinRes_Series) {
+            totalChange += val;
+            signChanges += (prev > 0) ^ (val > 0);
+            prev = val;
+          }
+          reduceCFL |= (signChanges > Res_Count/4) && (totalChange > -0.5);
+
+          if (totalChange > 2.0) { // orders of magnitude
+            resetCFL = true;
+            NonLinRes_Counter = 0;
+            for (auto& val : NonLinRes_Series) val = 0.0;
+          }
+        }
+      }
+    } /* End safe global access, now all threads update the CFL number. */
+    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+
+    /* Loop over all points on this grid and apply NEMO-specific CFL adaption. */
+    su2double myCFLMin = 1e30, myCFLMax = 0.0, myCFLSum = 0.0;
+    const su2double CFLTurbReduction = config->GetCFLRedCoeff_Turb();
+    const su2double CFLSpeciesReduction = config->GetCFLRedCoeff_Species();
+
+    SU2_OMP_MASTER
+    if ((iMesh == MESH_0) && fullComms) {
+      Min_CFL_Local = 1e30;
+      Max_CFL_Local = 0.0;
+      Avg_CFL_Local = 0.0;
+    }
+    END_SU2_OMP_MASTER
+
+    SU2_OMP_FOR_STAT(roundUpDiv(geometry[iMesh]->GetnPointDomain(),omp_get_max_threads()))
+    for (unsigned long iPoint = 0; iPoint < geometry[iMesh]->GetnPointDomain(); iPoint++) {
+
+      /* Get the current local flow CFL number at this point. */
+      su2double CFL = solverFlow->GetNodes()->GetLocalCFL(iPoint);
+
+      /* Get the current under-relaxation parameters that were computed
+       during the previous nonlinear update. For NEMO, this includes
+       multi-species under-relaxation considerations. */
+      su2double underRelaxationFlow = solverFlow->GetNodes()->GetUnderRelaxation(iPoint);
+      su2double underRelaxationTurb = 1.0;
+      if ((iMesh == MESH_0) && solverTurb)
+        underRelaxationTurb = solverTurb->GetNodes()->GetUnderRelaxation(iPoint);
+      const su2double underRelaxation = min(underRelaxationFlow,underRelaxationTurb);
+
+      /* NEMO-specific: Check for species-related under-relaxation issues.
+         If the under-relaxation is very small due to species constraint violations,
+         apply more aggressive CFL reduction. */
+      su2double NEMOFactor = 1.0;
+      if (underRelaxation < NEMOSpeciesRelaxationThreshold) {
+        NEMOFactor = NEMOCFLReductionFactor;
+      }
+
+      /* Determine CFL factor based on under-relaxation and NEMO considerations */
+      su2double CFLFactor = 1.0;
+      if (underRelaxation < 0.1 || reduceCFL) {
+        CFLFactor = CFLFactorDecrease * NEMOFactor;
+      } else if ((underRelaxation >= 0.1 && underRelaxation < 1.0) || !canIncrease) {
+        CFLFactor = NEMOFactor;  // Apply NEMO factor even when not changing
+      } else {
+        CFLFactor = CFLFactorIncrease * NEMOFactor;
+      }
+
+      /* Check if we are hitting the min or max and adjust. */
+      if (CFL*CFLFactor <= CFLMin) {
+        CFL       = CFLMin;
+        CFLFactor = MGFactor[iMesh];
+      } else if (CFL*CFLFactor >= CFLMax) {
+        CFL       = CFLMax;
+        CFLFactor = MGFactor[iMesh];
+      }
+
+      /* If we detect a stalled nonlinear residual, then force the CFL
+       for all points to the minimum temporarily to restart the ramp. */
+      if (resetCFL) {
+        CFL       = CFLMin;
+        CFLFactor = MGFactor[iMesh];
+      }
+
+      /* Apply the adjustment to the CFL and store local values. */
+      CFL *= CFLFactor;
+      solverFlow->GetNodes()->SetLocalCFL(iPoint, CFL);
+      if ((iMesh == MESH_0) && solverTurb) {
+        solverTurb->GetNodes()->SetLocalCFL(iPoint, CFL * CFLTurbReduction);
+      }
+      if ((iMesh == MESH_0) && solverSpecies) {
+        solverSpecies->GetNodes()->SetLocalCFL(iPoint, CFL * CFLSpeciesReduction);
+      }
+
+      /* Store min and max CFL for reporting on the fine grid. */
+      if ((iMesh == MESH_0) && fullComms) {
+        myCFLMin = min(CFL,myCFLMin);
+        myCFLMax = max(CFL,myCFLMax);
+        myCFLSum += CFL;
+      }
+
+    }
+    END_SU2_OMP_FOR
+
+    /* Reduce the min/max/avg local CFL numbers. */
+    if ((iMesh == MESH_0) && fullComms) {
+      SU2_OMP_CRITICAL
+      { /* OpenMP reduction. */
+        Min_CFL_Local = min(Min_CFL_Local,myCFLMin);
+        Max_CFL_Local = max(Max_CFL_Local,myCFLMax);
+        Avg_CFL_Local += myCFLSum;
+      }
+      END_SU2_OMP_CRITICAL
+
+      BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
+      { /* MPI reduction. */
+        myCFLMin = Min_CFL_Local; myCFLMax = Max_CFL_Local; myCFLSum = Avg_CFL_Local;
+        SU2_MPI::Allreduce(&myCFLMin, &Min_CFL_Local, 1, MPI_DOUBLE, MPI_MIN, SU2_MPI::GetComm());
+        SU2_MPI::Allreduce(&myCFLMax, &Max_CFL_Local, 1, MPI_DOUBLE, MPI_MAX, SU2_MPI::GetComm());
+        SU2_MPI::Allreduce(&myCFLSum, &Avg_CFL_Local, 1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
+        Avg_CFL_Local /= su2double(geometry[iMesh]->GetGlobal_nPointDomain());
+      }
+      END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    }
+
+  }
+
+}

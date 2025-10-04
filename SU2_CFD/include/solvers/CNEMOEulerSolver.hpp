@@ -352,4 +352,12 @@ public:
    */
   void SetPressureDiffusionSensor(CGeometry *geometry, CConfig *config);
 
+  /*!
+   * \brief Adapt the CFL number using NEMO-specific approach.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void AdaptCFLNumber(CGeometry **geometry, CSolver ***solver_container, CConfig *config);
+
 };

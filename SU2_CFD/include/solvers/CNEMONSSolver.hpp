@@ -77,7 +77,7 @@ public:
   /*!
    * \brief Constructor of the class.
    */
-  CNEMONSSolver() = default;
+  CNEMONSSolver() = delete;
 
   /*!
    * \overload
@@ -215,4 +215,12 @@ public:
                                CNumerics *visc_numerics,
                                CConfig *config,
                                unsigned short val_marker) override;
+
+  /*!
+   * \brief Adapt the CFL number using NEMO-specific approach (inherits from CNEMOEulerSolver).
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void AdaptCFLNumber(CGeometry **geometry, CSolver ***solver_container, CConfig *config);
 };
