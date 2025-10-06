@@ -286,7 +286,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     }
 
     /*--- Diffusion terms ---*/
-    for (auto iSpecies = 0ul; iSpecies < nHeavy; iSpecies++) {
+    for (auto iSpecies = nEl; iSpecies < nHeavy; iSpecies++) {
       Flux_Tensor[nSpecies+nDim][iDim]   += Flux_Tensor[iSpecies][iDim] * hs[iSpecies];
       Flux_Tensor[nSpecies+nDim+1][iDim] += Flux_Tensor[iSpecies][iDim] * val_eve[iSpecies];
     }
