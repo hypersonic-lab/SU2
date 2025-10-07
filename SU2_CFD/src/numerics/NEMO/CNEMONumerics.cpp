@@ -273,7 +273,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     for (auto iSpecies = nEl; iSpecies < nHeavy; iSpecies++) {
       Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
-      if (nEl == 1){                   
+      if (nEl == 1 && Cs[iSpecies] > 0.0){  // Only ions contribute to ambipolar diffusion               
         Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] / Ms[iSpecies];
       }
     }
