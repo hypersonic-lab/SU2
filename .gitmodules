@@ -30,3 +30,4 @@
 [submodule "subprojects/Mutationpp"]
 	path = subprojects/Mutationpp
 	url = https://github.com/hypersonic-lab/Mutationpp.git
+	branch = chanl
