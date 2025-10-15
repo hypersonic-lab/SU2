@@ -14,7 +14,8 @@
 	url = https://github.com/mesonbuild/meson
 [submodule "subprojects/Mutationpp"]
         path = subprojects/Mutationpp
-        url = https://github.com/mutationpp/Mutationpp.git
+	url = git@github.com:hypersonic-lab/Mutationpp.git
+	branch = chanl
 [submodule "subprojects/CoolProp"]
         path = subprojects/CoolProp
         url = https://github.com/CoolProp/CoolProp.git
