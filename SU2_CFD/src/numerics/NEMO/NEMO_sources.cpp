@@ -200,12 +200,34 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
     Y[iSpecies] = V_i[RHOS_INDEX+iSpecies] / rho;
 
   /*--- Compute residual for inviscid axisym flow---*/
-  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
-    residual[iSpecies] = yinv*rhov*Y[iSpecies]*Volume;
-  residual[nSpecies]   = yinv*rhov*rhou/rho*Volume;
-  residual[nSpecies+1] = yinv*rhov*rhov/rho*Volume;
-  residual[nSpecies+2] = yinv*rhov*H*Volume;
-  residual[nSpecies+3] = yinv*rhov*rhoEve/rho*Volume;
+  if (Coord_i[1] != 0.0) {
+    for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+      residual[iSpecies] = yinv*rhov*Y[iSpecies]*Volume;
+    residual[nSpecies]   = yinv*rhov*rhou/rho*Volume;
+    residual[nSpecies+1] = yinv*rhov*rhov/rho*Volume;
+    residual[nSpecies+2] = yinv*rhov*H*Volume;
+    residual[nSpecies+3] = yinv*rhov*rhoEve/rho*Volume;
+  } else {
+    /*--- At the axis of symmetry, use L'Hôpital's rule: lim(v/r) = dv/dr ---*/
+    const su2double dv_dr  = GV[VEL_INDEX+1][1];     // ∂v/∂r (radial velocity gradient)
+    const su2double u_axis = V_i[VEL_INDEX];         // u-velocity
+
+    // Species continuity: lim((v/r) rho_s) = (∂v/∂r) rho_s
+    for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+      residual[iSpecies] = Volume * V_i[RHOS_INDEX+iSpecies] * dv_dr;
+
+    // X-momentum: lim((v/r) rho u) = rho u (∂v/∂r)
+    residual[nSpecies]   = Volume * rho * u_axis * dv_dr;
+
+    // Y-momentum: lim((v/r) rho v) = rho v (∂v/∂r) = 0 at axis (v=0)
+    residual[nSpecies+1] = 0.0;
+
+    // Energy: lim((v/r) rho H) = rho H (∂v/∂r)
+    residual[nSpecies+2] = Volume * rho * H * dv_dr;
+
+    // Vib-el energy: lim((v/r) rho_eve) = rho_eve (∂v/∂r)
+    residual[nSpecies+3] = Volume * rhoEve * dv_dr;
+  }
 
   /*---Compute Jacobian for inviscid axisym flow ---*/
   if (implicit) {
@@ -297,15 +319,30 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
 
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
       residual[iSpecies] -= 0.0;
-    residual[nSpecies] -= Volume*(yinv*total_viscosity_i*(GV[nSpecies+2][1]+GV[nSpecies+3][0])
-                                                         -TWO3*AuxVar_Grad_i[0][0]);
-    residual[nSpecies+1] -= Volume*(yinv*total_viscosity_i*2*(GV[nSpecies+3][1]-v*yinv)
-                                                             -TWO3*AuxVar_Grad_i[0][1]);
-    residual[nSpecies+2] -= Volume*(yinv*(-sumJhs_y + total_viscosity_i*(u*(GV[nSpecies+3][0]+GV[nSpecies+2][1])
-                                                                        +v*TWO3*(2*GV[nSpecies+3][1]-GV[nSpecies+2][0]
-                                                                        -v*yinv+rho*turb_ke_i))-qy_t)
-                                                                        -TWO3*(AuxVar_Grad_i[1][1]+AuxVar_Grad_i[2][0]));
-    residual[nSpecies+3] -= Volume*(yinv*(-sumJeve_y -qy_ve));
+
+    if (Coord_i[1] != 0.0) {
+      // Away from the axis: use standard axisymmetric viscous sources
+      residual[nSpecies]   -= Volume*( yinv*total_viscosity_i*(GV[nSpecies+2][1]+GV[nSpecies+3][0])
+                                                     - TWO3*AuxVar_Grad_i[0][0] );
+      residual[nSpecies+1] -= Volume*( yinv*total_viscosity_i*2*(GV[nSpecies+3][1]-v*yinv)
+                                                     - TWO3*AuxVar_Grad_i[0][1] );
+      residual[nSpecies+2] -= Volume*( yinv*( -sumJhs_y + total_viscosity_i*( u*(GV[nSpecies+3][0]+GV[nSpecies+2][1])
+                                                     + v*TWO3*( 2*GV[nSpecies+3][1]-GV[nSpecies+2][0]
+                                                     - v*yinv + rho*turb_ke_i ) ) ) - qy_t )
+                                                     - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] );
+      residual[nSpecies+3] -= Volume*( yinv*( -sumJeve_y - qy_ve ) );
+    } else {
+      // On the axis: apply limits. Terms multiplied by yinv vanish by symmetry.
+      // X-momentum: lim (yinv*mu*(du/dr + dv/dx)) -> 0
+      residual[nSpecies]   -= Volume*( - TWO3*AuxVar_Grad_i[0][0] );
+      // Y-momentum: lim (yinv*mu*2*(dv/dr - v/r)) = 0
+      residual[nSpecies+1] -= Volume*( - TWO3*AuxVar_Grad_i[0][1] );
+      // Energy: yinv*(...) -> 0, keep heat flux and deviatoric corrections
+      residual[nSpecies+2] -= Volume*( - qy_t )
+                              - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] );
+      // Vib-el energy: yinv*(...) -> 0
+      residual[nSpecies+3] -= 0.0;
+    }
   }
 
   return ResidualType<>(residual, jacobian, nullptr);
