@@ -326,10 +326,10 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
                                                      - TWO3*AuxVar_Grad_i[0][0] );
       residual[nSpecies+1] -= Volume*( yinv*total_viscosity_i*2*(GV[nSpecies+3][1]-v*yinv)
                                                      - TWO3*AuxVar_Grad_i[0][1] );
-      residual[nSpecies+2] -= Volume*( yinv*( -sumJhs_y + total_viscosity_i*( u*(GV[nSpecies+3][0]+GV[nSpecies+2][1])
-                                                     + v*TWO3*( 2*GV[nSpecies+3][1]-GV[nSpecies+2][0]
-                                                     - v*yinv + rho*turb_ke_i ) ) ) - qy_t )
-                                                     - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] );
+  residual[nSpecies+2] -= Volume*( yinv*( -sumJhs_y + total_viscosity_i*( u*(GV[nSpecies+3][0]+GV[nSpecies+2][1])
+                     + v*TWO3*( 2*GV[nSpecies+3][1]-GV[nSpecies+2][0]
+                     - v*yinv + rho*turb_ke_i ) ) - qy_t )
+                     - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] );
       residual[nSpecies+3] -= Volume*( yinv*( -sumJeve_y - qy_ve ) );
     } else {
       // On the axis: apply limits. Terms multiplied by yinv vanish by symmetry.
@@ -337,9 +337,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
       residual[nSpecies]   -= Volume*( - TWO3*AuxVar_Grad_i[0][0] );
       // Y-momentum: lim (yinv*mu*2*(dv/dr - v/r)) = 0
       residual[nSpecies+1] -= Volume*( - TWO3*AuxVar_Grad_i[0][1] );
-      // Energy: yinv*(...) -> 0, keep heat flux and deviatoric corrections
-      residual[nSpecies+2] -= Volume*( - qy_t )
-                              - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] );
+  // Energy: yinv*(...) -> 0 at the axis; only the finite deviatoric correction remains
+  residual[nSpecies+2] -= Volume*( - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] ) );
       // Vib-el energy: yinv*(...) -> 0
       residual[nSpecies+3] -= 0.0;
     }
