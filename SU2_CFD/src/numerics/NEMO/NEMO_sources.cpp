@@ -329,7 +329,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
   residual[nSpecies+2] -= Volume*( yinv*( -sumJhs_y + total_viscosity_i*( u*(GV[nSpecies+3][0]+GV[nSpecies+2][1])
                      + v*TWO3*( 2*GV[nSpecies+3][1]-GV[nSpecies+2][0]
                      - v*yinv + rho*turb_ke_i ) ) - qy_t )
-                     - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] );
+                     - TWO3*( AuxVar_Grad_i[1][1] + AuxVar_Grad_i[2][0] ) );
       residual[nSpecies+3] -= Volume*( yinv*( -sumJeve_y - qy_ve ) );
     } else {
       // On the axis: apply limits. Terms multiplied by yinv vanish by symmetry.
