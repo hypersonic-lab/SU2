@@ -191,8 +191,9 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
   for (auto iVar = 0ul; iVar < nVar; iVar++) residual[iVar] = 0.0;
 
   /*--- Calculate inverse of y coordinate ---*/
+  constexpr su2double EPS = 1e-12;
   su2double yinv = 0.0;
-  if (Coord_i[1]!= 0.0) yinv = 1.0/Coord_i[1];
+  if (Coord_i[1] > EPS) yinv = 1.0/Coord_i[1];
   else yinv = 0.0;
 
   /*--- Rename mass flux for convenience ---*/
@@ -200,7 +201,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
     Y[iSpecies] = V_i[RHOS_INDEX+iSpecies] / rho;
 
   /*--- Compute residual for inviscid axisym flow---*/
-  if (Coord_i[1] != 0.0) {
+  if (Coord_i[1] > EPS) {
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
       residual[iSpecies] = yinv*rhov*Y[iSpecies]*Volume;
     residual[nSpecies]   = yinv*rhov*rhou/rho*Volume;
@@ -210,14 +211,13 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
   } else {
     /*--- At the axis of symmetry, use L'Hôpital's rule: lim(v/r) = dv/dr ---*/
     const su2double dv_dr  = GV[VEL_INDEX+1][1];     // ∂v/∂r (radial velocity gradient)
-    const su2double u_axis = V_i[VEL_INDEX];         // u-velocity
 
     // Species continuity: lim((v/r) rho_s) = (∂v/∂r) rho_s
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
       residual[iSpecies] = Volume * V_i[RHOS_INDEX+iSpecies] * dv_dr;
 
-    // X-momentum: lim((v/r) rho u) = rho u (∂v/∂r)
-    residual[nSpecies]   = Volume * rho * u_axis * dv_dr;
+    // X-momentum: lim((v/r) rho u) = rhou (∂v/∂r)
+    residual[nSpecies]   = Volume * rhou * dv_dr;
 
     // Y-momentum: lim((v/r) rho v) = rho v (∂v/∂r) = 0 at axis (v=0)
     residual[nSpecies+1] = 0.0;
@@ -320,7 +320,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
       residual[iSpecies] -= 0.0;
 
-    if (Coord_i[1] != 0.0) {
+  if (Coord_i[1] > EPS) {
       // Away from the axis: use standard axisymmetric viscous sources
       residual[nSpecies]   -= Volume*( yinv*total_viscosity_i*(GV[nSpecies+2][1]+GV[nSpecies+3][0])
                                                      - TWO3*AuxVar_Grad_i[0][0] );
