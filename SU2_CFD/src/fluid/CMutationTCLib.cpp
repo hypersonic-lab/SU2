@@ -56,12 +56,15 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
     transport_model = "Chapmann-Enskog_LDLT";
 
-  NEWTON = config->Get2TNewton();
+  NEWTON_ROBUST = config->Get_Mpp_Temp_Solve_Robust();
   if (NoneqStateModel == "2T") {
       opt.setStateModel("ChemNonEqTTv");
   }
   else if (NoneqStateModel == "1T"){
       opt.setStateModel("ChemNonEq1T");
+  }
+  else if (NoneqStateModel == "EQUILIBRIUM"){
+      opt.setStateModel("Equil");
   }
 
   if (frozen) opt.setMechanism("none");
@@ -138,7 +141,7 @@ void CMutationTCLib::SetTDStateRhosTTv(vector<su2double>& val_rhos, su2double va
 
   Pressure = ComputePressure();
 
-  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON);
+  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON_ROBUST);
 
 }
 
@@ -296,7 +299,7 @@ vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rh
   energies[0] = rhoE - rhoEvel;
   energies[1] = rhoEve;
 
-  mix->setState(rhos.data(), energies.data(), 0, NEWTON);
+  mix->setState(rhos.data(), energies.data(), 0, NEWTON_ROBUST);
 
   mix->getTemperatures(temperatures.data());
 

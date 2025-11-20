@@ -1255,7 +1255,7 @@ private:
   string GasModel,                          /*!< \brief Gas Model. */
   *Wall_Catalytic;                          /*!< \brief Pointer to catalytic walls. */
   string NoneqStateModel;                   /*!< \brief Nonequilibrium State Model. */
-  bool Newton_2T;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
+  bool Mpp_Temp_Solve_Robust;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
@@ -3960,7 +3960,7 @@ public:
    * \brief 2T Nonequilibrium numerical method to solve for temperatures.
    * \return Bool to use M++ implementation vs. Perturbation Method.
    */
-  bool Get2TNewton(void) const {return Newton_2T;}
+  bool Get_Mpp_Temp_Solve_Robust(void) const {return Mpp_Temp_Solve_Robust;}
 
 
   /*!
