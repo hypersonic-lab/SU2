@@ -152,8 +152,7 @@ void CMutationTCLib::SetTDStateRhosTTv(vector<su2double>& val_rhos, su2double va
 
   Pressure = ComputePressure();
 
-  mix->setState(rhos.data(), temperatures.data(), 1, m_h, NEWTON, FORWARD, CENTRAL);
-
+  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON);
 }
 
 vector<su2double>& CMutationTCLib::GetSpeciesMolarMass(){
@@ -310,7 +309,7 @@ vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rh
   energies[0] = rhoE - rhoEvel;
   energies[1] = rhoEve;
 
-  mix->setState(rhos.data(), energies.data(), 0, m_h, NEWTON, FORWARD, CENTRAL);
+  mix->setState(rhos.data(), energies.data(), 0, NEWTON);
 
   mix->getTemperatures(temperatures.data());
 
