@@ -1243,7 +1243,7 @@ void CConfig::SetConfig_Options() {
   /* DESCRIPTION: Specify Nonequilibrium Temperature Model */
   addStringOption("NONEQ_STATE_MODEL", NoneqStateModel, string("2T"));
   /* DESCRIPTION: Specify M++ Derivative vs. Perturbation Method for Newton's Method solving for temperatures */
-  addBoolOption("2T_NEWTON", Newton_2T, true);
+  addBoolOption("MPP_TEMP_SOLVER_ROBUST", Mpp_Temp_Solver_Robust, false);
   /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */
   addEnumOption("TRANSPORT_COEFF_MODEL", Kind_TransCoeffModel, TransCoeffModel_Map, TRANSCOEFFMODEL::WILKE);
   /* DESCRIPTION: Specify mass fraction of each species */
