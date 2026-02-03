@@ -56,7 +56,7 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
     transport_model = "Chapmann-Enskog_LDLT";
 
-  NEWTON_ROBUST = config->Get_Mpp_Temp_Solve_Robust();
+  NEWTON_ROBUST = config->Get_Mpp_Temp_Solver_Robust();
   if (NoneqStateModel == "2T") {
       opt.setStateModel("ChemNonEqTTv");
   }
