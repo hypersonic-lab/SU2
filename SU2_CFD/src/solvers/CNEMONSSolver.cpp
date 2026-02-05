@@ -773,7 +773,7 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
           // Temperature
           for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
             for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++) {
-              Jacobian_j[nSpecies+nDim][iSpecies] += Jacobian_j[jSpecies][iSpecies]*hs[iSpecies];
+              Jacobian_j[nSpecies+nDim][iSpecies] += Jacobian_j[jSpecies][iSpecies]*hs[jSpecies];
             }
             Jacobian_j[nSpecies+nDim][nSpecies+nDim] += Res_Visc[iSpecies]/Area*(Ru/Ms[iSpecies] +
                                                                                  Cvtrs[iSpecies]  );
@@ -783,7 +783,7 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
           // Vib.-El. Temperature
           for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
             for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++)
-              Jacobian_j[nSpecies+nDim+1][iSpecies] += Jacobian_j[jSpecies][iSpecies]*eves[iSpecies];
+              Jacobian_j[nSpecies+nDim+1][iSpecies] += Jacobian_j[jSpecies][iSpecies]*eves[jSpecies];
             Jacobian_j[nSpecies+nDim+1][nSpecies+nDim+1] += Res_Visc[iSpecies]/Area*Cvve[iSpecies];
           }
 
@@ -884,8 +884,8 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
       }
 
       for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
-        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies])*Area;
-        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies])*Area;
+        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
+        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
       }
 
       /*--- Viscous contribution to the residual at the wall ---*/
