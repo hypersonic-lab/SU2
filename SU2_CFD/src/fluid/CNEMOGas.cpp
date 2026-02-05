@@ -233,7 +233,7 @@ void CNEMOGas::ComputedPdU(const su2double *V, const vector<su2double>& val_eves
 
   /*--- Vib.-el energy derivative ---*/
   val_dPdU[nSpecies+nDim+1] = -val_dPdU[nSpecies+nDim];
-  if (rhoCvve != 0.) val_dPdU[nSpecies+nDim+1] += rho_el*Ru/MolarMass[0]*1.0/rhoCvve; //Added by RSCD
+  if (rhoCvve != 0.) val_dPdU[nSpecies+nDim+1] += rho_el*Ru/MolarMass[0]*1.0/rhoCvve;
 
 }
 
