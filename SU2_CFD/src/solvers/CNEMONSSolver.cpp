@@ -2,7 +2,7 @@
  * \file CNEMONSSolver.cpp
  * \brief Headers of the CNEMONSSolver class
  * \author S. R. Copeland, F. Palacios, W. Maier.
- * \version 8.3.0 "Harrier"
+ * \version 8.2.0 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -532,9 +532,13 @@ void CNEMONSSolver::BC_IsothermalNonCatalytic_Wall(CGeometry *geometry,
   const bool ionization = config->GetIonization();
   su2double UnitNormal[MAXNDIM] = {0.0};
 
-  //if (ionization) {
-  //  SU2_MPI::Error("NEED TO TAKE A CLOSER LOOK AT THE JACOBIAN W/ IONIZATION",CURRENT_FUNCTION);
-  //}
+  if (ionization) {
+    SU2_MPI::Error("NEED TO TAKE A CLOSER LOOK AT THE JACOBIAN W/ IONIZATION",CURRENT_FUNCTION);
+  }
+
+  /*--- Extract required indices ---*/
+  const unsigned short RHOCVTR_INDEX = nodes->GetRhoCvtrIndex();
+  const unsigned short RHO_INDEX = nodes->GetRhoIndex();
 
   /*--- Define 'proportional control' constant ---*/
   const su2double C = 5;
@@ -769,7 +773,7 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
           // Temperature
           for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
             for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++) {
-              Jacobian_j[nSpecies+nDim][iSpecies] += Jacobian_j[jSpecies][iSpecies]*hs[iSpecies];
+              Jacobian_j[nSpecies+nDim][iSpecies] += Jacobian_j[jSpecies][iSpecies]*hs[jSpecies];
             }
             Jacobian_j[nSpecies+nDim][nSpecies+nDim] += Res_Visc[iSpecies]/Area*(Ru/Ms[iSpecies] +
                                                                                  Cvtrs[iSpecies]  );
@@ -779,7 +783,7 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
           // Vib.-El. Temperature
           for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
             for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++)
-              Jacobian_j[nSpecies+nDim+1][iSpecies] += Jacobian_j[jSpecies][iSpecies]*eves[iSpecies];
+              Jacobian_j[nSpecies+nDim+1][iSpecies] += Jacobian_j[jSpecies][iSpecies]*eves[jSpecies];
             Jacobian_j[nSpecies+nDim+1][nSpecies+nDim+1] += Res_Visc[iSpecies]/Area*Cvve[iSpecies];
           }
 
@@ -794,10 +798,6 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
         }
 
       } else {
-
-        if (implicit) {
-          SU2_MPI::Error("Implicit not currently available for partially catalytic wall.",CURRENT_FUNCTION);
-        }
 
         /*--- Identify the boundary ---*/
         string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
@@ -821,11 +821,71 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
           int Index = SU2_TYPE::Int(RxnTable(iSpecies,1));
           Res_Visc[iSpecies] = RxnTable(iSpecies,0)*factor*Vi[Index]/Vi[RHO_INDEX]*sqrt(1/Ms[Index]);
         }
+
+        if (implicit) {
+        /*--- Initialize the transformation matrix ---*/
+          for (auto iVar = 0ul; iVar < nVar; iVar++) {
+            for (auto jVar = 0ul; jVar < nVar; jVar++) {
+              dVdU[iVar][jVar] = 0.0;
+              Jacobian_j[iVar][jVar] = 0.0;
+              Jacobian_i[iVar][jVar] = 0.0;
+            }
+          }
+
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++) {
+              dVdU[iSpecies][iSpecies] = 1.0;
+            }
+          }
+          for (auto iVar = 0ul; iVar < nVar; iVar++) {
+            dVdU[nSpecies+nDim][iVar]   = dTdU[iVar];
+            dVdU[nSpecies+nDim+1][iVar] = dTvedU[iVar];
+          }
+
+          const auto& Cvtrs = FluidModel->GetSpeciesCvTraRot();
+          const auto& Cvve = nodes->GetCvve(iPoint);
+
+          // Species density
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            int Index = SU2_TYPE::Int(RxnTable(iSpecies,1));
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++) {
+                if (jSpecies == Index)
+                      Jacobian_j[iSpecies][jSpecies] = RxnTable(iSpecies,0)*gam*sqrt(RuSI*Tw/2/PI_NUMBER/Ms[Index]);
+            }
+          }
+
+          // Temperature
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++) {
+              Jacobian_j[nSpecies+nDim][iSpecies] += Jacobian_j[jSpecies][iSpecies]*hs[jSpecies];
+            }
+            Jacobian_j[nSpecies+nDim][nSpecies+nDim] += Res_Visc[iSpecies]/Area*(Ru/Ms[iSpecies] +
+                                                                                 Cvtrs[iSpecies]  );
+            Jacobian_j[nSpecies+nDim][nSpecies+nDim+1] += Res_Visc[iSpecies]/Area*Cvve[iSpecies];
+          }
+
+          // Vib.-El. Temperature
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++)
+              Jacobian_j[nSpecies+nDim+1][iSpecies] += Jacobian_j[jSpecies][iSpecies]*eves[jSpecies];
+              Jacobian_j[nSpecies+nDim+1][nSpecies+nDim+1] += Res_Visc[iSpecies]/Area*Cvve[iSpecies];
+          }
+
+          /*--- Multiply by the transformation matrix and store in Jac. ii ---*/
+          for (auto iVar = 0ul; iVar < nVar; iVar++)
+            for (auto jVar = 0ul; jVar < nVar; jVar++)
+              for (auto kVar = 0ul; kVar < nVar; kVar++)
+                Jacobian_i[iVar][jVar] += Jacobian_j[iVar][kVar]*dVdU[kVar][jVar]*Area;
+
+          /*--- Apply to the linear system ---*/
+          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+        }
+
       }
 
       for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
-        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies])*Area;
-        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies])*Area;
+        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
+        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
       }
 
       /*--- Viscous contribution to the residual at the wall ---*/

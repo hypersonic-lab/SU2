@@ -2,7 +2,7 @@
  * \file CMutationTCLib.cpp
  * \brief Source of the Mutation++ 2T nonequilibrium gas model.
  * \author C. Garbacz
- * \version 8.3.0 "Harrier"
+ * \version 8.2.0 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -56,15 +56,12 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
     transport_model = "Chapmann-Enskog_LDLT";
 
-  NEWTON_ROBUST = config->Get_Mpp_Temp_Solver_Robust();
+  NEWTON = config->Get2TNewton();
   if (NoneqStateModel == "2T") {
       opt.setStateModel("ChemNonEqTTv");
   }
   else if (NoneqStateModel == "1T"){
       opt.setStateModel("ChemNonEq1T");
-  }
-  else if (NoneqStateModel == "EQUILIBRIUM"){
-      opt.setStateModel("Equil");
   }
 
   if (frozen) opt.setMechanism("none");
@@ -141,7 +138,7 @@ void CMutationTCLib::SetTDStateRhosTTv(vector<su2double>& val_rhos, su2double va
 
   Pressure = ComputePressure();
 
-  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON_ROBUST);
+  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON);
 
 }
 
@@ -214,24 +211,27 @@ void CMutationTCLib::ChemistryJacobian(unsigned short iReaction, const su2double
                                   const su2double* dTdU, const su2double* dTvedU, su2double **val_jacobian){
 
   unsigned short iVar, jVar, iSpecies;
-  unsigned short nEve = nSpecies+nDim+1;
   unsigned short nVar = nSpecies+nDim+2;
 
   mix->jacobianRho(JacRho.data());
   mix->jacobianT(JacT.data());
-  mix->jacobianTv(JacTv.data());
 
-  for(iSpecies = 0; iSpecies < nSpecies; iSpecies++)
-      for(jSpecies = 0; jSpecies < nSpecies; jSpecies++) 
-          val_jacobian[iSpecies][jSpecies] = JacRho[iSpecies*nSpecies+jSpecies];
-  
   for(iSpecies = 0; iSpecies < nSpecies; iSpecies++){
+      for(jSpecies = 0; jSpecies < nSpecies; jSpecies++){ 
+          val_jacobian[iSpecies][jSpecies] = JacRho[iSpecies*nSpecies+jSpecies];}
       for(iVar = 0; iVar < nVar; iVar++){
-          val_jacobian[iSpecies][iVar] += JacT[iSpecies]*dTdU[iVar];
-          val_jacobian[iSpecies][iVar] += JacTv[iSpecies]*dTvedU[iVar];
-      }
-  }  
+          val_jacobian[iSpecies][iVar] += JacT[iSpecies]*dTdU[iVar];}
+  }
 
+
+  if (NoneqStateModel == "2T") {  
+  	mix->jacobianTv(JacTv.data());
+  	for(iSpecies = 0; iSpecies < nSpecies; iSpecies++){
+      		for(iVar = 0; iVar < nVar; iVar++){
+          		val_jacobian[iSpecies][iVar] += JacTv[iSpecies]*dTvedU[iVar];}
+        }
+  }    
+    
 }
 
 su2double CMutationTCLib::ComputeEveSourceTerm(){
@@ -245,6 +245,8 @@ su2double CMutationTCLib::ComputeEveSourceTerm(){
 
 void CMutationTCLib::GetEveSourceTermJacobian(const su2double *V, const su2double *eve, const su2double *cvve, const su2double *dTdU, 
                                   const su2double* dTvedU, su2double **val_jacobian){
+
+   if (NoneqStateModel == "1T") return;
 
    unsigned short iVar, jVar, iSpecies;
    unsigned short nEve = nSpecies+nDim+1;
@@ -299,7 +301,7 @@ vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rh
   energies[0] = rhoE - rhoEvel;
   energies[1] = rhoEve;
 
-  mix->setState(rhos.data(), energies.data(), 0, NEWTON_ROBUST);
+  mix->setState(rhos.data(), energies.data(), 0, NEWTON);
 
   mix->getTemperatures(temperatures.data());
 
