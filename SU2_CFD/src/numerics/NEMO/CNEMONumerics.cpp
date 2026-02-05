@@ -4,7 +4,7 @@
  *        Contains methods for common tasks, e.g. compute flux
  *        Jacobians.
  * \author S.R. Copeland, W. Maier, C. Garbacz
- * \version 8.3.0 "Harrier"
+ * \version 8.2.0 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -257,7 +257,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   /*--- Pre-compute mixture quantities ---*/  //TODO
   su2double Vector[MAXNDIM] = {0.0};
   for (auto iDim = 0; iDim < nDim; iDim++) {
-    for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
+    for (auto iSpecies = nEl; iSpecies < nHeavy; iSpecies++) {
       Vector[iDim] += rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim];
     }
   }
@@ -270,11 +270,11 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
     /*--- Species diffusion velocity ---*/
     if (nEl == 1) Flux_Tensor[0][iDim] = 0.0; // Ambipolar diffusion for electron is handled differently than heavy species below
-    for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
+    for (auto iSpecies = nEl; iSpecies < nHeavy; iSpecies++) {
       Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
       if (nEl == 1){                   
-        Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies]/ Ms[iSpecies];
+        Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] / Ms[iSpecies];
       }
     }
 
@@ -286,7 +286,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     }
 
     /*--- Diffusion terms ---*/
-    for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+    for (auto iSpecies = 0ul; iSpecies < nHeavy; iSpecies++) {
       Flux_Tensor[nSpecies+nDim][iDim]   += Flux_Tensor[iSpecies][iDim] * hs[iSpecies];
       Flux_Tensor[nSpecies+nDim+1][iDim] += Flux_Tensor[iSpecies][iDim] * val_eve[iSpecies];
     }
@@ -343,8 +343,14 @@ void CNEMONumerics::GetViscousProjJacs(const su2double *val_Mean_PrimVar,
       return COMPUTE_VISCOUS_JACS(9, 5);
 
     case 10:
-      return COMPUTE_VISCOUS_JACS(10, 5);
+      switch (nSpecies) {
+        case 5: return COMPUTE_VISCOUS_JACS(10, 5);
 
+        case 6: return COMPUTE_VISCOUS_JACS(10, 6);
+
+        default: SU2_MPI::Error("nVar and nSpecies mismatch.", CURRENT_FUNCTION);
+      }
+    break;
     case 11:
       return COMPUTE_VISCOUS_JACS(11, 7);
 
