@@ -2,7 +2,7 @@
  * \file CMutationTCLib.cpp
  * \brief Source of the Mutation++ 2T nonequilibrium gas model.
  * \author C. Garbacz
- * \version 8.2.0 "Harrier"
+ * \version 8.3.0 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -56,12 +56,15 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
     transport_model = "Chapmann-Enskog_LDLT";
 
-  NEWTON = config->Get2TNewton();
+  NEWTON_ROBUST = config->Get_Mpp_Temp_Solver_Robust();
   if (NoneqStateModel == "2T") {
       opt.setStateModel("ChemNonEqTTv");
   }
   else if (NoneqStateModel == "1T"){
       opt.setStateModel("ChemNonEq1T");
+  }
+  else if (NoneqStateModel == "EQUILIBRIUM"){
+      opt.setStateModel("Equil");
   }
 
   if (frozen) opt.setMechanism("none");
@@ -138,7 +141,7 @@ void CMutationTCLib::SetTDStateRhosTTv(vector<su2double>& val_rhos, su2double va
 
   Pressure = ComputePressure();
 
-  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON);
+  mix->setState(rhos.data(), temperatures.data(), 1, NEWTON_ROBUST);
 
 }
 
@@ -246,7 +249,7 @@ su2double CMutationTCLib::ComputeEveSourceTerm(){
 void CMutationTCLib::GetEveSourceTermJacobian(const su2double *V, const su2double *eve, const su2double *cvve, const su2double *dTdU, 
                                   const su2double* dTvedU, su2double **val_jacobian){
 
-   if (NoneqStateModel == "1T") return;
+   if ((NoneqStateModel == "1T") or (NoneqStateModel == "EQUILIBRIUM")) return;
 
    unsigned short iVar, jVar, iSpecies;
    unsigned short nEve = nSpecies+nDim+1;
@@ -301,7 +304,7 @@ vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rh
   energies[0] = rhoE - rhoEvel;
   energies[1] = rhoEve;
 
-  mix->setState(rhos.data(), energies.data(), 0, NEWTON);
+  mix->setState(rhos.data(), energies.data(), 0, NEWTON_ROBUST);
 
   mix->getTemperatures(temperatures.data());
 
