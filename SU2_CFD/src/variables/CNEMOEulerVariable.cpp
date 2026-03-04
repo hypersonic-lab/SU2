@@ -276,7 +276,15 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
   V[H_INDEX] = (U[nSpecies+nDim] + V[P_INDEX])/V[RHO_INDEX];
 
   /*--- Charge Density ---*/
-  V[CHARGE_INDEX] = 1.6;
+  const auto& Cs = fluidmodel->GetSpeciesCharge();
+  // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
+  su2double charge_density = 0;
+
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    charge_density++;
+  }
+
+  V[CHARGE_INDEX] = charge_density;
 
   return nonPhys;
 }
