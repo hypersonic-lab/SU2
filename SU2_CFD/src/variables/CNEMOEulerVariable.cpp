@@ -280,13 +280,12 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
   const auto& M = fluidmodel->GetSpeciesMolarMass();
   // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
   su2double charge_density = 0;
+  su2double num_density = 0;
 
-  // for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
-
-  //   charge_density++;
-  // }
-
-  charge_density = rhos[nSpecies-1];
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    num_density = rhos[iSpecies] / M[iSpecies]; // Check kg vs g
+    charge_density += num_density * Cs[iSpecies];
+  }
 
   V[CHARGE_INDEX] = charge_density;
 
