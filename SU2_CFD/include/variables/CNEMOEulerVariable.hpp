@@ -95,7 +95,7 @@ class CNEMOEulerVariable : public CFlowVariable {
   /*!< \brief Index definition for NEMO pritimive variables. */
   unsigned long RHOS_INDEX, T_INDEX, TVE_INDEX, VEL_INDEX, P_INDEX,
   RHO_INDEX, H_INDEX, A_INDEX, RHOCVTR_INDEX, RHOCVVE_INDEX,
-  LAM_VISC_INDEX, EDDY_VISC_INDEX, nSpecies;
+  LAM_VISC_INDEX, EDDY_VISC_INDEX, CHARGE_INDEX, nSpecies;
 
   su2double Tve_Freestream; /*!< \brief Freestream vib-el temperature. */
   const bool implicit;      /*!< \brief Implicit flag. */
@@ -290,6 +290,14 @@ class CNEMOEulerVariable : public CFlowVariable {
    */
   inline su2double GetTemperature_ve(unsigned long iPoint) const final
                                     { return Primitive(iPoint,TVE_INDEX); }
+
+
+  /*!
+   * \brief A virtual member.
+   * \return Value of the local charge density.
+   */
+  inline su2double GetChargeDensity(unsigned long iPoint) const final
+                                    { return Primitive(iPoint,CHARGE_INDEX); }
 
   /*!
    * \brief Sets the vibrational electronic temperature of the flow.

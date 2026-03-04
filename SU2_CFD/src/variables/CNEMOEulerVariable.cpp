@@ -65,6 +65,7 @@ CNEMOEulerVariable::CNEMOEulerVariable(su2double val_pressure,
   RHOCVVE_INDEX   = nSpecies+nDim+7;
   LAM_VISC_INDEX  = nSpecies+nDim+8;
   EDDY_VISC_INDEX = nSpecies+nDim+9;
+  CHARGE_INDEX    = nSpecies+nDim+10;
 
   /*--- Set monoatomic flag ---*/
   if (config->GetMonoatomic()) {
@@ -273,6 +274,9 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
 
   /*--- Enthalpy ---*/
   V[H_INDEX] = (U[nSpecies+nDim] + V[P_INDEX])/V[RHO_INDEX];
+
+  /*--- Charge Density ---*/
+  V[CHARGE_INDEX] = 1.6;
 
   return nonPhys;
 }

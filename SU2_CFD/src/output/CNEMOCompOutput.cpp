@@ -380,6 +380,9 @@ void CNEMOCompOutput::LoadVolumeData(CConfig *config, CGeometry *geometry, CSolv
     }
   }
 
+  // Added by CAMDEN WILLIAMS
+  SetVolumeOutputValue("CHARGE_DENSITY", iPoint, Node_Flow->GetChargeDensity(iPoint));
+
   LoadVolumeDataScalar(config, solver, geometry, iPoint);
 
   LoadCommonFVMOutputs(config, geometry, iPoint);
