@@ -101,10 +101,10 @@ CNEMOEulerSolver::CNEMOEulerSolver(CGeometry *geometry, CConfig *config,
   //     V: [rho1, ..., rhoNs, T, Tve, u, v, w, P, rho, h, a, rhoCvtr, rhoCvve]^T
   // GradV: [rho1, ..., rhoNs, T, Tve, u, v, w, P, rho, h, a, rhoCvtr, rhoCvve]^T
   // Viscous: append [mu, mu_t]^T
-  nVar         = nSpecies + nDim + 3;
-  if (navier_stokes) { nPrimVar   = nSpecies + nDim + 11; }
-  else {               nPrimVar   = nSpecies +nDim +9;    }
-  nPrimVarGrad = nSpecies + nDim + 9;
+  nVar         = nSpecies + nDim + 2;
+  if (navier_stokes) { nPrimVar   = nSpecies + nDim + 10; }
+  else {               nPrimVar   = nSpecies +nDim +8;    }
+  nPrimVarGrad = nSpecies + nDim + 7;
 
   /*--- Initialize nVarGrad for deallocation ---*/
   nVarGrad     = nPrimVarGrad;
