@@ -248,7 +248,7 @@ void CNEMOCompOutput::SetVolumeOutputFields(CConfig *config){
 
   AddVolumeOutput("MACH",        "Mach",                    "PRIMITIVE", "Mach number");
   AddVolumeOutput("PRESSURE_COEFF", "Pressure_Coefficient", "PRIMITIVE", "Pressure coefficient");
-
+  AddVolumeOutput("CHARGE_DENSITY", "Charge_Density", "PRIMITIVE", "Charge_Density");
   if (config->GetViscous()) {
     AddVolumeOutput("LAMINAR_VISCOSITY", "Laminar_Viscosity", "PRIMITIVE", "Laminar viscosity");
 
