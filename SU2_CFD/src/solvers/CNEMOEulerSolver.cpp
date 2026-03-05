@@ -98,13 +98,22 @@ CNEMOEulerSolver::CNEMOEulerSolver(CGeometry *geometry, CConfig *config,
 
   /*--- Set size of the conserved and primitive vectors ---*/
   //     U: [rho1, ..., rhoNs, rhou, rhov, rhow, rhoe, rhoeve]^T
-  //     V: [rho1, ..., rhoNs, T, Tve, u, v, w, P, rho, h, a, rhoCvtr, rhoCvve]^T
-  // GradV: [rho1, ..., rhoNs, T, Tve, u, v, w, P, rho, h, a, rhoCvtr, rhoCvve]^T
+  //     V: [rho1, ..., rhoNs, T, Tve, u, v, w, P, rho, h, a, rhoCvtr, rhoCvve,
+  //         (optional) charge_density]^T
+  // GradV: same layout as V (charge gradient only required when ionization is active)
   // Viscous: append [mu, mu_t]^T
   nVar         = nSpecies + nDim + 2;
-  if (navier_stokes) { nPrimVar   = nSpecies + nDim + 11; }
-  else {               nPrimVar   = nSpecies +nDim + 9;    }
-  nPrimVarGrad = nSpecies + nDim + 7;
+  // the number of primitive variables depends on whether the Euler solver or
+  // Navier–Stokes solver is used; the latter already allocates two extra slots
+  // for laminar/eddy viscosity.  In addition, if ionization is enabled we need
+  // one more entry for the charge density.
+  const bool ionization = config->GetIonization();
+  if (navier_stokes) {
+    nPrimVar   = nSpecies + nDim + 11 + (ionization ? 1UL : 0UL);
+  } else {
+    nPrimVar   = nSpecies + nDim + 9  + (ionization ? 1UL : 0UL);
+  }
+  nPrimVarGrad = nSpecies + nDim + 7 + (ionization ? 1UL : 0UL);
 
   /*--- Initialize nVarGrad for deallocation ---*/
   nVarGrad     = nPrimVarGrad;
