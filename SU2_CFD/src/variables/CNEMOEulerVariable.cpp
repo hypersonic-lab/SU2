@@ -287,6 +287,7 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
   //   charge_density += num_density * Cs[iSpecies];
   // }
   charge_density = 10;
+  std::cout << charge_density;
   V[CHARGE_INDEX] = charge_density;
 
   return nonPhys;
