@@ -286,7 +286,7 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
   //   num_density = rhos[iSpecies] / (M[iSpecies] / 1000); // Check kg vs g
   //   charge_density += num_density * Cs[iSpecies];
   // }
-  charge_density = M[1];
+  charge_density = 10;
   V[CHARGE_INDEX] = charge_density;
 
   return nonPhys;
