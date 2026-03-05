@@ -276,17 +276,19 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
   V[H_INDEX] = (U[nSpecies+nDim] + V[P_INDEX])/V[RHO_INDEX];
 
   /*--- Charge Density ---*/
-  const auto& Cs = fluidmodel->GetSpeciesCharge();
-  const auto& M = fluidmodel->GetSpeciesMolarMass();
-  // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
+  const auto& Cs = fluidmodel->GetSpeciesCharge(); // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
+  const auto& M = fluidmodel->GetSpeciesMolarMass(); // g/mol
+  const auto& e = 1.602176634e-19; // Elementary charge [C]
+  const auto& N_A = 6.0221408e23; // Avagadro's number
+
   su2double charge_density = 0;
   su2double num_density = 0;
 
-  // for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
-  //   num_density = rhos[iSpecies] / (M[iSpecies] / 1000); // Check kg vs g
-  //   charge_density += num_density * Cs[iSpecies];
-  // }
-  charge_density = M[nSpecies-1];
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    num_density = rhos[iSpecies] / (M[iSpecies] / 1000) * N_A;
+    charge_density += num_density * Cs[iSpecies] * e;
+  }
+
   V[CHARGE_INDEX] = charge_density;
 
   return nonPhys;
