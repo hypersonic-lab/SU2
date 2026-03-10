@@ -932,103 +932,110 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
   for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     cout << "933\n";
     V_inlet = GetCharacPrimVar(val_marker, iVertex);
-    
+    cout << "935\n";
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-
+    cout << "937\n";
     su2double x_coord = geometry->nodes->GetCoord(iPoint)[0];
 
     if (geometry->nodes->GetDomain(iPoint)) {
       /*--- Normal vector for this vertex (negate for outward convention) ---*/
-
+      cout << "942\n";
       geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
+      cout << "944\n";
       for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
+      cout << "946\n";
       conv_numerics->SetNormal(Normal);
-
+      cout << "948\n";
       Area = GeometryToolbox::Norm(nDim, Normal);
+      cout << "950\n";
       for (iDim = 0; iDim < nDim; iDim++)
         UnitNormal[iDim] = Normal[iDim]/Area;
-      
+      cout << "953\n";
         /*--- Retrieve solution at this boundary node ---*/
+      
+      V_domain = nodes->GetPrimitive(iPoint);
+      cout << "957\n";
+      /*--- Build the fictitious inlet state ---*/
 
-        V_domain = nodes->GetPrimitive(iPoint);
+      /*--- Retrieve the specified mass flow and temperature ---*/
+      cout << "961\n";
+      Twall = 300;
 
-        /*--- Build the fictitious inlet state ---*/
+      Temperature = Twall;
 
-        /*--- Retrieve the specified mass flow and temperature ---*/
+      cout << "966\n";
+      /*--- Calculate density from specified temperature and domain pressure. ---*/
+      Pressure = nodes->GetPressure(iPoint);
+      Density = Pressure/ (Gas_Constant * Temperature);
+      cout << "970\n";
+      // Assume stagnation point at x = 0, with blowing between x = 0 and x_blowing.
 
-        Twall = 300;
+      // Assume constant blowing type
 
-        Temperature = Twall;
+      if (x_coord >= x_blowing || x_coord < 0.0 - epsilon){
+        MassFlow_etc[val_marker][iVertex] = 0.0;
+      }
+      else {
+        MassFlow_etc[val_marker][iVertex] = 1e-10;
+      }
+      cout << "981\n";
 
+      Vel_Mag  = MassFlow_etc[val_marker][iVertex]/(Density);
+      cout << "984\n";
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Flow_Dir[iDim] = -UnitNormal[iDim];
+        nodes->SetNormal(iPoint, iDim, Flow_Dir[iDim]);
+      }
+      cout << "989\n";
+      Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Vel_Mag*Vel_Mag;
+      cout << "991\n";
+      V_inlet[0] = Temperature;
+      cout << "993\n";
+      for (iDim = 0; iDim < nDim; iDim++)
+        V_inlet[iDim+1] = Vel_Mag*Flow_Dir[iDim];
+      cout << "996\n";  
+      V_inlet[nDim+1] = Pressure;
+      V_inlet[nDim+2] = Density;
+      V_inlet[nDim+3] = Energy + Pressure/Density;
+      cout << "1000\n";
+      conv_numerics->SetPrimitive(V_domain, V_inlet);
+      cout << "1002\n";
+      auto residual = conv_numerics->ComputeResidual(config);
+      cout << "1004\n";
+      LinSysRes.AddBlock(iPoint, residual);
+      cout << "1006\n";
+      for (iDim = 0; iDim < nDim; iDim++){
+        nodes->SetVelocity_Old_iDim(iPoint, Vel_Mag*Flow_Dir[iDim], iDim+1);
+        LinSysRes(iPoint, iDim+1) = 0.0;
+      }
+      cout << "1011\n";
+      nodes->SetVel_ResTruncError_Zero(iPoint);
+      cout << "1013\n";
+      const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
 
-        /*--- Calculate density from specified temperature and domain pressure. ---*/
-        Pressure = nodes->GetPressure(iPoint);
-        Density = Pressure/ (Gas_Constant * Temperature);
+      const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+      const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
 
-        // Assume stagnation point at x = 0, with blowing between x = 0 and x_blowing.
+      su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+      cout << "1020\n";
+      su2double laminar_viscosity    = nodes->GetLaminarViscosity(iPoint);
+      su2double eddy_viscosity       = nodes->GetEddyViscosity(iPoint);
+      su2double thermal_conductivity = Cp * (laminar_viscosity/Prandtl_Lam + eddy_viscosity/Prandtl_Turb);
 
-        // Assume constant blowing type
+      /*--- If it is a customizable or CHT patch, retrieve the specified wall temperature. ---*/
+      cout << "1026\n";
+      const su2double There = nodes->GetTemperature(Point_Normal);
 
-        if (x_coord >= x_blowing || x_coord < 0.0 - epsilon){
-          MassFlow_etc[val_marker][iVertex] = 0.0;
-        }
-        else {
-          MassFlow_etc[val_marker][iVertex] = 1e-10;
-        }
+      /*--- Compute the normal gradient in temperature using Twall ---*/
+      cout << "1030\n";
+      su2double dTdn = -(There - Twall)/dist_ij;
 
-        Vel_Mag  = MassFlow_etc[val_marker][iVertex]/(Density);
-
-        for (iDim = 0; iDim < nDim; iDim++) {
-          Flow_Dir[iDim] = -UnitNormal[iDim];
-          nodes->SetNormal(iPoint, iDim, Flow_Dir[iDim]);
-        }
-
-        Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Vel_Mag*Vel_Mag;
-
-        V_inlet[0] = Temperature;
-        for (iDim = 0; iDim < nDim; iDim++)
-          V_inlet[iDim+1] = Vel_Mag*Flow_Dir[iDim];
-        V_inlet[nDim+1] = Pressure;
-        V_inlet[nDim+2] = Density;
-        V_inlet[nDim+3] = Energy + Pressure/Density;
-
-        conv_numerics->SetPrimitive(V_domain, V_inlet);
-
-        auto residual = conv_numerics->ComputeResidual(config);
-
-        LinSysRes.AddBlock(iPoint, residual);
-
-        for (iDim = 0; iDim < nDim; iDim++){
-          nodes->SetVelocity_Old_iDim(iPoint, Vel_Mag*Flow_Dir[iDim], iDim+1);
-          LinSysRes(iPoint, iDim+1) = 0.0;
-        }
-        nodes->SetVel_ResTruncError_Zero(iPoint);
-
-        const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-
-        const auto Coord_i = geometry->nodes->GetCoord(iPoint);
-        const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
-
-        su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
-
-        su2double laminar_viscosity    = nodes->GetLaminarViscosity(iPoint);
-        su2double eddy_viscosity       = nodes->GetEddyViscosity(iPoint);
-        su2double thermal_conductivity = Cp * (laminar_viscosity/Prandtl_Lam + eddy_viscosity/Prandtl_Turb);
-
-        /*--- If it is a customizable or CHT patch, retrieve the specified wall temperature. ---*/
-  
-        const su2double There = nodes->GetTemperature(Point_Normal);
-
-        /*--- Compute the normal gradient in temperature using Twall ---*/
-  
-        su2double dTdn = -(There - Twall)/dist_ij;
-
-        /*--- Apply a weak boundary condition for the energy equation.
-        Compute the residual due to the prescribed heat flux. ---*/
-  
-        su2double Res_Visc = thermal_conductivity * dTdn * Area;
-
-        LinSysRes(iPoint, nDim+1) += - Res_Visc;
+      /*--- Apply a weak boundary condition for the energy equation.
+      Compute the residual due to the prescribed heat flux. ---*/
+      cout << "1035\n";
+      su2double Res_Visc = thermal_conductivity * dTdn * Area;
+      cout << "1037\n";
+      LinSysRes(iPoint, nDim+1) += - Res_Visc;
 
 
     }
