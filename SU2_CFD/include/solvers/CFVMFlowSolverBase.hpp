@@ -179,9 +179,9 @@ class CFVMFlowSolverBase : public CSolver {
   vector<vector<su2double> > CPressure;         /*!< \brief Pressure coefficient for each boundary and vertex. */
   vector<vector<su2double> > CPressureTarget;   /*!< \brief Target Pressure coefficient for each boundary and vertex. */
   vector<vector<su2double> > YPlus;             /*!< \brief Yplus for each boundary and vertex. */
-  vector<vector<su2double> > UTau;                 /*!< \brief UTau for each boundary and vertex. */
-  vector<vector<su2double> > EddyViscWall;         /*!< \brief Eddy viscosuty at the wall for each boundary and vertex. */
-  vector<vector<su2double> > MassFlow_etc; /*!< \brief Blowing mass flow for each boundary and vertex. */
+  vector<vector<su2double> > UTau;              /*!< \brief UTau for each boundary and vertex. */
+  vector<vector<su2double> > EddyViscWall;      /*!< \brief Eddy viscosuty at the wall for each boundary and vertex. */
+  vector<vector<su2double> > MassFlow_etc;      /*!< \brief Blowing mass flow for each boundary and vertex. */
 
   bool space_centered;       /*!< \brief True if space centered scheme used. */
   bool euler_implicit;       /*!< \brief True if euler implicit scheme used. */
@@ -2011,6 +2011,16 @@ class CFVMFlowSolverBase : public CSolver {
    * \param[in] val_cequivarea - Value of the Equivalent Area coefficient.
    */
   inline void SetTotal_HeatFluxDiff(su2double val_heat) final { Total_HeatFluxDiff = val_heat; }
+
+  /*!
+   * \brief Get the blowing mass flow rate.
+   * \param[in] val_marker - Surface marker where the coefficient is computed.
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the coefficient is evaluated.
+   * \return Value of the blowing mass flow rate.
+   */
+  inline su2double GetETCMassFlowRate(unsigned short val_marker, unsigned long val_vertex) const final {
+    return MassFlow_etc[val_marker][val_vertex];
+  }
 
   /*!
    * \brief Set the value of the Equivalent Area coefficient.

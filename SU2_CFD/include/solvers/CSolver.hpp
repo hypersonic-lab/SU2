@@ -2162,6 +2162,15 @@ public:
   inline virtual su2double GetExhaust_MassFlow(unsigned short val_marker) const { return 0; }
 
   /*!
+   * \brief Get the blowing mass flow rate.
+   * \param[in] val_marker - Surface marker where the coefficient is computed.
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the coefficient is evaluated.
+   * \return Value of the blowing mass flow rate.
+   */
+  inline virtual su2double GetETCMassFlowRate(unsigned short val_marker, unsigned long val_vertex) const { return 0; }
+
+
+  /*!
    * \brief A virtual member.
    * \param[in] val_marker - Surface marker where the coefficient is computed.
    * \return Value of the fan face pressure on the surface <i>val_marker</i>.
