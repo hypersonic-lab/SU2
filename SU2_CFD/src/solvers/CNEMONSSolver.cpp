@@ -930,6 +930,7 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
   SU2_OMP_FOR_DYN(OMP_MIN_SIZE)
 
   for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+    cout << "933\n";
     V_inlet = GetCharacPrimVar(val_marker, iVertex);
     
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();

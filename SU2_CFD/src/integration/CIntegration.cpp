@@ -102,6 +102,7 @@ void CIntegration::Space_Integration(CGeometry *geometry,
 
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
     KindBC = config->GetMarker_All_KindBC(iMarker);
+    cout << "105\n";
     switch (KindBC) {
       case ACTDISK_INLET:
         solver_container[MainSolver]->BC_ActDisk_Inlet(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
