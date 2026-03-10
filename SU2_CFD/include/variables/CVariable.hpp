@@ -103,6 +103,8 @@ protected:
 
   VectorType SolutionExtra_BGS_k; /*!< \brief Intermediate storage, enables cross term extraction as that is also pushed to Solution. */
 
+  MatrixType Normal;
+
  protected:
   unsigned long nPoint = 0;  /*!< \brief Number of points in the domain. */
   unsigned long nDim = 0;      /*!< \brief Number of dimension of the problem. */
@@ -1090,6 +1092,10 @@ public:
    */
   inline virtual su2double GetVelocity(unsigned long iPoint, unsigned long iDim) const { return 0.0; }
 
+  inline su2double GetNormal(unsigned long iPoint, unsigned long iDim) const { return Normal(iPoint,iDim); }
+
+  inline void SetNormal(unsigned long iPoint, unsigned long iDim, const su2double val_normal) { Normal(iPoint, iDim) = val_normal; }
+
   /*!
    * \brief A virtual member.
    * \param[in] iPoint - Point index.
@@ -1561,7 +1567,7 @@ public:
    * \param[in] val_velocity - Pointer to the velocity.
    */
   inline virtual void SetVelocity_Old(unsigned long iPoint, const su2double *val_velocity) {}
-
+  inline virtual void SetVelocity_Old_iDim(unsigned long iPoint, const su2double val_velocity, unsigned long iDim) {}
   /*!
    * \brief A virtual member.
    * \param[in] laminarViscosity

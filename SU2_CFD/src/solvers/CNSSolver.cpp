@@ -779,6 +779,7 @@ void CNSSolver::BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver
   BC_Isothermal_Wall_Generic(geometry, solver_container, conv_numerics, nullptr, config, val_marker, true);
 }
 
+
 void CNSSolver::SetTau_Wall_WF(CGeometry *geometry, CSolver **solver_container, const CConfig *config) {
   /*---
    The wall function implemented herein is based on Nichols and Nelson, AIAA J. v32 n6 2004.

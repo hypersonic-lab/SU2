@@ -284,6 +284,9 @@ class CNEMOEulerVariable : public CFlowVariable {
      }
   }
 
+  inline void SetVelocity_Old_iDim(unsigned long iPoint, const su2double val_velocity, unsigned long iDim) final {
+    Solution_Old(iPoint,iDim) = val_velocity*Solution(iPoint,0);
+  }  
   /*!
    * \brief A virtual member.
    * \return Value of the vibrational-electronic temperature.

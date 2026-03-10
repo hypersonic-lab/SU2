@@ -2366,3 +2366,17 @@ void CNEMOEulerSolver::SetPressureDiffusionSensor(CGeometry *geometry, CConfig *
   CompleteComms(geometry, config, MPI_QUANTITIES::SENSOR);
 
 }
+
+void CNEMOEulerSolver::BC_Inlet_ETC(CGeometry *geometry, CSolver **solver_container,
+                            CNumerics *conv_numerics, CNumerics *visc_numerics,
+                            CConfig *config, unsigned short val_marker) {
+
+  bool viscous = config->GetViscous();
+
+  if (viscous) {
+    BC_ETC_Wall(geometry, solver_container, conv_numerics, visc_numerics, config, val_marker);
+  }
+  else {
+    SU2_MPI::Error("Unsupported INLET_TYPE for viscous flow.", CURRENT_FUNCTION);
+  }
+}

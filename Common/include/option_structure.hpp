@@ -1950,12 +1950,14 @@ enum class INLET_TYPE {
   TOTAL_CONDITIONS, /*!< \brief User specifies total pressure, total temperature, and flow direction. */
   MASS_FLOW,        /*!< \brief User specifies density and velocity (mass flow). */
   INPUT_FILE,       /*!< \brief User specifies an input file. */
+  ETC,              /*!< \brief User sepcifies an ETC wall. */
   VELOCITY_INLET,   /*!< \brief Velocity inlet for an incompressible flow. */
   PRESSURE_INLET,   /*!< \brief Total pressure inlet for an incompressible flow. */
 };
 static const MapType<std::string, INLET_TYPE> Inlet_Map = {
   MakePair("TOTAL_CONDITIONS", INLET_TYPE::TOTAL_CONDITIONS)
   MakePair("MASS_FLOW", INLET_TYPE::MASS_FLOW)
+  MakePair("ETC", INLET_TYPE::ETC)
   MakePair("INPUT_FILE", INLET_TYPE::INPUT_FILE)
   MakePair("VELOCITY_INLET", INLET_TYPE::VELOCITY_INLET)
   MakePair("PRESSURE_INLET", INLET_TYPE::PRESSURE_INLET)
