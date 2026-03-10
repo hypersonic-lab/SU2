@@ -168,7 +168,7 @@ void CFVMFlowSolverBase<V, R>::Allocate(const CConfig& config) {
   AllocVectorOfVectors(nVertex, HeatFlux);
   AllocVectorOfVectors(nVertex, HeatFluxTarget);
 
-  AllocVectorOfVectors(nVertex, MassFlow_etc)
+  AllocVectorOfVectors(nVertex, MassFlow_etc);
   /*--- Y plus in all the markers ---*/
 
   AllocVectorOfVectors(nVertex, YPlus);
