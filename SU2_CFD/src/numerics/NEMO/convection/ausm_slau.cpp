@@ -374,10 +374,8 @@ void CUpwAUSM_SLAU_Base_NEMO::ComputeJacobian(su2double** val_Jacobian_i, su2dou
 CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig* config) {
   /*--- Compute geometric quantities ---*/
   Area = GeometryToolbox::Norm(nDim, Normal);
-  cout << "CR: 377\n";
   for (auto iDim = 0ul; iDim < nDim; iDim++) UnitNormal[iDim] = Normal[iDim] / Area;
 
-  cout << "CR: 380\n";
   /*--- Pull stored primitive variables ---*/
   // Primitives: [rho1,...,rhoNs, T, Tve, u, v, w, P, rho, h, a, c]
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
@@ -393,7 +391,6 @@ CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig
   Enthalpy_i = V_i[H_INDEX];
   Density_i = V_i[RHO_INDEX];
   SoundSpeed_i = V_i[A_INDEX];
-  cout << "CR: 396\n";
   Pressure_j = V_j[P_INDEX];
   Enthalpy_j = V_j[H_INDEX];
   Density_j = V_j[RHO_INDEX];
@@ -401,7 +398,6 @@ CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig
 
   e_ve_i = e_ve_j = 0;
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
-    cout << "404 iSpecies: " << iSpecies << ", nSpecies: " << nSpecies << "\n";
     e_ve_i += (V_i[RHOS_INDEX + iSpecies] * eve_i[iSpecies]) / Density_i;
     e_ve_j += (V_j[RHOS_INDEX + iSpecies] * eve_j[iSpecies]) / Density_j;
   }
@@ -413,7 +409,9 @@ CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig
   /*--- Compute mass and pressure fluxes of specific scheme ---*/
   ComputeInterfaceQuantities(config, PressureFlux, M_F, A_F);
 
-  cout << "CR: 415\n";
+    cout << "CR: 415, M_F=" << M_F << ", A_F[0]=" << A_F[0] << ", A_F[1]=" << A_F[1]
+      << ", nVar=" << nVar << ", nSpecies=" << nSpecies << ", nDim=" << nDim << "\n";
+
   const su2double MassFlux_i = M_F * A_F[0];
   const su2double MassFlux_j = M_F * A_F[1];
 
@@ -422,35 +420,36 @@ CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig
 
   /*--- Assign left & right convective flux vectors ---*/
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
-    cout << "iSpecies: " << iSpecies << ", nSpecies: " << nSpecies << "\n";
     Fc_L[iSpecies] = rhos_i[iSpecies];
     Fc_R[iSpecies] = rhos_j[iSpecies];
   }
-  cout << "427\n";
   for (auto iDim = 0ul; iDim < nDim; iDim++) {
     Fc_L[nSpecies + iDim] = Density_i * Velocity_i[iDim];
     Fc_R[nSpecies + iDim] = Density_j * Velocity_j[iDim];
   }
-  cout << "432\n";
   Fc_L[nSpecies + nDim] = Density_i * Enthalpy_i;
   Fc_R[nSpecies + nDim] = Density_j * Enthalpy_j;
   Fc_L[nSpecies + nDim + 1] = Density_i * e_ve_i;
   Fc_R[nSpecies + nDim + 1] = Density_j * e_ve_j;
 
-  cout << "438\n";
+  cout << "CR: 427, MassFlux_i=" << MassFlux_i << ", MassFlux_j=" << MassFlux_j
+       << ", DissFlux_i=" << DissFlux_i << ", DissFlux_j=" << DissFlux_j << "\n";
+
   /*--- Compute numerical flux ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++)
     Flux[iVar] = 0.5 * ((MassFlux_i + DissFlux_i) * Fc_L[iVar] + (MassFlux_j - DissFlux_j) * Fc_R[iVar]) * Area;
 
-  cout << "443\n";
+  cout << "CR: 443, Flux[0]=" << Flux[0] << ", Area=" << Area << "\n";
+
   for (auto iDim = 0ul; iDim < nDim; iDim++) Flux[nSpecies + iDim] += PressureFlux[iDim] * Area;
 
-  cout << "446\n";
+  cout << "CR: 446, PressureFlux[0]=" << PressureFlux[0] << "\n";
+
   /*--- If required, compute Jacobians (approximated using AUSM) ---*/
   if (implicit) ComputeJacobian(Jacobian_i, Jacobian_j);
 
-  
   cout << "CR: 451\n";
+
   return ResidualType<>(Flux, Jacobian_i, Jacobian_j);
 }
 
