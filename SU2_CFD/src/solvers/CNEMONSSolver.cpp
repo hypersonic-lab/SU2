@@ -921,6 +921,12 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
   const su2double Prandtl_Turb = config->GetPrandtl_Turb();
   const su2double Gas_Constant = config->GetGas_ConstantND();
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
+  const unsigned short T_INDEX = nodes->GetTIndex();
+  const unsigned short TVE_INDEX = nodes->GetTveIndex();
+  const unsigned short VEL_INDEX = nodes->GetVelIndex();
+  const unsigned short P_INDEX = nodes->GetPIndex();
+  const unsigned short RHO_INDEX = nodes->GetRhoIndex();
+  const unsigned short H_INDEX = nodes->GetHIndex();
 
   const su2double x_blowing = 1.2; //config->GetX_blowing();
 
@@ -1005,14 +1011,15 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
       cout << "989\n";
       Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Vel_Mag*Vel_Mag;
       cout << "991\n";
-      V_inlet[0] = Temperature;
+      V_inlet[T_INDEX] = Temperature;
+      V_inlet[TVE_INDEX] = Temperature;
       cout << "993\n";
       for (iDim = 0; iDim < nDim; iDim++)
-        V_inlet[iDim+1] = Vel_Mag*Flow_Dir[iDim];
+        V_inlet[VEL_INDEX+iDim] = Vel_Mag*Flow_Dir[iDim];
       cout << "996\n";  
-      V_inlet[nDim+1] = Pressure;
-      V_inlet[nDim+2] = Density;
-      V_inlet[nDim+3] = Energy + Pressure/Density;
+      V_inlet[P_INDEX] = Pressure;
+      V_inlet[RHO_INDEX] = Density;
+      V_inlet[H_INDEX] = Energy + Pressure/Density;
       cout << "1000\n";
       conv_numerics->SetPrimitive(V_domain, V_inlet);
       cout << "1002\n";
