@@ -931,6 +931,8 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
 
   for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     cout << "933\n";
+    cout << "val_marker: " << "val_marker" << ", iVertex: " << iVertex << "\n";
+    cout << "val_marker: " << val_marker << ", iVertex: " << "iVertex" << "\n";
     V_inlet = GetCharacPrimVar(val_marker, iVertex);
     cout << "935\n";
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
@@ -966,6 +968,7 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
       cout << "966\n";
       /*--- Calculate density from specified temperature and domain pressure. ---*/
       Pressure = nodes->GetPressure(iPoint);
+      cout << "Pressure: " << Pressure << "\n";
       Density = Pressure/ (Gas_Constant * Temperature);
       cout << "970\n";
       // Assume stagnation point at x = 0, with blowing between x = 0 and x_blowing.
@@ -983,7 +986,20 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
       Vel_Mag  = MassFlow_etc[val_marker][iVertex]/(Density);
       cout << "984\n";
       for (iDim = 0; iDim < nDim; iDim++) {
+	cout << "986\n";
         Flow_Dir[iDim] = -UnitNormal[iDim];
+	cout << "988\n";
+	cout << "iPoint: ";
+	cout << iPoint;
+	cout << ", iDim: ";
+	cout << iDim;
+	cout << ", Flow_Dir[, iDim]: ";
+	cout << Flow_Dir[iDim];
+	cout << "\n";
+	cout << "nodes->GetNormal: ";
+	
+        //cout << nodes->GetNormal(iPoint, iDim);
+        //cout << "\n";
         nodes->SetNormal(iPoint, iDim, Flow_Dir[iDim]);
       }
       cout << "989\n";

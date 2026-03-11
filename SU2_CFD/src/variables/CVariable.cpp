@@ -41,7 +41,8 @@ CVariable::CVariable(unsigned long npoint, unsigned long nvar, const CConfig *co
 
   if (config->GetMultizone_Problem())
     Solution_BGS_k.resize(nPoint,nVar) = su2double(0.0);
-
+  
+  Normal.resize(nPoint, nDim) = su2double(0.0);
 }
 
 CVariable::CVariable(unsigned long npoint, unsigned long ndim, unsigned long nvar,
@@ -79,6 +80,8 @@ CVariable::CVariable(unsigned long npoint, unsigned long ndim, unsigned long nva
 
   if (config->GetMultizone_Problem())
     Solution_BGS_k.resize(nPoint,nVar) = su2double(0.0);
+  
+  Normal.resize(nPoint, nDim) = su2double(0.0);
 }
 
 void CVariable::Set_OldSolution() {
