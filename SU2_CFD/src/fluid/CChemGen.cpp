@@ -1,7 +1,7 @@
 /*!
- * \file CMutationTCLib.cpp
- * \brief Source of the Mutation++ 2T nonequilibrium gas model.
- * \author C. Garbacz
+ * \file CChemGen.cpp
+ * \brief Source of the ChemGen chemistry model.
+ * \author 
  * \version 8.3.0 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
@@ -27,9 +27,9 @@
 
 #if defined(HAVE_MPP) && !defined(CODI_REVERSE_TYPE) && !defined(CODI_FORWARD_TYPE)
 
-#include "../../include/fluid/CMutationTCLib.hpp"
+#include "../../include/fluid/CChemGen.hpp"
 
-CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): CNEMOGas(config, val_nDim){
+CChemGen::CChemGen(const CConfig* config, unsigned short val_nDim): CNEMOGas(config, val_nDim){
 
   Mutation::MixtureOptions opt(gas_model);
   string transport_model;
@@ -81,7 +81,7 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   }
 
   /* Initialize mixture object */
-  mix.reset(new Mutation::Mixture(opt));
+  mix.reset(new Mutation::Mixture(opt)); // will have to link chemgen here
 
   // x1000 to have Molar Mass in kg/kmol
   // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
@@ -152,13 +152,14 @@ vector<su2double>& CMutationTCLib::GetSpeciesMolarMass(){
    return MolarMass;
 }
 
-// TODO: Create or pull in a constant for elementary charge
+/*// TODO: Create or pull in a constant for elementary charge
 vector<su2double>& CMutationTCLib::GetSpeciesCharge(){
 
    for(iSpecies = 0; iSpecies < nSpecies; iSpecies++) ChargeSpecies[iSpecies] = mix->speciesCharge(iSpecies)/1.602176565E-19; // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
 
    return ChargeSpecies;
 }
+*/
 
 vector<su2double>& CMutationTCLib::GetSpeciesCvTraRot(){
 
@@ -169,7 +170,7 @@ vector<su2double>& CMutationTCLib::GetSpeciesCvTraRot(){
    return Cvtrs;
 }
 
-
+/*
 vector<su2double>& CMutationTCLib::ComputeSpeciesCvVibEle(su2double val_T){
 
    mix->getCvsMass(Cv_ks.data());
@@ -178,6 +179,7 @@ vector<su2double>& CMutationTCLib::ComputeSpeciesCvVibEle(su2double val_T){
 
    return Cvves;
 }
+*/
 
 vector<su2double>& CMutationTCLib::ComputeMixtureEnergies(){
 
@@ -199,18 +201,21 @@ vector<su2double>& CMutationTCLib::ComputeSpeciesEve(su2double val_T, bool vibe_
   return eves;
 }
 
-vector<su2double>& CMutationTCLib::ComputeNetProductionRates(bool implicit, const su2double *V, const su2double* eve,
+// Species Production
+vector<su2double>& CChmeGen::ComputeNetProductionRates(bool implicit, const su2double *V, const su2double* eve,
                                                const su2double* cvve, const su2double* dTdU, const su2double* dTvedU,
                                                su2double **val_jacobian){
 
-  mix->netProductionRates(ws.data());
+  //mix->netProductionRates(ws.data());
 
-  if(implicit) ChemistryJacobian(0, V, eve, cvve, dTdU, dTvedU, val_jacobian);
+  //if(implicit) ChemistryJacobian(0, V, eve, cvve, dTdU, dTvedU, val_jacobian);
+
+  // Call "source_species" in a way that makes sense -- I assume "mix" here should serve as a chemical state
 
   return ws;
 }
 
-void CMutationTCLib::ChemistryJacobian(unsigned short iReaction, const su2double *V, const su2double* eve, const su2double *cvve,
+void CChemGen::ChemistryJacobian(unsigned short iReaction, const su2double *V, const su2double* eve, const su2double *cvve,
                                   const su2double* dTdU, const su2double* dTvedU, su2double **val_jacobian){
 
   unsigned short iVar, jVar, iSpecies;
