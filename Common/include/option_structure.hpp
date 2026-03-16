@@ -1668,6 +1668,7 @@ enum BC_TYPE {
   MIXING_PLANE_INTERFACE = 42,          /*<  \breif Mxing plane */
   CHT_WALL_INTERFACE = 50,    /*!< \brief Domain interface definition. */
   SMOLUCHOWSKI_MAXWELL = 55,  /*!< \brief Smoluchoski/Maxwell wall boundary condition. */
+  ETC = 56,                   /*!< \brief ETC wall boundary condition. */
   SEND_RECEIVE = 99,          /*!< \brief Boundary send-receive definition. */
 };
 

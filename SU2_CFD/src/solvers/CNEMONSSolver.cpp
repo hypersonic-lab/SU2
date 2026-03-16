@@ -30,6 +30,9 @@
 #include "../../../Common/include/toolboxes/printing_toolbox.hpp"
 #include "../../../Common/include/toolboxes/geometry_toolbox.hpp"
 #include "../../include/solvers/CFVMFlowSolverBase.inl"
+#include <cmath>
+#include <iostream>
+#include <cstdio>
 
 /*--- Explicit instantiation of the parent class of CNEMOEulerSolver,
  *    to spread the compilation over two cpp files. ---*/
@@ -904,121 +907,72 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
 
 void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker){
-  unsigned short iDim;
-  su2double *V_inlet, *V_domain, Temperature, Vel_Mag, Flow_Dir[MAXNDIM], Velocity[MAXNDIM], Pressure, Density, SoundSpeed2, Riemann,
-  Energy, Area, MassFlow;
+  const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  su2double UnitNormal[MAXNDIM] = {0.0};
 
-  su2double UnitNormal[MAXNDIM], Normal[MAXNDIM];
+  /*--- Extract required indicies ---*/
+  // later
 
-  const su2double Two_Gamma_M1 = 2.0 / Gamma_Minus_One;
-
+  /*--- Identify the boundary ---*/
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
-
-  const su2double Temperature_Ref = config->GetTemperature_Ref();
-  su2double Twall = 0.0;
-
-  const su2double Prandtl_Lam = config->GetPrandtl_Lam();
-  const su2double Prandtl_Turb = config->GetPrandtl_Turb();
-  const su2double Gas_Constant = config->GetGas_ConstantND();
-  const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-  const unsigned short T_INDEX = nodes->GetTIndex();
-  const unsigned short TVE_INDEX = nodes->GetTveIndex();
-  const unsigned short VEL_INDEX = nodes->GetVelIndex();
-  const unsigned short P_INDEX = nodes->GetPIndex();
-  const unsigned short RHO_INDEX = nodes->GetRhoIndex();
-  const unsigned short H_INDEX = nodes->GetHIndex();
-
-  const su2double x_blowing = 1.2; //config->GetX_blowing();
-
-  const su2double x_outlet = 0.506;  // You can hardcode this if needed.
-  const su2double epsilon = 1e-6;  // Tolerance to detect "near outlet" node
-
-  SU2_OMP_FOR_DYN(OMP_MIN_SIZE)
-
-  for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-    V_inlet = GetCharacPrimVar(val_marker, iVertex);
-    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    su2double x_coord = geometry->nodes->GetCoord(iPoint)[0];
-
-    if (geometry->nodes->GetDomain(iPoint)) {
-      /*--- Normal vector for this vertex (negate for outward convention) ---*/
-      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
-      for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
-      conv_numerics->SetNormal(Normal);
-      Area = GeometryToolbox::Norm(nDim, Normal);
-      for (iDim = 0; iDim < nDim; iDim++)
-        UnitNormal[iDim] = Normal[iDim]/Area;
-        /*--- Retrieve solution at this boundary node ---*/
-      
-      V_domain = nodes->GetPrimitive(iPoint);
-      /*--- Build the fictitious inlet state ---*/
-
-      /*--- Retrieve the specified mass flow and temperature ---*/
-      Twall = 300;
-
-      Temperature = Twall;
-
-      /*--- Calculate density from specified temperature and domain pressure. ---*/
-      Pressure = nodes->GetPressure(iPoint);
-      Density = Pressure/ (Gas_Constant * Temperature);
-      // Assume stagnation point at x = 0, with blowing between x = 0 and x_blowing.
-
-      // Assume constant blowing type
-
-      if (x_coord >= x_blowing || x_coord < 0.0 - epsilon){
-        MassFlow_etc[val_marker][iVertex] = 0.0;
-      }
-      else {
-        MassFlow_etc[val_marker][iVertex] = 1e-10;
-      }
-
-      Vel_Mag  = MassFlow_etc[val_marker][iVertex]/(Density);
-      for (iDim = 0; iDim < nDim; iDim++) {
-        Flow_Dir[iDim] = -UnitNormal[iDim];
-        nodes->SetNormal(iPoint, iDim, Flow_Dir[iDim]);
-      }
-      Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Vel_Mag*Vel_Mag;
-      V_inlet[T_INDEX] = Temperature;
-      V_inlet[TVE_INDEX] = Temperature;
-      for (iDim = 0; iDim < nDim; iDim++)
-        V_inlet[VEL_INDEX+iDim] = Vel_Mag*Flow_Dir[iDim];
-      V_inlet[P_INDEX] = Pressure;
-      V_inlet[RHO_INDEX] = Density;
-      V_inlet[H_INDEX] = Energy + Pressure/Density;
-      conv_numerics->SetPrimitive(V_domain, V_inlet);
-      auto residual = conv_numerics->ComputeResidual(config);
-      LinSysRes.AddBlock(iPoint, residual);
-      for (iDim = 0; iDim < nDim; iDim++){
-        nodes->SetVelocity_Old_iDim(iPoint, Vel_Mag*Flow_Dir[iDim], iDim+1);
-        LinSysRes(iPoint, iDim+1) = 0.0;
-      }
-      nodes->SetVel_ResTruncError_Zero(iPoint);
-      const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-
-      const auto Coord_i = geometry->nodes->GetCoord(iPoint);
-      const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
-
-      su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
-      su2double laminar_viscosity    = nodes->GetLaminarViscosity(iPoint);
-      su2double eddy_viscosity       = nodes->GetEddyViscosity(iPoint);
-      su2double thermal_conductivity = Cp * (laminar_viscosity/Prandtl_Lam + eddy_viscosity/Prandtl_Turb);
-
-      /*--- If it is a customizable or CHT patch, retrieve the specified wall temperature. ---*/
-      const su2double There = nodes->GetTemperature(Point_Normal);
-
-      /*--- Compute the normal gradient in temperature using Twall ---*/
-      su2double dTdn = -(There - Twall)/dist_ij;
-
-      /*--- Apply a weak boundary condition for the energy equation.
-      Compute the residual due to the prescribed heat flux. ---*/
-      su2double Res_Visc = thermal_conductivity * dTdn * Area;
-      LinSysRes(iPoint, nDim+1) += - Res_Visc;
-
-
-    }
+  
+  if (implicit){
+    SU2_MPI::Error("ETC is not yet implemented for implicit", CURRENT_FUNCTION);
   }
 
-  END_SU2_OMP_FOR
+  /*--- Loop over boundary points ---*/
+  // TODO Add parallelization here
+  for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++){
+
+    // Get index of point on boundary
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    if (!geometry->nodes->GetDomain(iPoint)) continue;
+
+    // Get normal
+    const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+    
+    // Get area
+    const su2double Area = GeometryToolbox::Norm(nDim, Normal);
+
+    for (auto iDim = 0uL; iDim < nDim; iDim++)
+      UnitNormal[iDim] = Normal[iDim]/Area;
+    
+      /*--- Store the corrected velocity at the wall which will
+     be zero (v = 0), unless there is grid motion (v = u_wall)---*/
+    su2double zero[MAXNDIM] = {0.0};
+    nodes->SetVelocity_Old(iPoint, zero);
+
+    /*--- Initialize viscous residual to zero ---*/
+    for (auto iVar = 0ul; iVar < nVar; iVar ++) {Res_Visc[iVar] = 0.0;}
+
+    for (auto iDim = 0ul; iDim < nDim; iDim++)
+      LinSysRes(iPoint, nSpecies+iDim) = 0.0;
+    nodes->SetVel_ResTruncError_Zero(iPoint);
+
+    // Goal: contribute mass momentum energy to residual
+    // First add mass flow of electrons
+    // Electron Current Density = 100 A/cm^2 (Hanquist Dissertation Fig 3.15a)
+    // Converts to 5.7e-6 kg/(s*m^2) of mass flow
+    const su2double mdot_electrons = 5.7e-6; // kg/(s*m^2)
+    const su2double electron_flux = mdot_electrons * Area;
+    // Mass
+    Res_Conv[0] = electron_flux;
+    // Assume an electron velocity of 6.24e6 m/s (From Gemini)
+    const su2double electron_velocity = 6.24e6; // m/s
+    const su2double Pi = nodes->GetPressure(iPoint);
+    // Momentum
+    for (auto iDim = 0uL; iDim < nDim; iDim++){
+      Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
+    }
+    // Energy
+    // Assume from previous assumptions energy flux is 5.02e6 W/m2
+    Res_Conv[nSpecies+nDim] = 5.02e6 * Area;
+    Res_Conv[nSpecies+nDim+1] = 5.02e6 * Area;
+    
+    LinSysRes.SubtractBlock(iPoint, Res_Conv);  
+
+  }
 }
 
 void CNEMONSSolver::BC_Smoluchowski_Maxwell(CGeometry *geometry,

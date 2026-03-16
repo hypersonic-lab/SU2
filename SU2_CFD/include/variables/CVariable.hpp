@@ -1094,10 +1094,8 @@ public:
 
   inline su2double GetNormal(unsigned long iPoint, unsigned long iDim) const { return Normal(iPoint,iDim); }
 
-  inline void SetNormal(unsigned long iPoint, unsigned long iDim, const su2double val_normal) { 
-     cout << "val_normal in function: " << val_normal << "\n";
-     cout << "Normal before setting: " << Normal(iPoint, iDim) << "\n";
-     Normal(iPoint, iDim) = val_normal; 
+  inline void SetNormal(unsigned long iPoint, unsigned long iDim, const su2double val_normal) {
+    Normal(iPoint, iDim) = val_normal;
   }
 
   /*!

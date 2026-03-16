@@ -28,6 +28,7 @@
 #include "../../../../include/numerics/NEMO/convection/ausm_slau.hpp"
 
 #include "../../../../../Common/include/toolboxes/geometry_toolbox.hpp"
+#include <cstdio>
 
 CUpwAUSM_SLAU_Base_NEMO::CUpwAUSM_SLAU_Base_NEMO(unsigned short val_nDim, unsigned short val_nVar,
                                                  unsigned short val_nPrimVar, unsigned short val_nPrimVarGrad,
@@ -372,9 +373,24 @@ void CUpwAUSM_SLAU_Base_NEMO::ComputeJacobian(su2double** val_Jacobian_i, su2dou
 }
 
 CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig* config) {
+  static int trace_calls = 0;
+  const bool trace_this_call = (trace_calls < 1);
+  trace_calls++;
+
+  if (trace_this_call) {
+    std::fprintf(stderr, "AUSM_TRACE enter rank=%d nVar=%lu nSpecies=%lu nDim=%lu\n",
+                 SU2_MPI::GetRank(), nVar, nSpecies, nDim);
+    std::fflush(stderr);
+  }
+
   /*--- Compute geometric quantities ---*/
   Area = GeometryToolbox::Norm(nDim, Normal);
   for (auto iDim = 0ul; iDim < nDim; iDim++) UnitNormal[iDim] = Normal[iDim] / Area;
+
+  if (trace_this_call) {
+    std::fprintf(stderr, "AUSM_TRACE geometry rank=%d Area=%.16e\n", SU2_MPI::GetRank(), Area);
+    std::fflush(stderr);
+  }
 
   /*--- Pull stored primitive variables ---*/
   // Primitives: [rho1,...,rhoNs, T, Tve, u, v, w, P, rho, h, a, c]
@@ -396,6 +412,14 @@ CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig
   Density_j = V_j[RHO_INDEX];
   SoundSpeed_j = V_j[A_INDEX];
 
+  if (trace_this_call) {
+    std::fprintf(stderr,
+                 "AUSM_TRACE primitive rank=%d Pi=%.16e Pj=%.16e rhoi=%.16e rhoj=%.16e ai=%.16e aj=%.16e Hi=%.16e Hj=%.16e\n",
+                 SU2_MPI::GetRank(), Pressure_i, Pressure_j, Density_i, Density_j, SoundSpeed_i, SoundSpeed_j, Enthalpy_i,
+                 Enthalpy_j);
+    std::fflush(stderr);
+  }
+
   e_ve_i = e_ve_j = 0;
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
     e_ve_i += (V_i[RHOS_INDEX + iSpecies] * eve_i[iSpecies]) / Density_i;
@@ -409,8 +433,11 @@ CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig
   /*--- Compute mass and pressure fluxes of specific scheme ---*/
   ComputeInterfaceQuantities(config, PressureFlux, M_F, A_F);
 
-    cout << "CR: 415, M_F=" << M_F << ", A_F[0]=" << A_F[0] << ", A_F[1]=" << A_F[1]
-      << ", nVar=" << nVar << ", nSpecies=" << nSpecies << ", nDim=" << nDim << "\n";
+  if (trace_this_call) {
+    std::fprintf(stderr, "AUSM_TRACE interface rank=%d MF=%.16e AF0=%.16e AF1=%.16e PF0=%.16e\n",
+                 SU2_MPI::GetRank(), M_F, A_F[0], A_F[1], PressureFlux[0]);
+    std::fflush(stderr);
+  }
 
   const su2double MassFlux_i = M_F * A_F[0];
   const su2double MassFlux_j = M_F * A_F[1];
@@ -432,23 +459,14 @@ CNumerics::ResidualType<> CUpwAUSM_SLAU_Base_NEMO::ComputeResidual(const CConfig
   Fc_L[nSpecies + nDim + 1] = Density_i * e_ve_i;
   Fc_R[nSpecies + nDim + 1] = Density_j * e_ve_j;
 
-  cout << "CR: 427, MassFlux_i=" << MassFlux_i << ", MassFlux_j=" << MassFlux_j
-       << ", DissFlux_i=" << DissFlux_i << ", DissFlux_j=" << DissFlux_j << "\n";
-
   /*--- Compute numerical flux ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++)
     Flux[iVar] = 0.5 * ((MassFlux_i + DissFlux_i) * Fc_L[iVar] + (MassFlux_j - DissFlux_j) * Fc_R[iVar]) * Area;
 
-  cout << "CR: 443, Flux[0]=" << Flux[0] << ", Area=" << Area << "\n";
-
   for (auto iDim = 0ul; iDim < nDim; iDim++) Flux[nSpecies + iDim] += PressureFlux[iDim] * Area;
-
-  cout << "CR: 446, PressureFlux[0]=" << PressureFlux[0] << "\n";
 
   /*--- If required, compute Jacobians (approximated using AUSM) ---*/
   if (implicit) ComputeJacobian(Jacobian_i, Jacobian_j);
-
-  cout << "CR: 451\n";
 
   return ResidualType<>(Flux, Jacobian_i, Jacobian_j);
 }

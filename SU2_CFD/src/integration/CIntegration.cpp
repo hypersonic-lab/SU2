@@ -110,12 +110,7 @@ void CIntegration::Space_Integration(CGeometry *geometry,
         solver_container[MainSolver]->BC_Engine_Inflow(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
         break;
       case INLET_FLOW:
-        if (config->GetKind_Inlet() == INLET_TYPE::ETC){
-          solver_container[MainSolver]->BC_Inlet_ETC(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
-        } 
-        else {
           solver_container[MainSolver]->BC_Inlet(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);  
-        }
         break;
       case ACTDISK_OUTLET:
         solver_container[MainSolver]->BC_ActDisk_Outlet(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
@@ -182,6 +177,9 @@ void CIntegration::Space_Integration(CGeometry *geometry,
         break;
       case SMOLUCHOWSKI_MAXWELL:
         solver_container[MainSolver]->BC_Smoluchowski_Maxwell(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
+        break;
+      case ETC:
+        solver_container[MainSolver]->BC_ETC_Wall(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
         break;
     }
 

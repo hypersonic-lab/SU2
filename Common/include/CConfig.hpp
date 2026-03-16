@@ -209,6 +209,7 @@ private:
   nMarker_Outlet,                 /*!< \brief Number of outlet flow markers. */
   nMarker_Smoluchowski_Maxwell,   /*!< \brief Number of smoluchowski/maxwell wall boundaries. */
   nMarker_Isothermal,             /*!< \brief Number of isothermal wall boundaries. */
+  nMarker_ETC,                    /*!< \brief Number of Electron Transpiration Cooling wall boundaries. */
   nMarker_HeatFlux,               /*!< \brief Number of constant heat flux wall boundaries. */
   nMarker_HeatTransfer,           /*!< \brief Number of heat-transfer/convection wall boundaries. */
   nMarker_EngineExhaust,          /*!< \brief Number of nacelle exhaust flow markers. */
@@ -264,6 +265,7 @@ private:
   *Marker_Outlet,                 /*!< \brief Outlet flow markers. */
   *Marker_Smoluchowski_Maxwell,   /*!< \brief Smoluchowski/Maxwell wall markers. */
   *Marker_Isothermal,             /*!< \brief Isothermal wall markers. */
+  *Marker_ETC,                    /*!< \brief ETC wall markers. */
   *Marker_HeatFlux,               /*!< \brief Constant heat flux wall markers. */
   *Marker_HeatTransfer,           /*!< \brief Heat-transfer/convection markers. */
   *Marker_RoughWall,              /*!< \brief Constant heat flux wall markers. */
