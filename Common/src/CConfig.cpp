@@ -5761,7 +5761,7 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
   nMarker_CfgFile = nMarker_Euler + nMarker_FarField + nMarker_SymWall +
   nMarker_PerBound + nMarker_NearFieldBound + nMarker_Fluid_InterfaceBound +
   nMarker_CHTInterface + nMarker_Inlet + nMarker_Riemann + nMarker_Smoluchowski_Maxwell +
-  nMarker_Giles + nMarker_Outlet + nMarker_Isothermal +
+  nMarker_Giles + nMarker_Outlet + nMarker_Isothermal + nMarker_ETC +
   nMarker_HeatFlux + nMarker_HeatTransfer +
   nMarker_EngineInflow + nMarker_EngineExhaust + nMarker_Internal +
   nMarker_Supersonic_Inlet + nMarker_Supersonic_Outlet + nMarker_Displacement + nMarker_Load +

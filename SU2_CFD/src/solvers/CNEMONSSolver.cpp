@@ -967,8 +967,8 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container,
     }
     // Energy
     // Assume from previous assumptions energy flux is 5.02e6 W/m2
-    Res_Conv[nSpecies+nDim] = 5.02e6 * Area;
-    Res_Conv[nSpecies+nDim+1] = 5.02e6 * Area;
+    Res_Conv[nSpecies+nDim] = 5.02e6 * Area; // E
+    Res_Conv[nSpecies+nDim+1] = 5.02e6 * Area; // Vib E
     
     LinSysRes.SubtractBlock(iPoint, Res_Conv);  
 
