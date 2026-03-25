@@ -879,7 +879,7 @@ void CConfig::SetPointersNull() {
   Marker_ZoneInterface        = nullptr;    Marker_All_ZoneInterface    = nullptr;    Marker_Riemann             = nullptr;
   Marker_Fluid_InterfaceBound = nullptr;    Marker_CHTInterface         = nullptr;    Marker_Damper              = nullptr;
   Marker_Emissivity           = nullptr;    Marker_HeatTransfer         = nullptr;    Marker_ETC                 = nullptr;
-
+  Marker_Adiabatic           = nullptr;
     /*--- Boundary Condition settings ---*/
 
   Isothermal_Temperature = nullptr;    HeatTransfer_Coeff     = nullptr;    HeatTransfer_WallTemp  = nullptr;
@@ -1692,6 +1692,9 @@ void CConfig::SetConfig_Options() {
   /*!\brief MARKER_ISOTHERMAL DESCRIPTION: Isothermal wall boundary marker(s)\n
    * Format: ( isothermal marker, wall temperature (static), ... ) \ingroup Config  */
   addStringDoubleListOption("MARKER_ISOTHERMAL", nMarker_Isothermal, Marker_Isothermal, Isothermal_Temperature);
+  /*!\brief MARKER_ADIABATIC DESCRIPTION: Adiabatic wall boundary marker(s)\n
+   * Format: ( adiabatic marker ) \ingroup Config  */
+  addStringListOption("MARKER_ADIABATIC", nMarker_Adiabatic, Marker_Adiabatic);
   /*!\brief MARKER_ETC DESCRIPTION: ETC wall boundary marker(s)\n
    * Format: ( ETC marker ) \ingroup Config  */
   addStringListOption("MARKER_ETC", nMarker_ETC, Marker_ETC);
@@ -3563,7 +3566,7 @@ void CConfig::SetPostprocessing(SU2_COMPONENT val_software, unsigned short val_i
     case MAIN_SOLVER::FEM_EULER:
     case MAIN_SOLVER::NEMO_EULER:
       if (nMarker_HeatFlux + nMarker_Isothermal + nMarker_HeatTransfer +
-          nMarker_Smoluchowski_Maxwell + nMarker_CHTInterface + nMarker_ETC > 0) {
+          nMarker_Smoluchowski_Maxwell + nMarker_CHTInterface + nMarker_ETC + nMarker_Adiabatic > 0) {
         SU2_MPI::Error("Euler solvers are only compatible with slip walls (MARKER_EULER)", CURRENT_FUNCTION);
       }
       break;
@@ -5744,7 +5747,7 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
   iMarker_NearFieldBound, iMarker_Fluid_InterfaceBound,
   iMarker_Inlet, iMarker_Riemann, iMarker_Giles, iMarker_Outlet,
   iMarker_Smoluchowski_Maxwell,
-  iMarker_Isothermal, iMarker_ETC, iMarker_HeatFlux,iMarker_HeatTansfer,
+  iMarker_Isothermal, iMarker_Adiabatic, iMarker_ETC, iMarker_HeatFlux,iMarker_HeatTansfer,
   iMarker_EngineInflow, iMarker_EngineExhaust, iMarker_Damper,
   iMarker_Displacement, iMarker_Load, iMarker_Internal,
   iMarker_Monitoring, iMarker_Designing, iMarker_GeoEval, iMarker_Plotting, iMarker_Analyze,
@@ -5761,7 +5764,7 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
   nMarker_CfgFile = nMarker_Euler + nMarker_FarField + nMarker_SymWall +
   nMarker_PerBound + nMarker_NearFieldBound + nMarker_Fluid_InterfaceBound +
   nMarker_CHTInterface + nMarker_Inlet + nMarker_Riemann + nMarker_Smoluchowski_Maxwell +
-  nMarker_Giles + nMarker_Outlet + nMarker_Isothermal + nMarker_ETC +
+  nMarker_Giles + nMarker_Outlet + nMarker_Isothermal + nMarker_Adiabatic + nMarker_ETC +
   nMarker_HeatFlux + nMarker_HeatTransfer +
   nMarker_EngineInflow + nMarker_EngineExhaust + nMarker_Internal +
   nMarker_Supersonic_Inlet + nMarker_Supersonic_Outlet + nMarker_Displacement + nMarker_Load +
@@ -6051,6 +6054,11 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
     Marker_CfgFile_KindBC[iMarker_CfgFile] = ISOTHERMAL;
     iMarker_CfgFile++;
   }
+  for (iMarker_Adiabatic = 0; iMarker_Adiabatic < nMarker_Adiabatic; iMarker_Adiabatic++) {
+    Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Adiabatic[iMarker_Adiabatic];
+    Marker_CfgFile_KindBC[iMarker_CfgFile] = ADIABATIC;
+    iMarker_CfgFile++;
+  }
   for (iMarker_ETC = 0; iMarker_ETC < nMarker_ETC; iMarker_ETC++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_ETC[iMarker_ETC];
     Marker_CfgFile_KindBC[iMarker_CfgFile] = ETC;
@@ -6322,7 +6330,7 @@ void CConfig::SetOutput(SU2_COMPONENT val_software, unsigned short val_izone) {
   iMarker_Fluid_InterfaceBound, iMarker_Inlet, iMarker_Riemann,
   iMarker_Deform_Mesh, iMarker_Deform_Mesh_Sym_Plane, iMarker_Deform_Mesh_Internal,
   iMarker_Fluid_Load, iMarker_Smoluchowski_Maxwell, iWall_Catalytic,
-  iMarker_Giles, iMarker_Outlet, iMarker_Isothermal, iMarker_ETC, iMarker_HeatFlux, iMarker_HeatTransfer,
+  iMarker_Giles, iMarker_Outlet, iMarker_Isothermal, iMarker_Adiabatic, iMarker_ETC, iMarker_HeatFlux, iMarker_HeatTransfer,
   iMarker_EngineInflow, iMarker_EngineExhaust, iMarker_Displacement, iMarker_Damper,
   iMarker_Load, iMarker_Internal, iMarker_Monitoring,
   iMarker_Designing, iMarker_GeoEval, iMarker_Plotting, iMarker_Analyze, iMarker_DV, iDV_Value,
@@ -7753,6 +7761,15 @@ void CConfig::SetOutput(SU2_COMPONENT val_software, unsigned short val_izone) {
     BoundaryTable.PrintFooter();
   }
 
+  if (nMarker_Adiabatic != 0) {
+    BoundaryTable << "Adiabatic wall";
+    for (iMarker_Adiabatic = 0; iMarker_Adiabatic < nMarker_Adiabatic; iMarker_Adiabatic++) {
+      BoundaryTable << Marker_Adiabatic[iMarker_Adiabatic];
+      if (iMarker_Adiabatic < nMarker_Adiabatic-1)  BoundaryTable << " ";
+    }
+    BoundaryTable.PrintFooter();
+  }
+
   if (nMarker_ETC != 0) {
     BoundaryTable << "ETC wall";
     for (iMarker_ETC = 0; iMarker_ETC < nMarker_ETC; iMarker_ETC++) {
@@ -8246,7 +8263,8 @@ bool CConfig::GetViscous_Wall(unsigned short iMarker) const {
           Marker_All_KindBC[iMarker] == HEAT_TRANSFER ||
           Marker_All_KindBC[iMarker] == SMOLUCHOWSKI_MAXWELL ||
           Marker_All_KindBC[iMarker] == CHT_WALL_INTERFACE ||
-          Marker_All_KindBC[iMarker] == ETC);
+          Marker_All_KindBC[iMarker] == ETC ||
+          Marker_All_KindBC[iMarker] == ADIABATIC);
 }
 
 bool CConfig::GetCatalytic_Wall(unsigned short iMarker) const {

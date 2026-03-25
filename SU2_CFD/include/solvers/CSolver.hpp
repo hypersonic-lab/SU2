@@ -971,6 +971,12 @@ public:
                                          CConfig *config,
                                          unsigned short val_marker) { }
 
+  inline virtual void BC_Adiabatic_Wall(CGeometry *geometry,
+                                         CSolver **solver_container,
+                                         CNumerics *conv_numerics,
+                                         CNumerics *visc_numerics,
+                                         CConfig *config,
+                                         unsigned short val_marker) { }
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.

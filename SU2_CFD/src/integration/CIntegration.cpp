@@ -151,6 +151,9 @@ void CIntegration::Space_Integration(CGeometry *geometry,
 
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++)
     switch (config->GetMarker_All_KindBC(iMarker)) {
+      case ADIABATIC:
+        solver_container[MainSolver]->BC_Adiabatic_Wall(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
+        break;
       case ISOTHERMAL:
         solver_container[MainSolver]->BC_Isothermal_Wall(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
         break;
