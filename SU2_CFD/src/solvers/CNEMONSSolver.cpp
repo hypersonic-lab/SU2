@@ -920,8 +920,13 @@ void CNEMONSSolver::BC_Adiabatic_Wall(CGeometry *geometry, CSolver **solver_cont
     SU2_MPI::Error("Adiabatic wall is not yet implemented for implicit", CURRENT_FUNCTION);
   }
 
+  const unsigned short T_INDEX        = nodes->GetTIndex();
+  const unsigned short TVE_INDEX      = nodes->GetTveIndex();
+  const unsigned short RHO_INDEX      = nodes->GetRhoIndex();
+  const unsigned short RHOCVTR__INDEX = nodes->GetTIndex();
+
   /*--- Loop over boundary points ---*/
-  // TODO Add parallelization here
+  SU2_OMP_FOR_DYN(OMP_MIN_SIZE)
   for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++){
 
     // Get index of point on boundary
@@ -935,54 +940,37 @@ void CNEMONSSolver::BC_Adiabatic_Wall(CGeometry *geometry, CSolver **solver_cont
     // Get area
     const su2double Area = GeometryToolbox::Norm(nDim, Normal);
 
-    for (auto iDim = 0uL; iDim < nDim; iDim++)
-      UnitNormal[iDim] = Normal[iDim]/Area;
+    su2double Res_Visc[MAXNVAR] = {0.0};
 
-    /*--- Compute closest normal neighbor ---*/
-    const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+    const auto V     = nodes->GetPrimitive(iPoint);
+    const auto GradV = nodes->GetGradient_Primitive(iPoint);
+    su2double dTdn = 0.0;
+    su2double dTvedn = 0.0;
+    for (auto iDim = 0u; iDim < nDim; iDim++){
+      dTdn += GradV[T_INDEX][iDim]*Normal[iDim];
+      dTvedn += GradV[TVE_INDEX][iDim]*Normal[iDim];
+    }
+    su2double ktr = nodes->GetThermalConductivity(iPoint);
+    su2double kve = nodes->GetThermalConductivity_ve(iPoint);
 
-    /*--- Compute distance between wall & normal neighbor ---*/
-    const auto Coord_i = geometry->nodes->GetCoord(iPoint);
-    const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
+    su2double Twall = V[T_INDEX];
+    const short epsilon = 0.5;
+    su2double sigma = 5.670e-8;
 
-    const su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
-    
-      /*--- Store the corrected velocity at the wall which will
-     be zero (v = 0), unless there is grid motion (v = u_wall)---*/
+    Res_Visc[nSpecies+nDim]   += (ktr*dTdn + kve*dTvedn - epsilon*sigma*pow(Twall,4))*Area;
+    Res_Visc[nSpecies+nDim+1] += (kve*dTvedn)*Area;
+
     su2double zero[MAXNDIM] = {0.0};
     nodes->SetVelocity_Old(iPoint, zero);
 
-    /*--- Initialize viscous residual to zero ---*/
-    for (auto iVar = 0ul; iVar < nVar; iVar ++) {Res_Visc[iVar] = 0.0;}
-
-    for (auto iDim = 0ul; iDim < nDim; iDim++)
+    for (auto iDim = 0u; iDim < nDim; iDim++){
       LinSysRes(iPoint, nSpecies+iDim) = 0.0;
+    }
     nodes->SetVel_ResTruncError_Zero(iPoint);
-
-        /*--- Calculate the gradient of temperature ---*/
-    const su2double Ti   = nodes->GetTemperature(iPoint);
-    const su2double Tj   = nodes->GetTemperature(Point_Normal);
-    const su2double Tvei = nodes->GetTemperature_ve(iPoint);
-    const su2double Tvej = nodes->GetTemperature_ve(Point_Normal);
-
-    /*--- Rename variables for convenience ---*/
-    const su2double ktr = nodes->GetThermalConductivity(iPoint);
-    const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
-
-    const su2double epsilon = 0.5;
-    const su2double sigma = 5.670e-8; // W/(m^2 K^4)
-
-    const su2double q_aero = (ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) * Area/dist_ij;
-    const su2double Ti4 = Ti*Ti*Ti*Ti;
-    const su2double q_rad = epsilon*sigma*Ti4*Area;
-    //cout << "Grid Point: " << iPoint << ", q_rad: " << q_rad << ", q_aero: " << q_aero << ", area: " << Area << "\n";
-
-    /*--- Apply to the linear system ---*/
-    Res_Visc[nSpecies+nDim]   = q_aero + q_rad; // Positive value is heat going away from wall
-    Res_Visc[nSpecies+nDim+1] = q_aero + q_rad;
 
     LinSysRes.SubtractBlock(iPoint, Res_Visc);
   }
+  END_SU2_OMP_FOR
 }
 
 void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
