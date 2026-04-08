@@ -122,6 +122,8 @@ CHeatSolver::CHeatSolver(CGeometry *geometry, CConfig *config, unsigned short iM
   /*--- Heat flux in all the markers ---*/
 
   AllocVectorOfVectors(nVertex, HeatFlux);
+  AllocVectorOfVectors(nVertex, HeatFluxRad);
+  AllocVectorOfVectors(nVertex, HeatFluxCond);
 
   if (config->GetMultizone_Problem()){
     /*--- Initialize the BGS residuals. ---*/
@@ -682,6 +684,40 @@ void CHeatSolver::Heat_Fluxes(CGeometry *geometry, CSolver **solver_container, C
           }
         }
       }
+    } else if ( Boundary == ADIABATIC ) {
+
+      for (auto iVertex = 0ul; iVertex < geometry->nVertex[iMarker]; iVertex++ ) {
+
+        HeatFluxCond[iMarker][iVertex] = 0.0;
+        HeatFluxRad[iMarker][iVertex] = 0.0;
+
+        const auto iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+
+        if(geometry->nodes->GetDomain(iPoint)) {
+
+          iPointNormal = geometry->vertex[iMarker][iVertex]->GetNormal_Neighbor();
+
+          Twall = nodes->GetTemperature(iPoint);
+
+          Coord = geometry->nodes->GetCoord(iPoint);
+          Coord_Normal = geometry->nodes->GetCoord(iPointNormal);
+
+          Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+          Area = GeometryToolbox::Norm(nDim, Normal);
+
+          dist = 0.0;
+          for (auto iDim = 0u; iDim < nDim; iDim++) dist += (Coord_Normal[iDim]-Coord[iDim])*(Coord_Normal[iDim]-Coord[iDim]);
+          dist = sqrt(dist);
+
+          dTdn = (Twall - nodes->GetTemperature(iPointNormal))/dist;
+          su2double sigma = 5.670e-8;
+          su2double epsilon = 0.5;
+          HeatFluxCond[iMarker][iVertex] = thermal_diffusivity*dTdn*config->GetHeat_Flux_Ref();
+          HeatFluxRad[iMarker][iVertex] = epsilon*sigma*pow(Twall*config->GetTemperature_Ref(),4);
+          HeatFlux[iMarker][iVertex] = HeatFluxCond[iMarker][iVertex] + HeatFluxRad[iMarker][iVertex];
+          HeatFlux_per_Marker[iMarker] += HeatFlux[iMarker][iVertex]*Area;
+        }
+      }
     }
 
     if (Monitoring == YES) {
@@ -702,6 +738,7 @@ void CHeatSolver::Heat_Fluxes(CGeometry *geometry, CSolver **solver_container, C
   else {
     Total_AverageT = 0.0;
   }
+
 
   Total_HeatFlux = AllBound_HeatFlux;
 }

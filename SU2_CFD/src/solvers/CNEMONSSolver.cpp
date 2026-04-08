@@ -942,23 +942,32 @@ void CNEMONSSolver::BC_Adiabatic_Wall(CGeometry *geometry, CSolver **solver_cont
 
     su2double Res_Visc[MAXNVAR] = {0.0};
 
-    const auto V     = nodes->GetPrimitive(iPoint);
-    const auto GradV = nodes->GetGradient_Primitive(iPoint);
-    su2double dTdn = 0.0;
-    su2double dTvedn = 0.0;
-    for (auto iDim = 0u; iDim < nDim; iDim++){
-      dTdn += GradV[T_INDEX][iDim]*Normal[iDim];
-      dTvedn += GradV[TVE_INDEX][iDim]*Normal[iDim];
-    }
-    su2double ktr = nodes->GetThermalConductivity(iPoint);
-    su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+    const auto V = nodes->GetPrimitive(iPoint);
 
-    su2double Twall = V[T_INDEX];
-    const short epsilon = 0.5;
-    su2double sigma = 5.670e-8;
+    /*--- Compute closest normal neighbor and wall-to-neighbor distance ---*/
+    const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+    const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+    const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
+    const su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
 
-    Res_Visc[nSpecies+nDim]   += (ktr*dTdn + kve*dTvedn - epsilon*sigma*pow(Twall,4))*Area;
-    Res_Visc[nSpecies+nDim+1] += (kve*dTvedn)*Area;
+    /*--- Temperature at wall (i) and interior neighbor (j) ---*/
+    const su2double Ti   = nodes->GetTemperature(iPoint);
+    const su2double Tj   = nodes->GetTemperature(Point_Normal);
+    const su2double Tvei = nodes->GetTemperature_ve(iPoint);
+    const su2double Tvej = nodes->GetTemperature_ve(Point_Normal);
+
+    const su2double ktr = nodes->GetThermalConductivity(iPoint);
+    const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+
+    const su2double Twall = V[T_INDEX];
+    const su2double epsilon = 1.0;
+    const su2double sigma = 5.670e-8;
+
+    HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Twall,4);
+    HeatFluxCond[val_marker][iVertex] = (ktr*(Ti-Tj) + kve*(Tvei-Tvej)) / dist_ij;
+
+    Res_Visc[nSpecies+nDim]   += (ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Twall,4)*Area;
+    Res_Visc[nSpecies+nDim+1] += kve*(Tvei-Tvej)*Area/dist_ij;
 
     su2double zero[MAXNDIM] = {0.0};
     nodes->SetVelocity_Old(iPoint, zero);
