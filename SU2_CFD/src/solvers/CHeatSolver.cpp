@@ -684,7 +684,7 @@ void CHeatSolver::Heat_Fluxes(CGeometry *geometry, CSolver **solver_container, C
           }
         }
       }
-    } else if ( Boundary == ADIABATIC ) {
+    } else if ( Boundary == RADIATIVE_EQUILIBRIUM ) {
 
       for (auto iVertex = 0ul; iVertex < geometry->nVertex[iMarker]; iVertex++ ) {
 

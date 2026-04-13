@@ -201,7 +201,7 @@ public:
                                    CConfig *config, unsigned short val_marker);
   void BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
-  void BC_Adiabatic_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
+  void BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
 
   /*!

@@ -971,7 +971,7 @@ public:
                                          CConfig *config,
                                          unsigned short val_marker) { }
 
-  inline virtual void BC_Adiabatic_Wall(CGeometry *geometry,
+  inline virtual void BC_RadiativeEquilibrium_Wall(CGeometry *geometry,
                                          CSolver **solver_container,
                                          CNumerics *conv_numerics,
                                          CNumerics *visc_numerics,

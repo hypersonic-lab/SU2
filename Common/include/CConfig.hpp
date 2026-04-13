@@ -209,7 +209,7 @@ private:
   nMarker_Outlet,                 /*!< \brief Number of outlet flow markers. */
   nMarker_Smoluchowski_Maxwell,   /*!< \brief Number of smoluchowski/maxwell wall boundaries. */
   nMarker_Isothermal,             /*!< \brief Number of isothermal wall boundaries. */
-  nMarker_Adiabatic,              /*!< \brief Number of adiabatic wall boundaries. */
+  nMarker_Radiative_Equilibrium,  /*!< \brief Number of radiative equilibrium wall boundaries. */
   nMarker_ETC,                    /*!< \brief Number of Electron Transpiration Cooling wall boundaries. */
   nMarker_HeatFlux,               /*!< \brief Number of constant heat flux wall boundaries. */
   nMarker_HeatTransfer,           /*!< \brief Number of heat-transfer/convection wall boundaries. */
@@ -266,7 +266,7 @@ private:
   *Marker_Outlet,                 /*!< \brief Outlet flow markers. */
   *Marker_Smoluchowski_Maxwell,   /*!< \brief Smoluchowski/Maxwell wall markers. */
   *Marker_Isothermal,             /*!< \brief Isothermal wall markers. */
-  *Marker_Adiabatic,              /*!< \brief Adiabatic wall markers. */
+  *Marker_Radiative_Equilibrium,  /*!< \brief Radiative equilibrium wall markers. */
   *Marker_ETC,                    /*!< \brief ETC wall markers. */
   *Marker_HeatFlux,               /*!< \brief Constant heat flux wall markers. */
   *Marker_HeatTransfer,           /*!< \brief Heat-transfer/convection markers. */
@@ -6367,10 +6367,10 @@ public:
   su2double GetmaxTurkelBeta() const { return  Max_Beta_RoeTurkel; }
 
   /*!
-   * \brief Get information about the adibatic wall condition
-   * \return <code>TRUE</code> if it is a adiabatic wall condition; otherwise <code>FALSE</code>.
+   * \brief Get information about the radiative equilibrium wall condition
+   * \return <code>TRUE</code> if it is a radiative equilibrium wall condition; otherwise <code>FALSE</code>.
    */
-  bool GetAdiabaticWall(void);
+  bool GetRadiativeEquilibriumWall(void);
 
   /*!
    * \brief Get information about the isothermal wall condition

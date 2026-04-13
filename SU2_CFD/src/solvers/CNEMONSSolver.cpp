@@ -905,7 +905,7 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
 }
 
 
-void CNEMONSSolver::BC_Adiabatic_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
+void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker){
   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
   su2double UnitNormal[MAXNDIM] = {0.0};
@@ -917,7 +917,7 @@ void CNEMONSSolver::BC_Adiabatic_Wall(CGeometry *geometry, CSolver **solver_cont
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
   
   if (implicit){
-    SU2_MPI::Error("Adiabatic wall is not yet implemented for implicit", CURRENT_FUNCTION);
+    SU2_MPI::Error("Radiative equilibrium wall is not yet implemented for implicit", CURRENT_FUNCTION);
   }
 
   const unsigned short T_INDEX        = nodes->GetTIndex();
@@ -960,14 +960,15 @@ void CNEMONSSolver::BC_Adiabatic_Wall(CGeometry *geometry, CSolver **solver_cont
     const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
 
     const su2double Twall = V[T_INDEX];
-    const su2double epsilon = 1.0;
-    const su2double sigma = 5.670e-8;
+    const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
+    const su2double sigma = 5.67037442e-8;
+    const su2double C = 20;
 
     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Twall,4);
-    HeatFluxCond[val_marker][iVertex] = (ktr*(Ti-Tj) + kve*(Tvei-Tvej)) / dist_ij;
-
-    Res_Visc[nSpecies+nDim]   += (ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Twall,4)*Area;
-    Res_Visc[nSpecies+nDim+1] += kve*(Tvei-Tvej)*Area/dist_ij;
+    HeatFluxCond[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
+    // Balance conductive (toward the wall) heat transfer with radiative (away from the wall) heat transfer
+    Res_Visc[nSpecies+nDim]   += C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Twall,4)*Area);
+    Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dist_ij);
 
     su2double zero[MAXNDIM] = {0.0};
     nodes->SetVelocity_Old(iPoint, zero);

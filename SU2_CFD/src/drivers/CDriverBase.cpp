@@ -238,8 +238,8 @@ map<string, string> CDriverBase::GetMarkerTypes() const {
       case ETC:
         type = "ETC";
         break;
-      case ADIABATIC:
-        type = "ADIABATIC";
+      case RADIATIVE_EQUILIBRIUM:
+        type = "RADIATIVE_EQUILIBRIUM";
         break;
       case HEAT_FLUX:
         type = "HEAT_FLUX";
