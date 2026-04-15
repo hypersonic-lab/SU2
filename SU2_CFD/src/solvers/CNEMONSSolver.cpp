@@ -959,15 +959,15 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     const su2double ktr = nodes->GetThermalConductivity(iPoint);
     const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
 
-    const su2double Twall = V[T_INDEX];
     const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
     const su2double sigma = 5.67037442e-8;
     const su2double C = 20;
-
-    HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Twall,4);
-    HeatFluxCond[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
-    // Balance conductive (toward the wall) heat transfer with radiative (away from the wall) heat transfer
-    Res_Visc[nSpecies+nDim]   += C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Twall,4)*Area);
+    
+    HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
+    HeatFluxConv[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
+    HeatFluxETC[val_marker][iVertex]  = 0.0;
+    // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer
+    Res_Visc[nSpecies+nDim]   += C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Ti,4)*Area);
     Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dist_ij);
 
     su2double zero[MAXNDIM] = {0.0};
@@ -982,76 +982,248 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
   }
   END_SU2_OMP_FOR
 }
+void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry,
+                                                CSolver **solver_container,
+                                                CNumerics *conv_numerics,
+                                                CNumerics *sour_numerics,
+                                                CConfig *config,
+                                                unsigned short val_marker) {
 
-void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
-                                CNumerics *visc_numerics, CConfig *config, unsigned short val_marker){
+  /*--- Local variables ---*/
+  su2double **GradY, **dVdU;
+
+  /*--- Assign booleans ---*/
   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
-  su2double UnitNormal[MAXNDIM] = {0.0};
 
-  /*--- Extract required indicies ---*/
-  // later
+  /*--- Get universal information ---*/
+  const su2double RuSI = UNIVERSAL_GAS_CONSTANT;
+  const su2double Ru = 1000.0*RuSI;
+  const auto& Ms = FluidModel->GetSpeciesMolarMass();
 
-  /*--- Identify the boundary ---*/
-  const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
-  
-  if (implicit){
-    SU2_MPI::Error("ETC is not yet implemented for implicit", CURRENT_FUNCTION);
-  }
+  /*--- Get the locations of the primitive variables ---*/
+  const unsigned short RHOS_INDEX  = nodes->GetRhosIndex();
+  const unsigned short RHO_INDEX   = nodes->GetRhoIndex();
+  const unsigned short T_INDEX     = nodes->GetTIndex();
+  const unsigned short TVE_INDEX   = nodes->GetTveIndex();
 
-  /*--- Loop over boundary points ---*/
-  // TODO Add parallelization here
-  for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++){
+  /*--- Allocate arrays ---*/
+  GradY = new su2double*[nSpecies];
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+    GradY[iSpecies] = new su2double[nDim];
+  dVdU = new su2double*[nVar];
+  for (auto iVar = 0ul; iVar < nVar; iVar++)
+    dVdU[iVar] = new su2double[nVar];
 
-    // Get index of point on boundary
+  /*--- Loop over all of the vertices on this boundary marker ---*/
+  for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
 
-    if (!geometry->nodes->GetDomain(iPoint)) continue;
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
+    if (geometry->nodes->GetDomain(iPoint)) {
 
-    // Get normal
-    const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
-    
-    // Get area
-    const su2double Area = GeometryToolbox::Norm(nDim, Normal);
+      /*--- Compute closest normal neighbor ---*/
+      const auto jPoint = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
 
-    for (auto iDim = 0uL; iDim < nDim; iDim++)
-      UnitNormal[iDim] = Normal[iDim]/Area;
-    
+      /*--- Compute distance between wall & normal neighbor ---*/
+      const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+      const auto Coord_j = geometry->nodes->GetCoord(jPoint);
+      const su2double dij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+
+      /*--- Compute dual-grid area and boundary normal ---*/
+      const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+      const su2double Area = GeometryToolbox::Norm(nDim, Normal);
+      const su2double Ti   = nodes->GetTemperature(iPoint);
+      const su2double Tj   = nodes->GetTemperature(jPoint);
+      const su2double Tvei = nodes->GetTemperature_ve(iPoint);
+      const su2double Tvej = nodes->GetTemperature_ve(jPoint);
+
+      const su2double ktr = nodes->GetThermalConductivity(iPoint);
+      const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+
+
+      /*--- Initialize the viscous residual to zero ---*/
       /*--- Store the corrected velocity at the wall which will
-     be zero (v = 0), unless there is grid motion (v = u_wall)---*/
-    su2double zero[MAXNDIM] = {0.0};
-    nodes->SetVelocity_Old(iPoint, zero);
+      be zero (v = 0), unless there is grid motion (v = u_wall)---*/
+      su2double zero[MAXNDIM] = {0.0};
+      nodes->SetVelocity_Old(iPoint, zero);
+      for (auto iVar = 0ul; iVar < nVar; iVar++) Res_Visc[iVar] = 0.0;
 
-    /*--- Initialize viscous residual to zero ---*/
-    for (auto iVar = 0ul; iVar < nVar; iVar ++) {Res_Visc[iVar] = 0.0;}
+      /*--- Get primitive information ---*/
+      const auto& Vi = nodes->GetPrimitive(iPoint);
+      const auto& Vj = nodes->GetPrimitive(jPoint);
+      const auto& Di = nodes->GetDiffusionCoeff(iPoint);
+      const auto& eves = nodes->GetEve(iPoint);
+      const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
+      const su2double rho = Vi[RHO_INDEX];
+      const auto& dTdU = nodes->GetdTdU(iPoint);
+      const auto& dTvedU = nodes->GetdTvedU(iPoint);
 
-    for (auto iDim = 0ul; iDim < nDim; iDim++)
-      LinSysRes(iPoint, nSpecies+iDim) = 0.0;
-    nodes->SetVel_ResTruncError_Zero(iPoint);
+      /*--- Identify the boundary ---*/
+      string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
-    // Goal: contribute mass momentum energy to residual
-    // First add mass flow of electrons
-    // Electron Current Density = 100 A/cm^2 (Hanquist Dissertation Fig 3.15a)
-    // Converts to 5.7e-6 kg/(s*m^2) of mass flow
-    const su2double mdot_electrons = 5.7e-6; // kg/(s*m^2)
-    const su2double electron_flux = mdot_electrons * Area;
-    // Mass
-    Res_Conv[0] = electron_flux;
-    // Assume an electron velocity of 6.24e6 m/s (From Gemini)
-    const su2double electron_velocity = 6.24e6; // m/s
-    const su2double Pi = nodes->GetPressure(iPoint);
-    // Momentum
-    for (auto iDim = 0uL; iDim < nDim; iDim++){
-      Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
+      /*--- Get wall catalytic efficiency ----*/
+      const su2double gam = 1.0;
+
+      /*--- Get cataltyic reaction map ---*/
+      const auto& RxnTable = FluidModel->GetCatalyticRecombination();
+
+      /*--- Common catalytic flux factor ---*/
+      const su2double factor = gam*rho*sqrt(RuSI*Ti/2/PI_NUMBER)*Area;
+
+      /*--- Compute catalytic recombination flux ---*/
+      // Ref: 10.2514/6.2022-1636
+      // ws = gam_s*Ys*rho_wall*sqrt(Ru*Tw/(2*Pi*M_combine)*Area
+      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+        int Index = SU2_TYPE::Int(RxnTable(iSpecies,1));
+        Res_Visc[iSpecies] = RxnTable(iSpecies,0)*factor*Vi[Index]/Vi[RHO_INDEX]*sqrt(1/Ms[Index]);
+      }
+      // ETC implementation
+      
+      const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
+      const su2double e = 1.6021716634e-19; // [J]
+      const su2double W_F = config->GetWork_Function(Marker_Tag) * e; // [eV] -> [J]
+      const su2double k_B = 1.380649e-23; // [J/K]
+      const su2double sigma = 5.67037442e-8;
+      const su2double A_R = 1.20e6;
+      const su2double C = 5; // Multiplier for quicker convergence
+      const su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F/k_B/Ti); // [A/m2]
+      
+      const su2double Mole_Flux = Je_sat / 96485; // Je_sat [(C/s)/m2] / 96485 [C/mol] -> [mol/s/m2]
+      const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
+      const su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
+      Res_Visc[0] += electron_flux;
+      
+
+      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
+        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
+      }
+      const su2double q_rad = epsilon*sigma*pow(Ti,4);
+      const su2double q_conv = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dij;
+      const su2double q_ETC = Je_sat*(W_F/e + 2*k_B*Ti/e);
+      HeatFluxRad[val_marker][iVertex]  = q_rad;
+      HeatFluxConv[val_marker][iVertex] = q_conv;
+      HeatFluxETC[val_marker][iVertex] = q_ETC;
+      // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
+
+      Res_Visc[nSpecies+nDim]   += C*(q_conv*Area - q_rad*Area - q_ETC*Area);
+      Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dij);
+
+
+      /*--- Viscous contribution to the residual at the wall ---*/
+      LinSysRes.SubtractBlock(iPoint, Res_Visc);
     }
-    // Energy
-    // Assume from previous assumptions energy flux is 5.02e6 W/m2
-    Res_Conv[nSpecies+nDim] = 5.02e6 * Area; // E
-    Res_Conv[nSpecies+nDim+1] = 5.02e6 * Area; // Vib E
-    
-    LinSysRes.SubtractBlock(iPoint, Res_Conv);  
-
   }
+
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+    delete [] GradY[iSpecies];
+  delete [] GradY;
+  for (auto iVar = 0ul; iVar < nVar; iVar++)
+    delete [] dVdU[iVar];
+  delete [] dVdU;
 }
+// void CNEMONSSolver::BC_ETC_WallOld(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
+//                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker){
+//   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+//   su2double UnitNormal[MAXNDIM] = {0.0};
+
+//   /*--- Extract required indicies ---*/
+//   // later
+
+//   /*--- Identify the boundary ---*/
+//   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
+  
+//   if (implicit){
+//     SU2_MPI::Error("ETC is not yet implemented for implicit", CURRENT_FUNCTION);
+//   }
+
+//   /*--- Loop over boundary points ---*/
+//   // TODO Add parallelization here
+//   for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++){
+
+//     // Get index of point on boundary
+//     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+//     if (!geometry->nodes->GetDomain(iPoint)) continue;
+
+//     // Get normal
+//     const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+    
+//     // Get area
+//     const su2double Area = GeometryToolbox::Norm(nDim, Normal);
+
+//     for (auto iDim = 0uL; iDim < nDim; iDim++)
+//       UnitNormal[iDim] = Normal[iDim]/Area;
+    
+//       /*--- Store the corrected velocity at the wall which will
+//      be zero (v = 0), unless there is grid motion (v = u_wall)---*/
+//     su2double zero[MAXNDIM] = {0.0};
+//     nodes->SetVelocity_Old(iPoint, zero);
+
+//     /*--- Initialize viscous residual to zero ---*/
+//     for (auto iVar = 0ul; iVar < nVar; iVar ++) {Res_Visc[iVar] = 0.0;}
+
+//     for (auto iDim = 0ul; iDim < nDim; iDim++)
+//       LinSysRes(iPoint, nSpecies+iDim) = 0.0;
+//     nodes->SetVel_ResTruncError_Zero(iPoint);
+
+//     /*--- Compute closest normal neighbor and wall-to-neighbor distance ---*/
+//     const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+//     const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+//     const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
+//     const su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+
+//     /*--- Temperature at wall (i) and interior neighbor (j) ---*/
+//     const su2double Ti   = nodes->GetTemperature(iPoint);
+//     const su2double Tj   = nodes->GetTemperature(Point_Normal);
+//     const su2double Tvei = nodes->GetTemperature_ve(iPoint);
+//     const su2double Tvej = nodes->GetTemperature_ve(Point_Normal);
+
+//     const su2double ktr = nodes->GetThermalConductivity(iPoint);
+//     const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+
+//     const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
+//     const su2double e = 1.602176634e-19; // [J]
+//     const su2double W_F = config->GetWork_Function(Marker_Tag) * e; // [eV] -> [J]
+//     const su2double k_B = 1.380649e-23 // [J/K]
+//     const su2double sigma = 5.67037442e-8; 
+//     const su2double A_R = 1.20e6; // [A/m2/K2]
+//     const su2double C = 20; // Multiplier for quicker convergence
+    
+//     // Goal: contribute mass momentum energy to residual
+//     // First add mass flow of electrons
+//     // Equation (2.4) Hanquist -> Je_sat = A_R*T_w^2*exp(-e*W_F/(k_B*T_w)) [A/m2]
+//     const su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F/k_B/T_w); // W_F is already in J, no need to multiply by e
+//     //const su2double w_dot_e = Je_sat / e / 6.022141e23 // [(C/s)/m2] / [C]
+//     const su2double Mole_Flux = Je_sat / 96485; // Je_sat [(C/s)/m2] / 96485 [C/mol] -> [mol/s/m2]
+//     const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
+//     const su2double electron_flux = mdot_electrons * Area; // [kg/s/m2] * [m2] -> [kg/s]
+//     // Mass
+//     Res_Conv[0] = electron_flux;
+//     // Assume an electron velocity of 6.24e6 m/s (From Gemini)
+//     const su2double electron_velocity = 6.24e6; // m/s
+//     const su2double Pi = nodes->GetPressure(iPoint);
+//     // Momentum
+//     for (auto iDim = 0uL; iDim < nDim; iDim++){
+//       Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
+//     }
+//     // Energy
+//     // Assume from previous assumptions energy flux is 5.02e6 W/m2
+//     Res_Conv[nSpecies+nDim] = 5.02e6 * Area; // E
+//     Res_Conv[nSpecies+nDim+1] = 5.02e6 * Area; // Vib E
+
+//     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
+//     HeatFluxConv[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
+//     HeatFluxETC[val_marker][iVertex]  = 5.02e6;
+//     // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer
+//     Res_Visc[nSpecies+nDim]   += C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Ti,4)*Area);
+//     Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dist_ij);
+    
+//     LinSysRes.SubtractBlock(iPoint, Res_Conv);  
+
+//   }
+// }
 
 void CNEMONSSolver::BC_Smoluchowski_Maxwell(CGeometry *geometry,
                                             CSolver **solver_container,

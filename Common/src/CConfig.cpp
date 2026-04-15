@@ -477,6 +477,14 @@ void CConfig::addStringDoubleListOption(const string& name, unsigned short & lis
   option_map.insert(pair<string, COptionBase *>(name, val));
 }
 
+void CConfig::addETCOption(const string& name, unsigned short & list_size, string * & string_field,
+                             su2double* & double_field1, su2double* & double_field2) {
+  assert(option_map.find(name) == option_map.end());
+  all_options.insert(pair<string, bool>(name, true));
+  COptionBase* val = new COptionETC(name, list_size, string_field, double_field1, double_field2);
+  option_map.insert(pair<string, COptionBase *>(name, val));
+}
+
 void CConfig::addInletOption(const string& name, unsigned short & nMarker_Inlet, string * & Marker_Inlet,
                     su2double* & Ttotal, su2double* & Ptotal, su2double** & FlowDir) {
   assert(option_map.find(name) == option_map.end());
@@ -885,7 +893,7 @@ void CConfig::SetPointersNull() {
   Isothermal_Temperature = nullptr;    HeatTransfer_Coeff     = nullptr;    HeatTransfer_WallTemp  = nullptr;
   Heat_Flux              = nullptr;    Displ_Value            = nullptr;    Load_Value             = nullptr;
   Damper_Constant        = nullptr;    Wall_Emissivity        = nullptr;
-  Roughness_Height       = nullptr;
+  Roughness_Height       = nullptr;    Wall_Work_Function     = nullptr;
 
   /*--- Inlet Outlet Boundary Condition settings ---*/
 
@@ -1696,8 +1704,8 @@ void CConfig::SetConfig_Options() {
    * Format: ( radiative equilibrium marker, wall emissivity ) \ingroup Config  */
   addStringDoubleListOption("MARKER_RADIATIVE_EQUILIBRIUM", nMarker_Radiative_Equilibrium, Marker_Radiative_Equilibrium, Wall_Emissivity);
   /*!\brief MARKER_ETC DESCRIPTION: ETC wall boundary marker(s)\n
-   * Format: ( ETC marker ) \ingroup Config  */
-  addStringListOption("MARKER_ETC", nMarker_ETC, Marker_ETC);
+   * Format: ( ETC marker, wall work function, wall emissivity ) \ingroup Config  */
+  addETCOption("MARKER_ETC", nMarker_ETC, Marker_ETC, Wall_Work_Function, Wall_Emissivity);
   /*!\brief MARKER_HEATFLUX  \n DESCRIPTION: Specified heat flux wall boundary marker(s)
    Format: ( Heat flux marker, wall heat flux (static), ... ) \ingroup Config*/
   addStringDoubleListOption("MARKER_HEATFLUX", nMarker_HeatFlux, Marker_HeatFlux, Heat_Flux);
@@ -9927,9 +9935,19 @@ su2double CConfig::GetWall_Emissivity(const string& val_marker) const {
   for (auto iMarker = 0u; iMarker < nMarker_Emissivity; iMarker++)
     if (Marker_Emissivity[iMarker] == val_marker)
       return Wall_Emissivity[iMarker];
+  for (auto iMarker = 0u; iMarker < nMarker_ETC; iMarker++)
+    if (Marker_ETC[iMarker] == val_marker)
+      return Wall_Emissivity[iMarker];  
   for (auto iMarker = 0u; iMarker < nMarker_Radiative_Equilibrium; iMarker++)
     if (Marker_Radiative_Equilibrium[iMarker] == val_marker)
       return Wall_Emissivity[iMarker];
+  return 0;
+}
+
+su2double CConfig::GetWork_Function(const string& val_marker) const {
+  for (auto iMarker = 0u; iMarker < nMarker_ETC; iMarker++)
+    if (Marker_ETC[iMarker] == val_marker)
+      return Wall_Work_Function[iMarker];
   return 0;
 }
 

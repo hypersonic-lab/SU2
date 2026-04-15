@@ -47,7 +47,7 @@ protected:
 
   vector<vector<su2double>> HeatFlux;
   vector<vector<su2double>> HeatFluxRad;
-  vector<vector<su2double>> HeatFluxCond;
+  vector<vector<su2double>> HeatFluxConv;
   vector<su2double> HeatFlux_per_Marker;
   su2double Total_HeatFlux;
   su2double AllBound_HeatFlux;
@@ -415,12 +415,12 @@ public:
   }
 
   /*!
-   * \brief Get the conductive heat flux.
+   * \brief Get the convective heat flux.
    * \param[in] val_marker - Surface marker where the coefficient is computed.
    * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the coefficient is evaluated.
    * \return Value of the heat flux.
    */
-  inline su2double GetHeatFluxCond(unsigned short val_marker, unsigned long val_vertex) const override {
-    return HeatFluxCond[val_marker][val_vertex];
+  inline su2double GetHeatFluxConv(unsigned short val_marker, unsigned long val_vertex) const override {
+    return HeatFluxConv[val_marker][val_vertex];
   }
 };

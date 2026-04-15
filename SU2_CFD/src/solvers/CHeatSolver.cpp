@@ -123,7 +123,7 @@ CHeatSolver::CHeatSolver(CGeometry *geometry, CConfig *config, unsigned short iM
 
   AllocVectorOfVectors(nVertex, HeatFlux);
   AllocVectorOfVectors(nVertex, HeatFluxRad);
-  AllocVectorOfVectors(nVertex, HeatFluxCond);
+  AllocVectorOfVectors(nVertex, HeatFluxConv);
 
   if (config->GetMultizone_Problem()){
     /*--- Initialize the BGS residuals. ---*/
@@ -688,7 +688,7 @@ void CHeatSolver::Heat_Fluxes(CGeometry *geometry, CSolver **solver_container, C
 
       for (auto iVertex = 0ul; iVertex < geometry->nVertex[iMarker]; iVertex++ ) {
 
-        HeatFluxCond[iMarker][iVertex] = 0.0;
+        HeatFluxConv[iMarker][iVertex] = 0.0;
         HeatFluxRad[iMarker][iVertex] = 0.0;
 
         const auto iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
@@ -712,9 +712,9 @@ void CHeatSolver::Heat_Fluxes(CGeometry *geometry, CSolver **solver_container, C
           dTdn = (Twall - nodes->GetTemperature(iPointNormal))/dist;
           su2double sigma = 5.670e-8;
           su2double epsilon = 0.5;
-          HeatFluxCond[iMarker][iVertex] = thermal_diffusivity*dTdn*config->GetHeat_Flux_Ref();
+          HeatFluxConv[iMarker][iVertex] = thermal_diffusivity*dTdn*config->GetHeat_Flux_Ref();
           HeatFluxRad[iMarker][iVertex] = epsilon*sigma*pow(Twall*config->GetTemperature_Ref(),4);
-          HeatFlux[iMarker][iVertex] = HeatFluxCond[iMarker][iVertex] + HeatFluxRad[iMarker][iVertex];
+          HeatFlux[iMarker][iVertex] = HeatFluxConv[iMarker][iVertex] + HeatFluxRad[iMarker][iVertex];
           HeatFlux_per_Marker[iMarker] += HeatFlux[iMarker][iVertex]*Area;
         }
       }

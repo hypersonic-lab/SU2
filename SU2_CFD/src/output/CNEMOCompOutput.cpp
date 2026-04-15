@@ -261,7 +261,8 @@ void CNEMOCompOutput::SetVolumeOutputFields(CConfig *config){
     AddVolumeOutput("THERMAL_CONDUCTIVITY_VE", "Thermal_Conductivity_ve", "PRIMITIVE", "Vibrational-electronic thermal conductivity");
     AddVolumeOutput("HEAT_FLUX", "Heat_Flux", "PRIMITIVE", "Heat-flux");
     AddVolumeOutput("HEAT_FLUX_RAD", "Heat_Flux_Rad", "PRIMITIVE", "Radiative heat flux (epsilon*sigma*Twall^4)");
-    AddVolumeOutput("HEAT_FLUX_CONDUCTIVE", "Heat_Flux_Conductive", "PRIMITIVE", "Conductive heat flux (ktr*dTdn + kve*dTvedn)");
+    AddVolumeOutput("HEAT_FLUX_CONVECTIVE", "Heat_Flux_Convective", "PRIMITIVE", "Convective heat flux (ktr*dTdn + kve*dTvedn)");
+    AddVolumeOutput("HEAT_FLUX_ETC", "Heat_Flux_ETC", "PRIMITIVE", "ETC heat flux");
     AddVolumeOutput("Y_PLUS", "Y_Plus", "PRIMITIVE", "Non-dim. wall distance (Y-Plus)");
 
   }

@@ -134,7 +134,8 @@ void CHeatOutput::SetVolumeOutputFields(CConfig *config){
   // Primitives
   AddVolumeOutput("HEAT_FLUX", "Heat_Flux", "PRIMITIVE", "Heatflux");
   AddVolumeOutput("HEAT_FLUX_RAD", "Heat_Flux_Rad", "PRIMITIVE", "HeatfluxRad");
-  AddVolumeOutput("HEAT_FLUX_COND", "Heat_Flux_Cond", "PRIMITIVE", "HeatfluxCond");
+  AddVolumeOutput("HEAT_FLUX_CONV", "Heat_Flux_Conv", "PRIMITIVE", "HeatfluxConv");
+  AddVolumeOutput("HEAT_FLUX_ETC", "Heat_Flux_ETC", "PRIMITIVE", "ETC heat flux");
 
   // Residuals
   AddVolumeOutput("RES_TEMPERATURE", "Residual_Temperature", "RESIDUAL", "Residual of the temperature");
@@ -167,7 +168,8 @@ void CHeatOutput::LoadSurfaceData(CConfig *config, CGeometry *geometry, CSolver 
   /* Heat flux value at each surface grid node. */
   SetVolumeOutputValue("HEAT_FLUX", iPoint, solver[HEAT_SOL]->GetHeatFlux(iMarker, iVertex));
   SetVolumeOutputValue("HEAT_FLUX_RAD", iPoint, solver[HEAT_SOL]->GetHeatFluxRad(iMarker, iVertex));
-  SetVolumeOutputValue("HEAT_FLUX_COND", iPoint, solver[HEAT_SOL]->GetHeatFluxCond(iMarker, iVertex));
+  SetVolumeOutputValue("HEAT_FLUX_CONV", iPoint, solver[HEAT_SOL]->GetHeatFluxConv(iMarker, iVertex));
+  SetVolumeOutputValue("HEAT_FLUX_ETC", iPoint, solver[HEAT_SOL]->GetHeatFluxETC(iMarker, iVertex));
 
 }
 

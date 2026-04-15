@@ -1144,6 +1144,7 @@ private:
   unsigned short nMarker_Emissivity;   /*!< \brief Number of markers for which the emissivity is defined. */
   string *Marker_Emissivity;           /*!< \brief Wall markers with defined emissivity. */
   su2double *Wall_Emissivity;          /*!< \brief Emissivity of the wall. */
+  su2double *Wall_Work_Function;          /*!< \brief Emissivity of the wall. */
   bool Radiation;                      /*!< \brief Determines if a radiation model is incorporated. */
   su2double CFL_Rad;                   /*!< \brief CFL Number for the radiation solver. */
 
@@ -1373,6 +1374,9 @@ private:
 
   void addStringDoubleListOption(const string& name, unsigned short & list_size, string * & string_field,
                                  su2double* & double_field);
+
+  void addETCOption(const string& name, unsigned short & list_size, string * & string_field,
+                    su2double* & double_field1, su2double* & double_field2);
 
   void addInletOption(const string& name, unsigned short & nMarker_Inlet, string * & Marker_Inlet,
                       su2double* & Ttotal, su2double* & Ptotal, su2double** & FlowDir);
@@ -9766,6 +9770,13 @@ public:
    * \return The wall emissivity.
    */
   su2double GetWall_Emissivity(const string& val_index) const;
+
+  /*!
+   * \brief Get the wall work function at a boundary.
+   * \param[in] val_index - Index corresponding to the boundary.
+   * \return The wall work function.
+   */
+  su2double GetWork_Function(const string& val_index) const;
 
   /*!
    * \brief Get if boundary is strong or weak.
