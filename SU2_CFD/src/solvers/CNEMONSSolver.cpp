@@ -965,7 +965,6 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     
     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
     HeatFluxConv[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
-    HeatFluxETC[val_marker][iVertex]  = 0.0;
     // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer
     Res_Visc[nSpecies+nDim]   += C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Ti,4)*Area);
     Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dist_ij);
@@ -979,6 +978,8 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     nodes->SetVel_ResTruncError_Zero(iPoint);
 
     LinSysRes.SubtractBlock(iPoint, Res_Visc);
+    HeatFluxETC[val_marker][iVertex]  = 0.0;
+    
   }
   END_SU2_OMP_FOR
 }
