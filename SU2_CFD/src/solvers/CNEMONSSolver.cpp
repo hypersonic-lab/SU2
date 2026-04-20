@@ -989,23 +989,30 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry,
                                                 CNumerics *sour_numerics,
                                                 CConfig *config,
                                                 unsigned short val_marker) {
-
+  bool catalytic = config->GetCatalytic_Wall(val_marker);
+  if (catalytic){
+    SU2_MPI::Error("Catalytic wall not implemented for ETC boundary", CURRENT_FUNCTION);
+  } else {
+    BC_ETCNonCatalytic_Wall(geometry, solver_container, conv_numerics,
+                                          sour_numerics, config, val_marker);
+  }                            
+}
+void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
+                                                CSolver **solver_container,
+                                                CNumerics *conv_numerics,
+                                                CNumerics *sour_numerics,
+                                                CConfig *config,
+                                                unsigned short val_marker) {
+                
   /*--- Local variables ---*/
   su2double **GradY, **dVdU;
 
   /*--- Assign booleans ---*/
   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  if (implicit){
+    SU2_MPI::Error("Implicit not implemented for ETC boundary", CURRENT_FUNCTION);
+  }
 
-  /*--- Get universal information ---*/
-  const su2double RuSI = UNIVERSAL_GAS_CONSTANT;
-  const su2double Ru = 1000.0*RuSI;
-  const auto& Ms = FluidModel->GetSpeciesMolarMass();
-
-  /*--- Get the locations of the primitive variables ---*/
-  const unsigned short RHOS_INDEX  = nodes->GetRhosIndex();
-  const unsigned short RHO_INDEX   = nodes->GetRhoIndex();
-  const unsigned short T_INDEX     = nodes->GetTIndex();
-  const unsigned short TVE_INDEX   = nodes->GetTveIndex();
 
   /*--- Allocate arrays ---*/
   GradY = new su2double*[nSpecies];
@@ -1055,30 +1062,12 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry,
       const auto& Vj = nodes->GetPrimitive(jPoint);
       const auto& Di = nodes->GetDiffusionCoeff(iPoint);
       const auto& eves = nodes->GetEve(iPoint);
-      const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
-      const su2double rho = Vi[RHO_INDEX];
       const auto& dTdU = nodes->GetdTdU(iPoint);
       const auto& dTvedU = nodes->GetdTvedU(iPoint);
 
       /*--- Identify the boundary ---*/
       string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
-      /*--- Get wall catalytic efficiency ----*/
-      const su2double gam = 1.0;
-
-      /*--- Get cataltyic reaction map ---*/
-      const auto& RxnTable = FluidModel->GetCatalyticRecombination();
-
-      /*--- Common catalytic flux factor ---*/
-      const su2double factor = gam*rho*sqrt(RuSI*Ti/2/PI_NUMBER)*Area;
-
-      /*--- Compute catalytic recombination flux ---*/
-      // Ref: 10.2514/6.2022-1636
-      // ws = gam_s*Ys*rho_wall*sqrt(Ru*Tw/(2*Pi*M_combine)*Area
-      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
-        int Index = SU2_TYPE::Int(RxnTable(iSpecies,1));
-        Res_Visc[iSpecies] = RxnTable(iSpecies,0)*factor*Vi[Index]/Vi[RHO_INDEX]*sqrt(1/Ms[Index]);
-      }
       // ETC implementation
       
       const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
@@ -1089,23 +1078,21 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry,
       const su2double A_R = 1.20e6;
       const su2double C = 5; // Multiplier for quicker convergence
       const su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F/k_B/Ti); // [A/m2]
-      
-      const su2double Mole_Flux = Je_sat / 96485; // Je_sat [(C/s)/m2] / 96485 [C/mol] -> [mol/s/m2]
+      const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]
+      const su2double Mole_Flux = Je_sat / (e*N_A); // Je_sat [(C/s)/m2] / N_A [mol^-1] / e [C] -> [mol/s/m2]
       const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
       const su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
+
+      // Introduce electrons into flow
       Res_Visc[0] += electron_flux;
       
-
-      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
-        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
-        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
-      }
       const su2double q_rad = epsilon*sigma*pow(Ti,4);
       const su2double q_conv = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dij;
       const su2double q_ETC = Je_sat*(W_F/e + 2*k_B*Ti/e);
       HeatFluxRad[val_marker][iVertex]  = q_rad;
       HeatFluxConv[val_marker][iVertex] = q_conv;
       HeatFluxETC[val_marker][iVertex] = q_ETC;
+      
       // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
 
       Res_Visc[nSpecies+nDim]   += C*(q_conv*Area - q_rad*Area - q_ETC*Area);
