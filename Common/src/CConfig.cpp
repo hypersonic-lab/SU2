@@ -1815,6 +1815,19 @@ void CConfig::SetConfig_Options() {
   default_cfl_adapt[4] = 0.001;
   default_cfl_adapt[5] = 0.0;
   addDoubleListOption("CFL_ADAPT_PARAM", nCFL_AdaptParam, CFL_AdaptParam);
+  /* DESCRIPTION: Related to CFL Auto -- Added by RSCD */
+  /* DESCRIPTION: Activate residual-triggered automatic CFL ramping. */
+  addBoolOption("CFL_AUTO", CFL_Auto, false);
+  /* DESCRIPTION: Maximum CFL allowed by CFL_AUTO. */
+  addDoubleOption("CFL_AUTO_MAX", CFL_AutoMax, 1000.0);
+  /* DESCRIPTION: Multiplicative CFL growth factor for CFL_AUTO. */
+  addDoubleOption("CFL_AUTO_FACTOR", CFL_AutoFactor, 1.01);
+  /* DESCRIPTION: Number of iterations residual thresholds must be satisfied before ramping CFL. */
+  addUnsignedLongOption("CFL_AUTO_WAIT_ITER", CFL_AutoWaitIter, 100);
+  /* DESCRIPTION: Total energy residual threshold for CFL_AUTO. */
+  addDoubleOption("CFL_AUTO_RHOE_THRESHOLD", CFL_Auto_RhoE_Threshold, -1.0);
+  /* DESCRIPTION: Vibrational energy residual threshold for CFL_AUTO. */
+  addDoubleOption("CFL_AUTO_RHOEVE_THRESHOLD", CFL_Auto_RhoEve_Threshold, -1.0);
   /* DESCRIPTION: Reduction factor of the CFL coefficient in the adjoint problem */
   addDoubleOption("CFL_REDUCTION_ADJFLOW", CFLRedCoeff_AdjFlow, 0.8);
   /* DESCRIPTION: Reduction factor of the CFL coefficient in the level set problem */
@@ -5595,6 +5608,37 @@ void CConfig::SetPostprocessing(SU2_COMPONENT val_software, unsigned short val_i
   if (CFL_Adapt && (CFL_AdaptParam[2] > CFL_AdaptParam[3])) {
     SU2_MPI::Error(string("CFL adaption minimum CFL is larger than the maximum CFL."), CURRENT_FUNCTION);
   }
+
+  /*--- Prevent simultaneous use of two CFL adaptation strategies ---*/
+  if (CFL_Auto && CFL_Adapt) {
+    SU2_MPI::Error(string("CFL_AUTO and CFL_ADAPT cannot both be enabled.\n") +
+                 string("Please use only one CFL adaptation strategy."), CURRENT_FUNCTION);
+  }
+
+  /*--- Ensure CFL growth factor leads to an actual increase ---*/
+  if (CFL_Auto && (CFL_AutoFactor <= 1.0)) {
+    SU2_MPI::Error("CFL_AUTO_FACTOR must be greater than 1.0.", CURRENT_FUNCTION);
+  }
+
+  /*--- Ensure maximum CFL is not below the initial CFL value ---*/
+  if (CFL_Auto && (CFL_AutoMax < CFLFineGrid)) {
+    SU2_MPI::Error("CFL_AUTO_MAX must be greater than or equal to CFL_NUMBER.", CURRENT_FUNCTION);
+  }
+
+  /*--- Ensure a positive waiting period before CFL ramping begins ---*/
+  if (CFL_Auto && (CFL_AutoWaitIter == 0)) {
+    SU2_MPI::Error("CFL_AUTO_WAIT_ITER must be greater than zero.", CURRENT_FUNCTION);
+  }
+
+  /*--- Restrict CFL_AUTO to NEMO-based solvers only ---*/
+  if (CFL_Auto) {
+    if (!(Kind_Solver == MAIN_SOLVER::NEMO_EULER ||
+          Kind_Solver == MAIN_SOLVER::NEMO_NAVIER_STOKES) 
+       ) {
+      SU2_MPI::Error(string("CFL_AUTO is currently implemented only for NEMO solvers.\n") +
+                     string("Please disable CFL_AUTO or select a NEMO solver."), CURRENT_FUNCTION);
+  }
+}
 
   /*--- 0 in the config file means "disable" which can be done using a very large group. ---*/
   if (edgeColorGroupSize==0) edgeColorGroupSize = 1<<30;

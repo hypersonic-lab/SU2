@@ -77,6 +77,8 @@ protected:
   vector<su2double> NonLinRes_Series; /*!< \brief Vector holding the nonlinear residual indicator series. */
   su2double Old_Func,  /*!< \brief Old value of the nonlinear residual indicator. */
   New_Func;            /*!< \brief Current value of the nonlinear residual indicator. */
+  unsigned long CFL_Auto_Counter; /*!< \brief Counter for residual-based CFL ramping trigger. */ // Added by RSCD
+  su2double CFL_Auto_Base;        /*!< \brief Initial CFL used as lower bound for CFL_AUTO. */ // Added by RSCD
   unsigned short nVar,           /*!< \brief Number of variables of the problem. */
   nPrimVar,                      /*!< \brief Number of primitive variables of the problem. */
   nPrimVarGrad,                  /*!< \brief Number of primitive variables of the problem in the gradient computation. */
@@ -1414,6 +1416,17 @@ public:
    * \param[in] solver_container - Container vector with all the solutions.
    */
   void AdaptCFLNumber(CGeometry **geometry, CSolver ***solver_container, CConfig *config);
+
+  /*!
+   * \brief Automatically increase the CFL number based on residual thresholds.
+   * \details This method ramps the CFL number once the residuals of selected
+   *          variables (e.g., total and vibrational energy) fall below prescribed
+   *          thresholds for a specified number of iterations.
+   * \param[in] geometry - Geometrical container.
+   * \param[in] solver_container - Container of all solver instances.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void AutoCFLNumber(CGeometry **geometry, CSolver ***solver_container, CConfig *config); //Added by RSCD
 
   /*!
    * \brief Reset the local CFL adaption variables

@@ -1701,6 +1701,8 @@ void CSolver::ResetCFLAdapt() {
   Old_Func = 0;
   New_Func = 0;
   NonLinRes_Counter = 0;
+  CFL_Auto_Counter = 0; // Added by RSCD
+  CFL_Auto_Base = -1.0; // Added by RSCD
 }
 
 
@@ -1946,6 +1948,129 @@ void CSolver::AdaptCFLNumber(CGeometry **geometry,
 
   }
 
+}
+
+void CSolver::AutoCFLNumber(CGeometry **geometry, CSolver ***solver_container, CConfig *config) { // Added by RSCD
+
+  vector<su2double> MGFactor(config->GetnMGLevels()+1,1.0);
+  const bool fullComms = (config->GetComm_Level() == COMM_FULL);
+  /*--- Store the initial CFL value as the lower bound for CFL_AUTO. ---*/
+
+  if (CFL_Auto_Base <= 0.0) {
+    CFL_Auto_Base = config->GetCFL(MESH_0);
+  }
+
+  /*--- Automatically ramp the CFL number once selected residuals
+        remain below prescribed thresholds. ---*/
+
+  CSolver *solverFlow = solver_container[MESH_0][FLOW_SOL];
+
+  const unsigned short nSpecies = config->GetnSpecies();
+  const unsigned short nDim = geometry[MESH_0]->GetnDim();
+
+  const unsigned short rhoE_Index   = nSpecies + nDim;
+  const unsigned short rhoEve_Index = nSpecies + nDim + 1;
+
+  const su2double rhoE_Res   = log10(solverFlow->GetRes_RMS(rhoE_Index));
+  const su2double rhoEve_Res = log10(solverFlow->GetRes_RMS(rhoEve_Index));
+
+  const bool stable_residuals = (rhoE_Res < config->GetCFL_Auto_RhoE_Threshold()) &&
+      (rhoEve_Res < config->GetCFL_Auto_RhoEve_Threshold());
+
+  if (stable_residuals) {
+    CFL_Auto_Counter++;
+  } else {
+    CFL_Auto_Counter = 0;
+  }
+
+  /*--- Debug print for CFL_AUTO behavior ---*/
+
+  /*if (rank == MASTER_NODE) {
+    cout << "CFL_AUTO DEBUG: "
+         << "rhoE=" << rhoE_Res
+         << " rhoEve=" << rhoEve_Res
+         << " counter=" << CFL_Auto_Counter
+         << " CFL=" << config->GetCFL(MGLevel)
+         << " CFL Base=" << CFL_Auto_Base
+         << endl;
+  }*/
+
+  const su2double CFLFactor = config->GetCFL_AutoFactor();
+  const su2double CFLMax    = config->GetCFL_AutoMax();
+
+  for (unsigned short iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
+
+    const su2double currentCFL = config->GetCFL(iMesh);
+
+    su2double newCFL = currentCFL;
+
+    if (stable_residuals &&
+        (CFL_Auto_Counter >= config->GetCFL_AutoWaitIter())) {
+
+      newCFL = min(currentCFL*CFLFactor, CFLMax);
+
+    } else if (!stable_residuals) {
+
+      newCFL = max(CFL_Auto_Base, currentCFL/CFLFactor);
+
+    }
+
+    config->SetCFL(iMesh, newCFL);
+
+    su2double myCFLMin = 1e30, myCFLMax = 0.0, myCFLSum = 0.0;
+    CSolver *solverFlow_i    = solver_container[iMesh][FLOW_SOL];
+    CSolver *solverTurb_i    = solver_container[iMesh][TURB_SOL];
+    CSolver *solverSpecies_i = solver_container[iMesh][SPECIES_SOL];
+
+    SU2_OMP_MASTER
+    if((iMesh == MESH_0) && fullComms) {
+       Min_CFL_Local = 1e30;
+       Max_CFL_Local = 0.0;
+       Avg_CFL_Local = 0.0;
+    }
+    END_SU2_OMP_MASTER
+
+    SU2_OMP_FOR_STAT(roundUpDiv(geometry[iMesh]->GetnPointDomain(),omp_get_max_threads()))
+    for (unsigned long iPoint = 0; iPoint < geometry[iMesh]->GetnPointDomain(); iPoint++) {
+
+      solverFlow_i->GetNodes()->SetLocalCFL(iPoint, newCFL);
+
+      if ((iMesh == MESH_0) && solverTurb_i) {
+        solverTurb_i->GetNodes()->SetLocalCFL(iPoint, newCFL*config->GetCFLRedCoeff_Turb());
+      }
+
+      if ((iMesh == MESH_0) && solverSpecies_i) {
+        solverSpecies_i->GetNodes()->SetLocalCFL(iPoint, newCFL*config->GetCFLRedCoeff_Species());
+      }
+    
+      if ((iMesh == MESH_0) && fullComms) {
+        myCFLMin = min(newCFL,myCFLMin);
+        myCFLMax = max(newCFL,myCFLMax);
+        myCFLSum += newCFL;
+      } 
+    }
+    END_SU2_OMP_FOR
+
+    if ((iMesh == MESH_0) && fullComms) {
+      SU2_OMP_CRITICAL
+      {
+        Min_CFL_Local = min(Min_CFL_Local,myCFLMin);
+        Max_CFL_Local = max(Max_CFL_Local,myCFLMax);
+        Avg_CFL_Local += myCFLSum;
+      }
+      END_SU2_OMP_CRITICAL
+    }
+
+    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
+    {
+     myCFLMin = Min_CFL_Local; myCFLMax = Max_CFL_Local; myCFLSum = Avg_CFL_Local; 
+     SU2_MPI::Allreduce(&myCFLMin, &Min_CFL_Local, 1, MPI_DOUBLE, MPI_MIN, SU2_MPI::GetComm());
+     SU2_MPI::Allreduce(&myCFLMax, &Max_CFL_Local, 1, MPI_DOUBLE, MPI_MAX, SU2_MPI::GetComm());
+     SU2_MPI::Allreduce(&myCFLSum, &Avg_CFL_Local, 1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
+     Avg_CFL_Local /= su2double(geometry[iMesh]->GetGlobal_nPointDomain());
+    }
+    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+  }
 }
 
 void CSolver::SetResidual_RMS(const CGeometry *geometry, const CConfig *config) {

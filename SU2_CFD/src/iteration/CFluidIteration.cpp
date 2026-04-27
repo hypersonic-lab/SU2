@@ -136,6 +136,15 @@ void CFluidIteration::Iterate(COutput* output, CIntegration**** integration, CGe
     END_SU2_OMP_PARALLEL
   }
 
+  /*--- Automatically ramp the CFL number based on selected residual thresholds. ---*/ // Added by RSCD
+
+  if ((config[val_iZone]->GetCFL_Auto() == YES) && (!disc_adj)) {
+    SU2_OMP_PARALLEL
+    solver[val_iZone][val_iInst][MESH_0][FLOW_SOL]->AutoCFLNumber(geometry[val_iZone][val_iInst],
+                                                                solver[val_iZone][val_iInst], config[val_iZone]);
+    END_SU2_OMP_PARALLEL
+  }
+
   /*--- Call Dynamic mesh update if AEROELASTIC motion was specified ---*/
 
   if ((config[val_iZone]->GetGrid_Movement()) && (config[val_iZone]->GetAeroelastic_Simulation()) && unsteady) {

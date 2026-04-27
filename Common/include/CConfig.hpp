@@ -802,7 +802,13 @@ private:
   unsigned short ActDisk_Jump;        /*!< \brief Format of the output files. */
   unsigned long StartWindowIteration; /*!< \brief Starting Iteration for long time Windowing apporach . */
   unsigned short nCFL_AdaptParam;     /*!< \brief Number of CFL parameters provided in config. */
-  bool CFL_Adapt;        /*!< \brief Use adaptive CFL number. */
+  bool CFL_Adapt;                     /*!< \brief Use adaptive CFL number. */
+  bool CFL_Auto;                      /*!< \brief Use residual-triggered automatic CFL ramp. */ // Added by RSCD
+  su2double CFL_AutoMax;              /*!< \brief Maximum CFL for auto ramp */
+  su2double CFL_AutoFactor;           /*!< \brief CFL growth factor */
+  su2double CFL_Auto_RhoE_Threshold;  /*!< \brief rhoE residual threshold */
+  su2double CFL_Auto_RhoEve_Threshold;/*!< \brief rhoEve residual threshold */
+  unsigned long CFL_AutoWaitIter;     /*!< \brief iterations before ramping */
   bool HB_Precondition;  /*!< \brief Flag to turn on harmonic balance source term preconditioning */
   su2double RefArea,     /*!< \brief Reference area for coefficient computation. */
   RefElemLength,         /*!< \brief Reference element length for computing the slope limiting epsilon. */
@@ -1665,6 +1671,19 @@ public:
    * \return <code>TRUE</code> if CFL adaption is active; otherwise <code>FALSE</code>.
    */
   bool GetCFL_Adapt(void) const { return CFL_Adapt; }
+
+  /* Adding CFLAuto getters -- Added by RSCD */
+  bool GetCFL_Auto(void) const { return CFL_Auto; }
+
+  su2double GetCFL_AutoMax(void) const { return CFL_AutoMax; }
+
+  su2double GetCFL_AutoFactor(void) const { return CFL_AutoFactor; }
+
+  unsigned long GetCFL_AutoWaitIter(void) const { return CFL_AutoWaitIter; }
+
+  su2double GetCFL_Auto_RhoE_Threshold(void) const { return CFL_Auto_RhoE_Threshold; }
+
+  su2double GetCFL_Auto_RhoEve_Threshold(void) const { return CFL_Auto_RhoEve_Threshold; }
 
   /*!
    * \brief Get the value of the limits for the sections.
