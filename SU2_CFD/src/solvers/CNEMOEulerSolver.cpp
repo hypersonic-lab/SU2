@@ -999,7 +999,8 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
   Gas_ConstantND         = 0.0, Viscosity_FreeStreamND    = 0.0, sqvel                       = 0.0,
   Tke_FreeStreamND       = 0.0, Total_UnstTimeND          = 0.0, Delta_UnstTimeND            = 0.0,
   soundspeed             = 0.0, GasConstant_Inf           = 0.0, Froude                      = 0.0,
-  Density_FreeStreamND   = 0.0, Heat_Flux_Ref             = 0.0;
+  Density_FreeStreamND   = 0.0, Heat_Flux_Ref             = 0.0, Energy_ve_FreeStream        = 0.0,
+  Energy_ve_Ref          = 0.0, Energy_ve_FreeStreamND    = 0.0;
 
   su2double Velocity_FreeStreamND[3] = {0.0, 0.0, 0.0};
 
@@ -1011,7 +1012,7 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
   const bool unsteady = (config->GetTime_Marching() != TIME_MARCHING::STEADY);
   const bool viscous  = config->GetViscous();
   const bool gravity  = config->GetGravityForce();
-  const bool turbulent = false;
+  const bool turbulent = (config->GetKind_Turb_Model() != TURB_MODEL::NONE);
   const bool tkeNeeded = ((turbulent) && (config->GetKind_Turb_Model() == TURB_MODEL::SST));
   const bool reynolds_init = (config->GetKind_InitOption() == REYNOLDS);
 
@@ -1096,6 +1097,7 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
       /*--- Thermodynamics quantities based initialization ---*/
       Viscosity_FreeStream = FluidModel->GetViscosity();
       Energy_FreeStream    = energies[0] + 0.5*sqvel;
+      Energy_ve_FreeStream = energies[1];
 
     } else {
 
@@ -1116,14 +1118,17 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
 
     /*--- For inviscid flow, energy is calculated from the specified
        FreeStream quantities using the proper gas law. ---*/
-    Energy_FreeStream = energies[0] + 0.5*sqvel;
+    Energy_FreeStream    = energies[0] + 0.5*sqvel;
+    Energy_ve_FreeStream = energies[1];
 
   }
 
   config->SetDensity_FreeStream(Density_FreeStream);
 
   /*-- Compute the freestream energy. ---*/
-  if (tkeNeeded) { Energy_FreeStream += Tke_FreeStream; }; config->SetEnergy_FreeStream(Energy_FreeStream);
+  if (tkeNeeded) { Energy_FreeStream += Tke_FreeStream; }; 
+  config->SetEnergy_FreeStream(Energy_FreeStream);
+  config->SetEnergy_ve_FreeStream(Energy_ve_FreeStream);
 
   /*--- Compute non dimensional quantities. By definition,
      Lref is one because we have converted the grid to meters. ---*/
@@ -1188,9 +1193,11 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
   Viscosity_FreeStreamND = Viscosity_FreeStream / Viscosity_Ref;   config->SetViscosity_FreeStreamND(Viscosity_FreeStreamND);
 
   Tke_FreeStream  = 3.0/2.0*(ModVel_FreeStream*ModVel_FreeStream*config->GetTurbulenceIntensity_FreeStream()*config->GetTurbulenceIntensity_FreeStream());
+  if (!tkeNeeded) Tke_FreeStream = 0.0;
   config->SetTke_FreeStream(Tke_FreeStream);
 
   Tke_FreeStreamND  = 3.0/2.0*(ModVel_FreeStreamND*ModVel_FreeStreamND*config->GetTurbulenceIntensity_FreeStream()*config->GetTurbulenceIntensity_FreeStream());
+  if (!tkeNeeded) Tke_FreeStreamND = 0.0;
   config->SetTke_FreeStreamND(Tke_FreeStreamND);
 
   Omega_FreeStream = Density_FreeStream*Tke_FreeStream/(Viscosity_FreeStream*config->GetTurb2LamViscRatio_FreeStream());
@@ -1202,10 +1209,14 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
   /*--- Initialize the dimensionless Fluid Model that will be used to solve the dimensionless problem ---*/
 
   Energy_FreeStreamND = energies[0] + 0.5 * ModVel_FreeStreamND * ModVel_FreeStreamND;
+  Energy_ve_FreeStreamND = energies[1];
 
-  if (tkeNeeded) { Energy_FreeStreamND += Tke_FreeStreamND; };  config->SetEnergy_FreeStreamND(Energy_FreeStreamND);
+  if (tkeNeeded) { Energy_FreeStreamND += Tke_FreeStreamND; };  
+  config->SetEnergy_FreeStreamND(Energy_FreeStreamND);
+  config->SetEnergy_ve_FreeStreamND(Energy_ve_FreeStreamND);
 
-  Energy_Ref = Energy_FreeStream/Energy_FreeStreamND; config->SetEnergy_Ref(Energy_Ref);
+  Energy_Ref    = Energy_FreeStream/Energy_FreeStreamND; config->SetEnergy_Ref(Energy_Ref);
+  Energy_ve_Ref = Energy_ve_FreeStream/Energy_ve_FreeStreamND; config->SetEnergy_ve_Ref(Energy_ve_Ref );
 
   Total_UnstTimeND = config->GetTotal_UnstTime() / Time_Ref;    config->SetTotal_UnstTimeND(Total_UnstTimeND);
   Delta_UnstTimeND = config->GetDelta_UnstTime() / Time_Ref;    config->SetDelta_UnstTimeND(Delta_UnstTimeND);
@@ -1331,6 +1342,10 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
     if      (config->GetSystemMeasurements() == SI) Unit << "m^2/s^2";
     else if (config->GetSystemMeasurements() == US) Unit << "ft^2/s^2";
     NonDimTable << "Total Energy" << config->GetEnergy_FreeStream() << config->GetEnergy_Ref() << Unit.str() << config->GetEnergy_FreeStreamND();
+    Unit.str("");
+    if      (config->GetSystemMeasurements() == SI) Unit << "m^2/s^2";
+    else if (config->GetSystemMeasurements() == US) Unit << "ft^2/s^2";
+    NonDimTable << "Vibe-el Energy" << config->GetEnergy_ve_FreeStream() << config->GetEnergy_ve_Ref() << Unit.str() << config->GetEnergy_ve_FreeStreamND();
     Unit.str("");
     if      (config->GetSystemMeasurements() == SI) Unit << "m/s";
     else if (config->GetSystemMeasurements() == US) Unit << "ft/s";
@@ -1596,6 +1611,10 @@ void CNEMOEulerSolver::BC_Far_Field(CGeometry *geometry,
         visc_numerics->SetThermalConductivity_ve(
             nodes->GetThermalConductivity_ve(iPoint),
             nodes->GetThermalConductivity_ve(iPoint));
+
+        if (config->GetKind_Turb_Model() == TURB_MODEL::SST)
+          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->GetNodes()->GetSolution(iPoint,0),
+                                              solver_container[TURB_SOL]->GetNodes()->GetSolution(iPoint,0));
 
         /*--- Compute and update residual ---*/
         auto residual = visc_numerics->ComputeResidual(config);

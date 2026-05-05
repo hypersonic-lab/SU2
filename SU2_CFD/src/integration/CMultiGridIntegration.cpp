@@ -45,6 +45,7 @@ void CMultiGridIntegration::MultiGrid_Iteration(CGeometry ****geometry,
     case MAIN_SOLVER::NAVIER_STOKES:
     case MAIN_SOLVER::NEMO_EULER:
     case MAIN_SOLVER::NEMO_NAVIER_STOKES:
+    case MAIN_SOLVER::NEMO_RANS:
     case MAIN_SOLVER::RANS:
     case MAIN_SOLVER::FEM_EULER:
     case MAIN_SOLVER::FEM_NAVIER_STOKES:

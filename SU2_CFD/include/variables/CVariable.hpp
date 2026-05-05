@@ -1225,9 +1225,22 @@ public:
   /*!
    * \brief A virtual member.
    * \param[in] iPoint - Point index.
+   */
+  inline virtual bool SetPrimVar(unsigned long iPoint, su2double turb_ke, CFluidModel *FluidModel) { return true; }
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
    * \param[in] fluidmodel - fluid model.
    */
   inline virtual bool SetPrimVar(unsigned long iPoint, CNEMOGas *fluidmodel) {return false;}
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
+   * \param[in] fluidmodel - fluid model.
+   */
+  inline virtual bool SetPrimVar(unsigned long iPoint, su2double turb_ke, CNEMOGas *fluidmodel) {return false;}
 
   /*!
    * \brief A virtual member.

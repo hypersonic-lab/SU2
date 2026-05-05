@@ -1485,6 +1485,10 @@ void CDriver::InitializeNumerics(CConfig *config, CGeometry **geometry, CSolver 
     case MAIN_SOLVER::NEMO_NAVIER_STOKES:
       NEMO_ns = compressible = true; break;
 
+    case MAIN_SOLVER::NEMO_RANS:
+      NEMO_ns = compressible = turbulent = true;
+      break;
+
     case MAIN_SOLVER::RANS:
     case MAIN_SOLVER::DISC_ADJ_RANS:
       ns = compressible = turbulent = true;

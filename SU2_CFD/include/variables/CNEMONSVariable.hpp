@@ -88,6 +88,11 @@ public:
   bool SetPrimVar(unsigned long iPoint, CFluidModel *FluidModel) final;
 
   /*!
+   * \brief Set all the primitive variables for compressible flows. - Added by RSCD
+   */
+  bool SetPrimVar(unsigned long iPoint, su2double turb_ke, CNEMOGas *FluidModel) final;
+
+  /*!
    * \overload
    * \param[in] eddy_visc - Value of the eddy viscosity.
    */

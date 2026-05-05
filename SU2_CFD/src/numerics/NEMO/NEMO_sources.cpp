@@ -279,13 +279,18 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
     for (auto iSpecies=0ul; iSpecies<nSpecies; iSpecies++)
       Mass += V_i[iSpecies]/rho*Ms[iSpecies];
 
-    const su2double heat_capacity_cp_i   = V_i[RHOCVTR_INDEX]/rho + Ru/Mass;
+//    const su2double heat_capacity_cp_i   = V_i[RHOCVTR_INDEX]/rho + Ru/Mass;
+    const su2double heat_capacity_tr_i = V_i[RHOCVTR_INDEX]/rho + Ru/Mass; //Added by RSCD
+    const su2double heat_capacity_ve_i = V_i[RHOCVVE_INDEX]/rho;           //Added by RSCD
     const su2double total_viscosity_i    = Laminar_Viscosity_i + Eddy_Viscosity_i;
-    const su2double total_conductivity_i = ktr + kve + heat_capacity_cp_i*Eddy_Viscosity_i/Prandtl_Turb;
+//    const su2double total_conductivity_i = ktr + kve + heat_capacity_cp_i*Eddy_Viscosity_i/Prandtl_Turb;
     const su2double u                    = V_i[VEL_INDEX];
     const su2double v                    = V_i[VEL_INDEX+1];
-    const su2double qy_t                 = -total_conductivity_i*GV[T_INDEX][1];
-    const su2double qy_ve                = -kve*GV[TVE_INDEX][1];
+//    const su2double qy_t                 = -total_conductivity_i*GV[T_INDEX][1];
+//    const su2double qy_ve                = -kve*GV[TVE_INDEX][1];
+    const su2double qy_t = -(ktr + Eddy_Viscosity_i*heat_capacity_tr_i/Prandtl_Turb)*GV[T_INDEX][1]
+                           -(kve + Eddy_Viscosity_i*heat_capacity_ve_i/Prandtl_Turb)*GV[TVE_INDEX][1];
+    const su2double qy_ve = -(kve + Eddy_Viscosity_i*heat_capacity_ve_i/Prandtl_Turb)*GV[TVE_INDEX][1];
 
     /*--- Enthalpy and vib-el energy transport due to y-direction diffusion---*/
     su2double sumJhs_y, sumJeve_y;

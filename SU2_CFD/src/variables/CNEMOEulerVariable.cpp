@@ -221,7 +221,7 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
  /*--- Assign temperatures ---*/
   const su2double T_old   = V[TVE_INDEX];
   const su2double Tve_old = V[TVE_INDEX];  
-  const auto& T = fluidmodel->ComputeTemperatures(rhos, rhoE, rhoEve, 0.5*rho*sqvel, Tve_old, T_old);
+  const auto& T = fluidmodel->ComputeTemperatures(rhos, rhoE, rhoEve, 0.5*rho*sqvel, 0.0, Tve_old, T_old);
   
   /*--- Temperatures ---*/
   V[T_INDEX]   = T[0];
@@ -276,3 +276,116 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
 
   return nonPhys;
 }
+
+bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
+                                      su2double *val_dPdU, su2double *val_dTdU,
+                                      su2double *val_dTvedU, su2double *val_eves,
+                                      su2double *val_Cvves, su2double turb_ke) {
+
+  unsigned short iDim, iSpecies;
+  su2double Tmin, Tmax, Tvemin, Tvemax;
+  vector<su2double> rhos;
+
+  rhos.resize(nSpecies,0.0);
+
+  /*--- Conserved & primitive vector layout ---*/
+  // U:  [rho1, ..., rhoNs, rhou, rhov, rhow, rhoe, rhoeve]^T
+  // V: [rho1, ..., rhoNs, T, Tve, u, v, w, P, rho, h, a, rhoCvtr, rhoCvve]^T
+
+  /*--- Set booleans ---*/
+  bool nonPhys = false;
+
+  /*--- Set temperature clipping values ---*/
+  Tmin   = 50.0; Tmax   = 8E4;
+  Tvemin = 50.0; Tvemax = 8E4;
+
+  /*--- Rename variables for convenience ---*/
+  su2double rhoE   = U[nSpecies+nDim];     // Density * energy [J/m3]
+  su2double rhoEve = U[nSpecies+nDim+1];   // Density * energy_ve [J/m3]
+
+  /*--- Assign species & mixture density ---*/
+  // Note: if any species densities are < 0, these values are re-assigned
+  //       in the primitive AND conserved vectors to ensure positive density
+  V[RHO_INDEX] = 0.0;
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    if (U[iSpecies] < 0.0) {
+      U[iSpecies]            = 1E-20;
+      V[RHOS_INDEX+iSpecies] = 1E-20;
+      rhos[iSpecies]         = 1E-20;
+    //nonPhys                = true;
+    } else {
+      V[RHOS_INDEX+iSpecies] = U[iSpecies];
+      rhos[iSpecies]         = U[iSpecies];
+    }
+    V[RHO_INDEX]            += U[iSpecies];
+  }
+
+  // Rename for convenience
+  su2double rho = V[RHO_INDEX];
+
+  /*--- Assign velocity^2 ---*/
+  su2double sqvel = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++) {
+    V[VEL_INDEX+iDim] = U[nSpecies+iDim]/V[RHO_INDEX];
+    sqvel            += V[VEL_INDEX+iDim]*V[VEL_INDEX+iDim];
+  }
+
+ /*--- Assign temperatures ---*/
+  const su2double T_old   = V[TVE_INDEX];
+  const su2double Tve_old = V[TVE_INDEX];  
+  const auto& T = fluidmodel->ComputeTemperatures(rhos, rhoE, rhoEve, 0.5*rho*sqvel, rho*turb_ke, Tve_old, T_old);
+  
+  /*--- Temperatures ---*/
+  V[T_INDEX]   = T[0];
+  V[TVE_INDEX] = T[1];
+
+  // Determine if the temperature lies within the acceptable range
+  if (V[T_INDEX] <= Tmin)      { nonPhys = true; return nonPhys;}
+  if (V[T_INDEX] >= Tmax) { nonPhys = true; return nonPhys;}
+  else if (V[T_INDEX] != V[T_INDEX]){ nonPhys = true; return nonPhys;}
+
+  if (!monoatomic){
+    if (V[TVE_INDEX] <= Tvemin)      { nonPhys = true; return nonPhys;}
+    if (V[TVE_INDEX] >= Tvemax) { nonPhys = true; return nonPhys;}
+    else if (V[TVE_INDEX] != V[TVE_INDEX]){ nonPhys = true; return nonPhys;}
+  }
+  else {V[TVE_INDEX] = Tve_Freestream;}
+
+  // Determine other properties of the mixture at the current state
+  fluidmodel->SetTDStateRhosTTv(rhos, V[T_INDEX], V[TVE_INDEX]);
+
+  const auto& cvves = fluidmodel->ComputeSpeciesCvVibEle(V[TVE_INDEX]);
+  vector<su2double> eves  = fluidmodel->ComputeSpeciesEve(V[TVE_INDEX]);
+
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    val_eves[iSpecies]  = eves[iSpecies];
+    val_Cvves[iSpecies] = cvves[iSpecies];
+  }
+
+  V[RHOCVTR_INDEX] = fluidmodel->ComputerhoCvtr();
+  V[RHOCVVE_INDEX] = fluidmodel->ComputerhoCvve();
+
+  /*--- Pressure ---*/
+  V[P_INDEX] = fluidmodel->ComputePressure();
+
+  if (V[P_INDEX] < 0.0) {
+    V[P_INDEX] = 1E-20;
+    nonPhys = true;
+  }
+
+  /*--- Partial derivatives of pressure and temperature ---*/
+  if(implicit){
+    fluidmodel->ComputedPdU  (V, eves, val_dPdU  );
+    fluidmodel->ComputedTdU  (V, val_dTdU );
+    fluidmodel->ComputedTvedU(V, eves, val_dTvedU);
+  }
+
+  /*--- Sound speed ---*/
+  V[A_INDEX] = fluidmodel->ComputeSoundSpeed();
+
+  /*--- Enthalpy ---*/
+  V[H_INDEX] = (U[nSpecies+nDim] + V[P_INDEX])/V[RHO_INDEX];
+
+  return nonPhys;
+}
+

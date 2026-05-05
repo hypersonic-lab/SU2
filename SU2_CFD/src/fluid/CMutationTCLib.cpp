@@ -297,11 +297,11 @@ vector<su2double>& CMutationTCLib::GetThermalConductivities(){
   return ThermalConductivities;
 }
 
-vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rhos, su2double rhoE, su2double rhoEve, su2double rhoEvel, su2double Tve_old, su2double T_old){
+vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rhos, su2double rhoE, su2double rhoEve, su2double rhoEvel, su2double rhotke, su2double Tve_old, su2double T_old){
 
   rhos = val_rhos;
 
-  energies[0] = rhoE - rhoEvel;
+  energies[0] = rhoE - rhoEvel - rhotke;
   energies[1] = rhoEve;
 
   mix->setState(rhos.data(), energies.data(), 0, NEWTON_ROBUST);

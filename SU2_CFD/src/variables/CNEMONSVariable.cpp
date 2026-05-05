@@ -119,3 +119,48 @@ bool CNEMONSVariable::SetPrimVar(unsigned long iPoint, CFluidModel *FluidModel) 
 
   return nonPhys;
 }
+
+bool CNEMONSVariable::SetPrimVar(unsigned long iPoint, su2double turb_ke, CNEMOGas *FluidModel) {
+
+  fluidmodel = static_cast<CNEMOGas*>(FluidModel);
+
+  /*--- Convert conserved to primitive variables ---*/
+  bool nonPhys = Cons2PrimVar(Solution[iPoint], Primitive[iPoint], dPdU[iPoint], dTdU[iPoint], dTvedU[iPoint], eves[iPoint], Cvves[iPoint], turb_ke);
+
+  /*--- Reset solution to previous one, if nonphys ---*/
+  if (nonPhys) {
+    for (auto iVar = 0u; iVar < nVar; iVar++)
+      Solution(iPoint,iVar) = Solution_Old(iPoint,iVar);
+
+    /*--- Recompute Primitive from previous solution ---*/
+    Cons2PrimVar(Solution[iPoint], Primitive[iPoint], dPdU[iPoint], dTdU[iPoint], dTvedU[iPoint], eves[iPoint], Cvves[iPoint], turb_ke);
+  }
+
+  /*--- Set additional point quantities ---*/
+  Gamma(iPoint) = fluidmodel->ComputeGamma();
+
+  SetVelocity2(iPoint);
+
+  const auto& Ds = fluidmodel->GetDiffusionCoeff();
+  for (auto iSpecies = 0u; iSpecies < nSpecies; iSpecies++)
+    DiffusionCoeff(iPoint, iSpecies) = Ds[iSpecies];
+
+  su2double T   =  Primitive(iPoint,nSpecies);
+  su2double Tve =  Primitive(iPoint,nSpecies+1);
+
+  su2double* val_eves = GetEve(iPoint);
+  const auto& hs = fluidmodel->ComputeSpeciesEnthalpy(T, Tve, val_eves);
+  for (auto iSpecies = 0u; iSpecies < nSpecies; iSpecies++)
+    Enthalpys(iPoint, iSpecies) = hs[iSpecies];
+
+  LaminarViscosity(iPoint) = fluidmodel->GetViscosity();
+
+  const auto& thermalconductivities = fluidmodel->GetThermalConductivities();
+  ThermalCond(iPoint)      = thermalconductivities[0];
+  ThermalCond_ve(iPoint)   = thermalconductivities[1];
+
+  Primitive(iPoint, LAM_VISC_INDEX) = LaminarViscosity(iPoint);
+
+  return nonPhys;
+}
+

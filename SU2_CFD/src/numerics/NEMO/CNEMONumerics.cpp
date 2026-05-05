@@ -254,6 +254,16 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& Cs = fluidmodel->GetSpeciesCharge();
 
+/* Added by RSCD for NEMO_RANS ---*/
+  su2double Mass = 0.0;
+  for (auto iSpecies=0ul; iSpecies<nSpecies; iSpecies++)
+    Mass += V_i[iSpecies]/rho*Ms[iSpecies];
+
+  const su2double cp_tr = V[RHOCVTR_INDEX]/rho + UNIVERSAL_GAS_CONSTANT*1000.0/Mass; 
+  const su2double cp_ve = V[RHOCVVE_INDEX]/rho;
+  const su2double ktr_eff = ktr + val_eddy_viscosity*cp_tr/Prandtl_Turb;
+  const su2double kve_eff = kve + val_eddy_viscosity*cp_ve/Prandtl_Turb;
+
   /*--- Pre-compute mixture quantities ---*/  //TODO
   su2double Vector[MAXNDIM] = {0.0};
   for (auto iDim = 0; iDim < nDim; iDim++) {
@@ -292,8 +302,10 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     }
 
     /*--- Heat transfer terms ---*/
-    Flux_Tensor[nSpecies+nDim][iDim] += ktr*GV[T_INDEX][iDim] + kve*GV[TVE_INDEX][iDim];
-    Flux_Tensor[nSpecies+nDim+1][iDim] += kve*GV[TVE_INDEX][iDim];
+    //Flux_Tensor[nSpecies+nDim][iDim] += ktr*GV[T_INDEX][iDim] + kve*GV[TVE_INDEX][iDim];
+    //Flux_Tensor[nSpecies+nDim+1][iDim] += kve*GV[TVE_INDEX][iDim];
+    Flux_Tensor[nSpecies+nDim][iDim] += ktr_eff*GV[T_INDEX][iDim] + kve_eff*GV[TVE_INDEX][iDim]; //Added by RSCD
+    Flux_Tensor[nSpecies+nDim+1][iDim] += kve_eff*GV[TVE_INDEX][iDim]; //Added by RSCD
   }
 
   for (auto iVar = 0ul; iVar < nVar; iVar++) {

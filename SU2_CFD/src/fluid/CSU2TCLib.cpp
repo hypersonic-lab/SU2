@@ -2126,7 +2126,7 @@ void CSU2TCLib::ThermalConductivitiesSuth(){
   ThermalConductivities[1] = kve;
 }
 
-vector<su2double>& CSU2TCLib::ComputeTemperatures(vector<su2double>& val_rhos, su2double rhoE, su2double rhoEve, su2double rhoEvel, su2double Tve_old, su2double T_old) {
+vector<su2double>& CSU2TCLib::ComputeTemperatures(vector<su2double>& val_rhos, su2double rhoE, su2double rhoEve, su2double rhoEvel, su2double rhotke, su2double Tve_old, su2double T_old) {
 
   rhos = val_rhos;
 
@@ -2140,7 +2140,7 @@ vector<su2double>& CSU2TCLib::ComputeTemperatures(vector<su2double>& val_rhos, s
     rhoE_f   += rhos[iSpecies] * (Enthalpy_Formation[iSpecies] - Ru/MolarMass[iSpecies]*Ref_Temperature[iSpecies]);
   }
 
-  T = (rhoE - rhoEve - rhoE_f + rhoE_ref - rhoEvel) / rhoCvtr;
+  T = (rhoE - rhoEve - rhoE_f + rhoE_ref - rhoEvel - rhotke) / rhoCvtr;
 
   /*--- Set temperature clipping values ---*/
   const su2double Tmin   = 50.0; const su2double Tmax   = 8E4;

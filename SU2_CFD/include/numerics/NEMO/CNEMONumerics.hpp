@@ -217,7 +217,8 @@ public:
     su2double rho_j = V_j[RHO_INDEX];
     su2double T   = val_Mean_PrimVar[T_INDEX];
     su2double Tve = val_Mean_PrimVar[TVE_INDEX];
-    su2double mu  = val_laminar_viscosity;
+//    su2double mu  = val_laminar_viscosity;
+    su2double mu  = val_laminar_viscosity+val_eddy_viscosity; //Added by RSCD
     su2double ktr = val_thermal_conductivity;
     su2double kve = val_thermal_conductivity_ve;
     su2double RuSI= UNIVERSAL_GAS_CONSTANT;
@@ -226,6 +227,17 @@ public:
     const auto& hs = fluidmodel->ComputeSpeciesEnthalpy(T, Tve, val_Mean_Eve);
     const auto& Cvtr = fluidmodel->GetSpeciesCvTraRot();
     const auto& Ms = fluidmodel->GetSpeciesMolarMass();
+
+    /* Added by RSCD ----*/
+    su2double Mass = 0.;
+    for (auto iSpecies=0ul; iSpecies<nSpecies; iSpecies++)
+      Mass += val_Mean_PrimVar[RHOS_INDEX+iSpecies]*Ms[iSpecies];
+
+    const su2double rho_mean = val_Mean_PrimVar[RHO_INDEX];
+    const su2double cp_tr = val_Mean_PrimVar[RHOCVTR_INDEX]/rho_mean + UNIVERSAL_GAS_CONSTANT*1000.0/Mass;
+    const su2double cp_ve = val_Mean_PrimVar[RHOCVVE_INDEX]/rho_mean;
+    const su2double ktr_eff = ktr + val_eddy_viscosity*cp_tr/Prandtl_Turb;
+    const su2double kve_eff = kve + val_eddy_viscosity*cp_ve/Prandtl_Turb;
 
     /*--- Calculate useful diffusion parameters ---*/
     // Mass fraction and summation of diffusion fluxes
@@ -320,11 +332,14 @@ public:
       // Energy
       dFdVj[nSpecies+2][nSpecies]   = pix*val_dS;
       dFdVj[nSpecies+2][nSpecies+1] = piy*val_dS;
-      dFdVj[nSpecies+2][nSpecies+2] = ktr*theta/dij*val_dS;
-      dFdVj[nSpecies+2][nSpecies+3] = kve*theta/dij*val_dS;
+      //dFdVj[nSpecies+2][nSpecies+2] = ktr*theta/dij*val_dS;
+      //dFdVj[nSpecies+2][nSpecies+3] = kve*theta/dij*val_dS;
+      dFdVj[nSpecies+2][nSpecies+2] = ktr_eff*theta/dij*val_dS; //Added by RSCD
+      dFdVj[nSpecies+2][nSpecies+3] = kve_eff*theta/dij*val_dS; //Added by RSCD
 
       // Vib-el Energy
-      dFdVj[nSpecies+3][nSpecies+3] = kve*theta/dij*val_dS;
+      //dFdVj[nSpecies+3][nSpecies+3] = kve*theta/dij*val_dS;
+      dFdVj[nSpecies+3][nSpecies+3] = kve_eff*theta/dij*val_dS; //Added by RSCD
 
       for (auto iVar = 0; iVar < nVar; iVar++)
         for (auto jVar = 0; jVar < nVar; jVar++)
@@ -393,11 +408,14 @@ public:
       dFdVj[nSpecies+3][nSpecies]   = pix*val_dS;
       dFdVj[nSpecies+3][nSpecies+1] = piy*val_dS;
       dFdVj[nSpecies+3][nSpecies+2] = piz*val_dS;
-      dFdVj[nSpecies+3][nSpecies+3] = ktr*theta/dij*val_dS;
-      dFdVj[nSpecies+3][nSpecies+4] = kve*theta/dij*val_dS;
+      //dFdVj[nSpecies+3][nSpecies+3] = ktr*theta/dij*val_dS;
+      //dFdVj[nSpecies+3][nSpecies+4] = kve*theta/dij*val_dS;
+      dFdVj[nSpecies+3][nSpecies+3] = ktr_eff*theta/dij*val_dS; //Added by RSCD
+      dFdVj[nSpecies+3][nSpecies+4] = kve_eff*theta/dij*val_dS; //Added by RSCD
 
       // Vib.-el energy
-      dFdVj[nSpecies+4][nSpecies+4] = kve*theta/dij*val_dS;
+      //dFdVj[nSpecies+4][nSpecies+4] = kve*theta/dij*val_dS;
+      dFdVj[nSpecies+4][nSpecies+4] = kve_eff*theta/dij*val_dS; //Added by RSCD
 
       for (auto iVar = 0; iVar < nVar; iVar++)
         for (auto jVar = 0; jVar < nVar; jVar++)

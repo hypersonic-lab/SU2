@@ -114,25 +114,27 @@ unsigned long CNEMONSSolver::SetPrimitive_Variables(CSolver **solver_container,C
   unsigned long nonPhysicalPoints = 0;
 
   const TURB_MODEL turb_model = config->GetKind_Turb_Model();
-  //const bool tkeNeeded = (turb_model == TURB_MODEL::SST);
+  const bool tkeNeeded = (turb_model == TURB_MODEL::SST);
+
+  auto* nemoNodes = static_cast<CNEMONSVariable*>(nodes);
 
   SU2_OMP_FOR_STAT(omp_chunk_size)
   for (auto iPoint = 0ul; iPoint < nPoint; iPoint ++) {
 
     /*--- Retrieve the value of the kinetic energy (if needed). ---*/
 
-    su2double eddy_visc = 0.0; //su2double turb_ke = 0.0;
+    su2double eddy_visc = 0.0; su2double turb_ke = 0.0;
 
     if (turb_model != TURB_MODEL::NONE && solver_container[TURB_SOL] != nullptr) {
       eddy_visc = solver_container[TURB_SOL]->GetNodes()->GetmuT(iPoint);
-      //if (tkeNeeded) turb_ke = solver_container[TURB_SOL]->GetNodes()->GetSolution(iPoint,0);
-
+      if (tkeNeeded) turb_ke = solver_container[TURB_SOL]->GetNodes()->GetSolution(iPoint,0);
       nodes->SetEddyViscosity(iPoint, eddy_visc);
     }
 
     /*--- Compressible flow, primitive variables. ---*/
 
-    bool nonphysical = nodes->SetPrimVar(iPoint,FluidModel);
+    //bool nonphysical = nodes->SetPrimVar(iPoint,turb_ke,FluidModel);
+    bool nonphysical = nemoNodes->SetPrimVar(iPoint,turb_ke,static_cast<CNEMOGas*>(FluidModel));
 
     /* Check for non-realizable states for reporting. */
 
