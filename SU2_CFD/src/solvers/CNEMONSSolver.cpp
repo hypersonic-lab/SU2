@@ -603,10 +603,14 @@ void CNEMONSSolver::BC_IsothermalNonCatalytic_Wall(CGeometry *geometry,
     /*--- Rename variables for convenience ---*/
     const su2double ktr = nodes->GetThermalConductivity(iPoint);
     const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
-
+    HeatFluxRad[val_marker][iVertex]  = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
+                                 (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dist_ij;
+    HeatFluxConv[val_marker][iVertex] = (ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij;
+    HeatFluxETC[val_marker][iVertex] = Area;
     /*--- Apply to the linear system ---*/
     Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
                                  (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dist_ij;
+                                 
     Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej) + kve*(Twall-Tvei) *C)*Area/dist_ij;
 
     /*--- Calculate Jacobian for implicit time stepping ---*/
@@ -962,12 +966,15 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
     const su2double sigma = 5.67037442e-8;
     const su2double C = 20;
+
+    const su2double solved_Twall = pow(-1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij / epsilon / sigma,0.25);
     
     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
     HeatFluxConv[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
     // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer
-    Res_Visc[nSpecies+nDim]   += C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Ti,4)*Area);
-    Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dist_ij);
+    Res_Visc[nSpecies+nDim]   = C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Ti,4)*Area);
+   
+    Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej)*Area/dist_ij);
 
     su2double zero[MAXNDIM] = {0.0};
     nodes->SetVelocity_Old(iPoint, zero);
@@ -978,7 +985,16 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     nodes->SetVel_ResTruncError_Zero(iPoint);
 
     LinSysRes.SubtractBlock(iPoint, Res_Visc);
-    HeatFluxETC[val_marker][iVertex]  = 0.0;
+
+    const auto GradV = nodes->GetGradient_Primitive(iPoint);
+    su2double dTdn = 0.0;
+    su2double dTvedn = 0.0;
+    for (auto iDim = 0u; iDim < nDim; iDim++) {
+      dTdn   += GradV[T_INDEX][iDim]*Normal[iDim];
+      dTvedn += GradV[TVE_INDEX][iDim]*Normal[iDim];
+    }
+
+    HeatFluxETC[val_marker][iVertex]  = C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Ti,4)*Area);//(ktr*dTdn + kve*dTvedn)/Area;
     
   }
   END_SU2_OMP_FOR
@@ -1071,32 +1087,32 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       // ETC implementation
       
       const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
-      const su2double e = 1.6021716634e-19; // [J]
-      const su2double W_F = config->GetWork_Function(Marker_Tag) * e; // [eV] -> [J]
+      const su2double e = 1.6021716634e-19; // [C]
+      const su2double W_F = config->GetWork_Function(Marker_Tag); // [eV] 
       const su2double k_B = 1.380649e-23; // [J/K]
       const su2double sigma = 5.67037442e-8;
       const su2double A_R = 1.20e6;
-      const su2double C = 5; // Multiplier for quicker convergence
-      const su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F/k_B/Ti); // [A/m2]
+      const su2double C = 10; // Multiplier for quicker convergence
+      const su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F*e/k_B/Ti); // [A/m2]
       const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]
       const su2double Mole_Flux = Je_sat / (e*N_A); // Je_sat [(C/s)/m2] / N_A [mol^-1] / e [C] -> [mol/s/m2]
       const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
       const su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
 
       // Introduce electrons into flow
-      Res_Visc[0] += electron_flux;
+      //Res_Visc[0] += electron_flux;
       
       const su2double q_rad = epsilon*sigma*pow(Ti,4);
       const su2double q_conv = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dij;
-      const su2double q_ETC = Je_sat*(W_F/e + 2*k_B*Ti/e);
+      const su2double q_ETC = Je_sat*(W_F*e + 2*k_B*Ti);
       HeatFluxRad[val_marker][iVertex]  = q_rad;
       HeatFluxConv[val_marker][iVertex] = q_conv;
       HeatFluxETC[val_marker][iVertex] = q_ETC;
       
       // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
 
-      Res_Visc[nSpecies+nDim]   += C*(q_conv*Area - q_rad*Area - q_ETC*Area);
-      Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dij);
+      Res_Visc[nSpecies+nDim]   = C*(q_conv*Area - q_rad*Area - q_ETC*Area);
+      Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej)*Area/dij);
 
 
       /*--- Viscous contribution to the residual at the wall ---*/
