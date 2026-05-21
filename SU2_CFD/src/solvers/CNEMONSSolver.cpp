@@ -136,6 +136,7 @@ unsigned long CNEMONSSolver::SetPrimitive_Variables(CSolver **solver_container,C
     /*--- Compressible flow, primitive variables. ---*/
 
     bool nonphysical = nodes->SetPrimVar(iPoint,FluidModel);
+    nodes->SetNon_Physical(iPoint, nonphysical);
 
     /* Check for non-realizable states for reporting. */
 
@@ -967,52 +968,19 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     const su2double sigma = 5.67037442e-8;
     const su2double C = 10;
 
-    // su2double solved_Twall = pow(-1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij / epsilon / sigma,0.25);
-    // su2double new_solved_Twall = pow(-1*((ktr*(solved_Twall-Tj) + kve*(solved_Twall-Tvej))) / dist_ij / epsilon / sigma,0.25);
-    // while (abs(solved_Twall - new_solved_Twall) > 2){
-    //   cout << "Error: " << abs(solved_Twall - new_solved_Twall) << "\n";
-    //   cout << "Solved_TWall: " << solved_Twall << "\n";
-    //   cout << "newSolved_Twall: " << new_solved_Twall << "\n";
-    //   cout << "Ti: " << Ti << "\n";
-    //   cout << "Tj: " << Tj << "\n";
-    //   cout << "dist_ij: " << dist_ij << "\n";
-    //   // if(solved_Twall > new_solved_Twall){
-    //   //   solved_Twall-=;
-    //   // }else{
-    //   //   solved_Twall+=1;
-    //   // }
-    //   cout << "Before Adding: " << solved_Twall << "\n";
-    //   cout << "Adding: " << (new_solved_Twall-solved_Twall)/2 << "\n";
-    //   solved_Twall += (new_solved_Twall-solved_Twall)/10;
-    //   cout << "After Adding: " << solved_Twall << "\n";
-    //   new_solved_Twall = pow(-1*((ktr*(solved_Twall-Tj) + kve*(solved_Twall-Tvej))) / dist_ij / epsilon / sigma,0.25);
-    //   cout << "Recalculated Error: " << abs(solved_Twall - new_solved_Twall) << "\n";
-    //   cout << "Recalculated Solved_TWall: " << solved_Twall << "\n";
-    //   cout << "Recalculated newSolved_Twall: " << new_solved_Twall << "\n\n";
-    // }
     
     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
     HeatFluxConv[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
     // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer
     su2double Twall = Ti;
-    // Move by 1 Kelvin at a time
-    // if (abs(solved_Twall - Twall) > 1.5){
-    //   if (solved_Twall > Twall){
-    //     Twall++;
-    //   } else {
-    //     Twall--;
-    //   }
-    // }
+   
     su2double q_conv = (ktr*(Ti-Tj)    + kve*(Tvei-Tvej))*Area/dist_ij;
     su2double q_rad = -epsilon*sigma*pow(Ti,4)*Area;
-   // Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
-    //                              (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dist_ij;
+    
     Res_Visc[nSpecies+nDim]   = q_conv - (q_conv-q_rad)*C;
-   // Res_Visc[nSpecies+nDim]   = -epsilon*sigma*pow(Ti,4)*Area;//((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
-                                 //(ktr*(solved_Twall-Ti) + kve*(solved_Twall-Tvei))*C)*Area/dist_ij;
-   
-    Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej))*Area/dist_ij;//(kve*(Tvei-Tvej) + kve*(solved_Twall-Tvei) *C)*Area/dist_ij;
-    //HeatFluxETC[val_marker][iVertex]  = solved_Twall;
+    
+    Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej))*Area/dist_ij;
+  
     su2double zero[MAXNDIM] = {0.0};
     nodes->SetVelocity_Old(iPoint, zero);
 
@@ -1126,21 +1094,27 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
       const su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
 
-      // Introduce electrons into flow
+
       Res_Visc[0] += electron_flux;
-      
-      const su2double q_rad = epsilon*sigma*pow(Ti,4);
-      const su2double q_conv = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dij;
-      const su2double q_ETC = Je_sat*(W_F*e + 2*k_B*Ti);
-      HeatFluxRad[val_marker][iVertex]  = q_rad;
-      HeatFluxConv[val_marker][iVertex] = q_conv;
+
+      const su2double q_rad = -epsilon*sigma*pow(Ti,4);
+      const su2double q_conv =  (ktr*(Ti-Tj) + kve*(Tvei-Tvej))/dij;
+      const su2double q_ETC = Je_sat*(W_F + 2*k_B*Ti/e);
+      HeatFluxRad[val_marker][iVertex]  = -q_rad;
+      HeatFluxConv[val_marker][iVertex] = -q_conv;
       HeatFluxETC[val_marker][iVertex] = q_ETC;
       
       // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
 
-      Res_Visc[nSpecies+nDim]   = q_conv*Area - C*(q_conv*Area - q_rad*Area - q_ETC*Area);
+      Res_Visc[nSpecies+nDim]   = q_conv*Area - C*(q_conv*Area - q_rad*Area + q_ETC*Area);
       Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej)*Area/dij);
-
+      const unsigned short T_INDEX        = nodes->GetTIndex();
+      const unsigned short TVE_INDEX      = nodes->GetTveIndex();
+      const unsigned short RHO_INDEX      = nodes->GetRhoIndex();
+      const unsigned short RHOCVTR__INDEX = nodes->GetTIndex();
+      const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
+      Res_Visc[nSpecies+nDim]   += (Res_Visc[0]*hs[0]);
+      Res_Visc[nSpecies+nDim+1] += (Res_Visc[0]*eves[0]);
 
       /*--- Viscous contribution to the residual at the wall ---*/
       LinSysRes.SubtractBlock(iPoint, Res_Visc);

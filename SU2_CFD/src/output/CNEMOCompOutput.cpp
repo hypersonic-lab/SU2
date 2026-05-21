@@ -264,6 +264,7 @@ void CNEMOCompOutput::SetVolumeOutputFields(CConfig *config){
     AddVolumeOutput("HEAT_FLUX_CONVECTIVE", "Heat_Flux_Convective", "PRIMITIVE", "Convective heat flux (ktr*dTdn + kve*dTvedn)");
     AddVolumeOutput("HEAT_FLUX_ETC", "Heat_Flux_ETC", "PRIMITIVE", "ETC heat flux");
     AddVolumeOutput("Y_PLUS", "Y_Plus", "PRIMITIVE", "Non-dim. wall distance (Y-Plus)");
+    AddVolumeOutput("NON_PHYSICAL", "NON_PHYSICAL", "SOLUTION", "Non-physical point flag (0=physical, 1=non-physical)");
 
   }
 
@@ -382,6 +383,8 @@ void CNEMOCompOutput::LoadVolumeData(CConfig *config, CGeometry *geometry, CSolv
       SetVolumeOutputValue("LIMITER_ENERGY", iPoint, Node_Flow->GetLimiter_Primitive(iPoint, 3));
     }
   }
+
+  SetVolumeOutputValue("NON_PHYSICAL", iPoint, Node_Flow->GetNon_Physical(iPoint) ? 1.0 : 0.0);
 
   // Added by CAMDEN WILLIAMS
   SetVolumeOutputValue("CHARGE_DENSITY", iPoint, Node_Flow->GetChargeDensity(iPoint));

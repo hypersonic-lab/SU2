@@ -237,7 +237,7 @@ public:
    * \param[in] iPoint - Point index.
    * \return Value of the Non-physical point.
    */
-  inline bool GetNon_Physical(unsigned long iPoint) { return Non_Physical(iPoint); }
+  inline bool GetNon_Physical(unsigned long iPoint) const { return Non_Physical(iPoint); }
 
   /*!
    * \brief Get the solution.
