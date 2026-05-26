@@ -1660,6 +1660,8 @@ void CFlowOutput::LoadSurfaceData(CConfig *config, CGeometry *geometry, CSolver 
   if (nDim == 3)
     SetVolumeOutputValue("SKIN_FRICTION-Z", iPoint, solver[FLOW_SOL]->GetCSkinFriction(iMarker, iVertex, 2));
   SetVolumeOutputValue("HEAT_FLUX", iPoint, solver[heat_sol]->GetHeatFlux(iMarker, iVertex));
+  SetVolumeOutputValue("HEAT_FLUX_CONVECTIVE", iPoint, solver[heat_sol]->GetHeatFluxConvective(iMarker, iVertex));
+  SetVolumeOutputValue("HEAT_FLUX_RADIATIVE", iPoint, solver[heat_sol]->GetHeatFluxRadiative(iMarker, iVertex));
   SetVolumeOutputValue("Y_PLUS", iPoint, solver[FLOW_SOL]->GetYPlus(iMarker, iVertex));
 }
 
