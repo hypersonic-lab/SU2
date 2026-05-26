@@ -963,13 +963,13 @@ void CNEMONSSolver::BC_RadiativeEquilibriumNonCatalytic_Wall(CGeometry *geometry
    
     su2double q_conv = (ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij;
     su2double q_rad = -epsilon*sigma*pow(Ti,4)*Area;
-
-    if (abs(q_conv - q_rad) < 20){
-      C = 20;
-      if (abs(q_conv - q_rad) < 4){
-        C = 40;
-      }
-    }
+    su2double q_err = abs(q_conv-q_rad);
+    
+    C = 135.56*pow(q_err, -0.7);
+    if (C > 40)
+      C = 40;
+    else if (C < 5)
+      C = 5;
     
     Res_Visc[nSpecies+nDim]   = q_conv - (q_conv-q_rad)*C;
     
