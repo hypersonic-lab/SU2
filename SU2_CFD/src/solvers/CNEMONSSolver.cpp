@@ -953,7 +953,7 @@ void CNEMONSSolver::BC_RadiativeEquilibriumNonCatalytic_Wall(CGeometry *geometry
 
     const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
     const su2double sigma = 5.67037442e-8; // Stefan-Boltzmann Constant [W/(m^2K^4)]
-    const su2double C = 5;
+    su2double C = 5;
 
     
     HeatFluxRadiative[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
@@ -963,6 +963,13 @@ void CNEMONSSolver::BC_RadiativeEquilibriumNonCatalytic_Wall(CGeometry *geometry
    
     su2double q_conv = (ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij;
     su2double q_rad = -epsilon*sigma*pow(Ti,4)*Area;
+
+    if (abs(q_conv - q_rad) < 20){
+      C = 20;
+      if (abs(q_conv - q_rad) < 4){
+        C = 40;
+      }
+    }
     
     Res_Visc[nSpecies+nDim]   = q_conv - (q_conv-q_rad)*C;
     
