@@ -66,6 +66,7 @@ CNEMOEulerVariable::CNEMOEulerVariable(su2double val_pressure,
   LAM_VISC_INDEX  = nSpecies+nDim+8;
   EDDY_VISC_INDEX = nSpecies+nDim+9;
   CHARGE_INDEX    = nSpecies+nDim+10;
+  EPOT_INDEX    = nSpecies+nDim+11;
 
   /*--- Set monoatomic flag ---*/
   if (config->GetMonoatomic()) {
@@ -290,6 +291,10 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
   }
 
   V[CHARGE_INDEX] = charge_density;
+
+  /*--- Electric Potential ---*/
+  su2double electric_potential = 2.1;
+  V[EPOT_INDEX] = electric_potential;
 
   return nonPhys;
 }

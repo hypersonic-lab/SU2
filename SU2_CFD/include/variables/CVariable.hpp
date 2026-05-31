@@ -1068,6 +1068,13 @@ public:
    */ 
   inline virtual su2double GetChargeDensity(unsigned long iPoint) const { return 0.0; }
 
+   /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
+   * \return Value of the local electric potential.
+   */ 
+  inline virtual su2double GetElectricPotential(unsigned long iPoint) const { return 0.0; }
+
   /*!
    * \brief A virtual member -- Get the mixture specific heat at constant volume (trans.-rot.).
    * \param[in] iPoint - Point index.

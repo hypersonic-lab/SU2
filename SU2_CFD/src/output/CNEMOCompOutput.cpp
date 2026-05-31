@@ -249,6 +249,7 @@ void CNEMOCompOutput::SetVolumeOutputFields(CConfig *config){
   AddVolumeOutput("MACH",        "Mach",                    "PRIMITIVE", "Mach number");
   AddVolumeOutput("PRESSURE_COEFF", "Pressure_Coefficient", "PRIMITIVE", "Pressure coefficient");
   AddVolumeOutput("CHARGE_DENSITY", "Charge_Density", "PRIMITIVE", "Charge_Density");
+  AddVolumeOutput("E-POTENTIAL", "Electric_Potential", "PRIMITIVE", "Electric_Potential");
   if (config->GetViscous()) {
     AddVolumeOutput("LAMINAR_VISCOSITY", "Laminar_Viscosity", "PRIMITIVE", "Laminar viscosity");
 
@@ -380,8 +381,8 @@ void CNEMOCompOutput::LoadVolumeData(CConfig *config, CGeometry *geometry, CSolv
     }
   }
 
-  // Added by CAMDEN WILLIAMS
   SetVolumeOutputValue("CHARGE_DENSITY", iPoint, Node_Flow->GetChargeDensity(iPoint));
+  SetVolumeOutputValue("E-POTENTIAL", iPoint, Node_Flow->GetElectricPotential(iPoint));
 
   LoadVolumeDataScalar(config, solver, geometry, iPoint);
 
