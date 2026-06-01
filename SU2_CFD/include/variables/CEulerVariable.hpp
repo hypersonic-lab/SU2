@@ -345,4 +345,11 @@ class CEulerVariable : public CFlowVariable {
    */
   inline unsigned long GetNewtonSolverIterations(unsigned long iPoint) const final { return NIterNewtonsolver[iPoint]; }
 
+  /*!
+   * \brief Set the electric potential at a given point.
+   * \param[in] iPoint - Node index
+   * \param[in] val - Electric potential
+   */
+  inline void SetElectricPotential(unsigned long iPoint, unsigned long val) final { Primitive(iPoint, EPOT_INDEX) = val; }
+
 };
