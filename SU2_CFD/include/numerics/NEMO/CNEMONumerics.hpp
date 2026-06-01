@@ -31,6 +31,7 @@
 #include "../../fluid/CNEMOGas.hpp"
 #include "../../fluid/CMutationTCLib.hpp"
 #include "../../fluid/CSU2TCLib.hpp"
+#include "../../fluid/CChemGen.hpp"
 #include "../../../../Common/include/toolboxes/geometry_toolbox.hpp"
 
 /*!

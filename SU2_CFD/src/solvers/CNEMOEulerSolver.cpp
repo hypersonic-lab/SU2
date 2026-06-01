@@ -31,6 +31,7 @@
 #include "../../../Common/include/toolboxes/printing_toolbox.hpp"
 #include "../../include/fluid/CMutationTCLib.hpp"
 #include "../../include/fluid/CSU2TCLib.hpp"
+#include "../../include/fluid/CChemGen.hpp"
 #include "../../include/limiters/CLimiterDetails.hpp"
 
 CNEMOEulerSolver::CNEMOEulerSolver(CGeometry *geometry, CConfig *config,
@@ -1035,6 +1036,14 @@ void CNEMOEulerSolver::SetNondimensionalization(CConfig *config, unsigned short 
    break;
   case SU2_NONEQ:
    FluidModel = new CSU2TCLib(config, nDim, viscous);
+   break;
+  case CHEMGEN:
+   #if defined(HAVE_CHEMGEN)
+     FluidModel = new CChemGen(config, nDim);
+   #else
+     SU2_MPI::Error(string("ChemGen has not been compiled. Add 'Denable-chemgen=true' to your meson string and recompile"),
+     CURRENT_FUNCTION);
+   #endif
    break;
   }
 

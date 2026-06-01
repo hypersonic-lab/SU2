@@ -72,6 +72,14 @@ CNEMONumerics::CNEMONumerics(unsigned short val_nDim, unsigned short val_nVar,
       case SU2_NONEQ:
         fluidmodel = new CSU2TCLib(config, nDim, false);
       break;
+      case CHEMGEN:
+        #if defined(HAVE_CHEMGEN)
+          fluidmodel = new CChemGen(config, nDim);
+        #else
+          SU2_MPI::Error(string("ChemGen has not been compiled. Add 'Denable-chemgen=true' to your meson string and recompile"),
+          CURRENT_FUNCTION);
+        #endif
+      break;
     }
 }
 

@@ -1,7 +1,7 @@
 /*!
  * \file CChemGen.hpp
  * \brief Defines the class for the link to Chem Gen.
- * \author 
+ * \author A. Boueri -- Adapted from CMutationTCLib.hpp
  * \version 8.3.0 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
@@ -29,44 +29,24 @@
 
 #include "CNEMOGas.hpp"
 
-/*
-#include "types_inl.h"
-#include "multiply_divide.h"
-#include "pow_gen.h"
-#include "exp_gen.h"
-#include "array_handling.h"
-#include "constants.h"
-#include "thermally_perfect.h"
-#include "arrhenius.h"
-#include "third_body.h"
-#include "falloff_troe.h"
-#include "falloff_lindemann.h"
-#include "falloff_sri.h"
-#include "pressure_dependent_arrhenius.h"
-#include "reactions.h"
-#include "source.h"
-#include "chemical_state_functions.h"
-#include "rk4.h"
-*/
-
-#if defined(HAVE_MPP) && !defined(CODI_REVERSE_TYPE) && !defined(CODI_FORWARD_TYPE)
-//#include "chemgen.h" // add a header file that will import all chemgen generated files
+#if defined(HAVE_CHEMGEN) // && !defined(CODI_REVERSE_TYPE) && !defined(CODI_FORWARD_TYPE)
 
 /*!
  * \derived class
  * \brief Child class for
- * \author:  
+ * \author: A. Boueri
  */
-class CMutationTCLib : public CNEMOGas {
+class CChemGen : public CNEMOGas {
 
 protected:
 
-  string NoneqStateModel;                 /*!< \brief String nonequilibrium state model. */
+  string NoneqStateModel = "1T";              /*!< \brief String nonequilibrium state model. */
 
 private:
 
-  std::unique_ptr<Mutation::Mixture> mix; /*!< \brief Pointer to object Mixture from Mutation++ library. */
+  // std::unique_ptr<Mutation::Mixture> mix; /*!< \brief Pointer to object Mixture from Mutation++ library. */
 
+  // Some of these vectors do not end up being used, but keep them in for the moment
   vector<su2double> Cv_ks,                /*!< \brief Species specific heats at constant volume. */
   es,                                     /*!< \brief Species energies. */
   omega_vec,                              /*!< \brief Dummy vector for vibrational energy source term. */
@@ -76,21 +56,20 @@ private:
   omegaJRho,                              /*!< \brief Dummy vector for partial density dependent vibrational source term jacobians. */
   omegaJTTv;                              /*!< \brief Dummy vector for temperature (both tr and ve) dependent vibrational source term jacobians. */
 
-  su2double Tref;                         /*!< \brief Reference temperature. */
-
-  bool NEWTON_ROBUST;                             /*!< \brief Boolean to use Newton-Raphson h/cp or Perturbation Method to calculate Jacobian. */
+  su2double Tref,                         /*!< \brief Reference temperature. */
+  k;                                      /*!< \brief Translational Rotational thermal conductivity. */
 
 public:
 
   /*!
    * \brief Constructor of the class.
    */
-  CMutationTCLib(const CConfig* config, unsigned short val_nDim);
+  CChemGen(const CConfig* config, unsigned short val_nDim);
 
   /*!
    * \brief Destructor of the class.
    */
-  virtual ~CMutationTCLib(void);
+  virtual ~CChemGen(void);
 
   /*!
    * \brief Set mixture therodynamic state.
@@ -137,6 +116,7 @@ public:
    * \brief Compute vibrational energy source term.
    */
   su2double ComputeEveSourceTerm() final;
+  // Won't need to account for vibrational energy yet
 
   /*!
    * \brief Compute vibrational energy source term jacobian elements.
@@ -178,17 +158,18 @@ public:
   /*!
    * \brief Get species charge.
    */
-   vector<su2double>& GetSpeciesCharge() final;
+   vector<su2double>& GetSpeciesCharge() final { return ChargeSpecies; }
+   // Presumably we won't be dealing with charges
 
   /*!
    * \brief Get reference temperature.
    */
-  vector<su2double>& GetRefTemperature() final;
+  vector<su2double>& GetRefTemperature() final { return Ref_Temperature; } // Temporarily setting to zero
 
   /*!
    * \brief Get species formation enthalpy.
    */
-  vector<su2double>& GetSpeciesFormationEnthalpy() final;
+  vector<su2double>& GetSpeciesFormationEnthalpy() final { return Enthalpy_Formation; } // Temporarily setting to zero
 
 };
 #endif
