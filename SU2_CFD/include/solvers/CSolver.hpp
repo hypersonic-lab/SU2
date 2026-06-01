@@ -980,6 +980,22 @@ public:
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    */
+  inline virtual void BC_RadiativeEquilibriumNonCatalytic_Wall(CGeometry *geometry,
+                                         CSolver **solver_container,
+                                         CNumerics *conv_numerics,
+                                         CNumerics *visc_numerics,
+                                         CConfig *config,
+                                         unsigned short val_marker) { }  
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
   inline virtual void BC_HeatFlux_Wall(CGeometry *geometry,
                                        CSolver **solver_container,
                                        CNumerics *conv_numerics,
@@ -2953,6 +2969,22 @@ public:
    * \return Value of the heat transfer coefficient.
    */
   inline virtual su2double GetHeatFlux(unsigned short val_marker, unsigned long val_vertex) const { return 0; }
+
+  /*!\
+   * \brief A virtual member.
+   * \param[in] val_marker - Surface marker where the coefficient is computed.
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the coefficient is evaluated.
+   * \return Value of the radiative heat flux.
+   */
+  inline virtual su2double GetHeatFluxRadiative(unsigned short val_marker, unsigned long val_vertex) const { return 0; }
+
+  /*!\
+   * \brief A virtual member.
+   * \param[in] val_marker - Surface marker where the coefficient is computed.
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the coefficient is evaluated.
+   * \return Value of the convective heat flux.
+   */
+  inline virtual su2double GetHeatFluxConvective(unsigned short val_marker, unsigned long val_vertex) const { return 0; }
 
   /*!
    * \brief A virtual member.

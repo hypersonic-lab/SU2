@@ -133,6 +133,8 @@ void CHeatOutput::SetVolumeOutputFields(CConfig *config){
 
   // Primitives
   AddVolumeOutput("HEAT_FLUX", "Heat_Flux", "PRIMITIVE", "Heatflux");
+  AddVolumeOutput("HEAT_FLUX_RADIATIVE", "Heat_Flux_Radiative", "PRIMITIVE", "HeatfluxRadiative");
+  AddVolumeOutput("HEAT_FLUX_CONVECTIVE", "Heat_Flux_Convective", "PRIMITIVE", "HeatfluxConvective");
 
   // Residuals
   AddVolumeOutput("RES_TEMPERATURE", "Residual_Temperature", "RESIDUAL", "Residual of the temperature");
@@ -164,6 +166,8 @@ void CHeatOutput::LoadSurfaceData(CConfig *config, CGeometry *geometry, CSolver 
 
   /* Heat flux value at each surface grid node. */
   SetVolumeOutputValue("HEAT_FLUX", iPoint, solver[HEAT_SOL]->GetHeatFlux(iMarker, iVertex));
+  SetVolumeOutputValue("HEAT_FLUX_RADIATIVE", iPoint, solver[HEAT_SOL]->GetHeatFluxRadiative(iMarker, iVertex));
+  SetVolumeOutputValue("HEAT_FLUX_CONVECTIVE", iPoint, solver[HEAT_SOL]->GetHeatFluxConvective(iMarker, iVertex));
 
 }
 

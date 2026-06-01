@@ -682,6 +682,39 @@ void CHeatSolver::Heat_Fluxes(CGeometry *geometry, CSolver **solver_container, C
           }
         }
       }
+    } else if ( Boundary == RADIATIVE_EQUILIBRIUM ) {
+      for (auto iVertex = 0ul; iVertex < geometry->nVertex[iMarker]; iVertex++ ) {
+
+        HeatFluxConvective[iMarker][iVertex] = 0.0;
+        HeatFluxRadiative[iMarker][iVertex] = 0.0;
+
+        const auto iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+
+        if(geometry->nodes->GetDomain(iPoint)) {
+
+          iPointNormal = geometry->vertex[iMarker][iVertex]->GetNormal_Neighbor();
+
+          Twall = nodes->GetTemperature(iPoint);
+
+          Coord = geometry->nodes->GetCoord(iPoint);
+          Coord_Normal = geometry->nodes->GetCoord(iPointNormal);
+
+          Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+          Area = GeometryToolbox::Norm(nDim, Normal);
+
+          dist = 0.0;
+          for (auto iDim = 0u; iDim < nDim; iDim++) dist += (Coord_Normal[iDim]-Coord[iDim])*(Coord_Normal[iDim]-Coord[iDim]);
+          dist = sqrt(dist);
+
+          dTdn = (Twall - nodes->GetTemperature(iPointNormal))/dist;
+          su2double sigma = 5.670e-8;
+          su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
+          HeatFluxConvective[iMarker][iVertex] = thermal_diffusivity*dTdn*config->GetHeat_Flux_Ref();
+          HeatFluxRadiative[iMarker][iVertex] = epsilon*sigma*pow(Twall*config->GetTemperature_Ref(),4);
+          HeatFlux[iMarker][iVertex] = HeatFluxConvective[iMarker][iVertex] - HeatFluxRadiative[iMarker][iVertex];
+          HeatFlux_per_Marker[iMarker] += HeatFlux[iMarker][iVertex]*Area;
+        }
+      }
     }
 
     if (Monitoring == YES) {

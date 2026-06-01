@@ -171,6 +171,8 @@ class CFVMFlowSolverBase : public CSolver {
   vector<vector<su2double> > Inlet_Ttotal;      /*!< \brief Value of the Total T. */
   vector<su2activematrix> Inlet_FlowDir;        /*!< \brief Value of the Flow Direction. */
   vector<vector<su2double> > HeatFlux;          /*!< \brief Heat transfer coefficient for each boundary and vertex. */
+  vector<vector<su2double> > HeatFluxConvective;  /*!< \brief Convective heat transfer for each boundary and vertex. */
+  vector<vector<su2double> > HeatFluxRadiative;   /*!< \brief Radiative heat transfer for each boundary and vertex. */
   vector<vector<su2double> > HeatFluxTarget;    /*!< \brief Heat transfer coefficient for each boundary and vertex. */
   vector<su2activematrix> CharacPrimVar;        /*!< \brief Value of the characteristic variables at each boundary. */
   vector<su2activematrix> CSkinFriction;        /*!< \brief Skin friction coefficient for each boundary and vertex. */
@@ -2379,6 +2381,7 @@ class CFVMFlowSolverBase : public CSolver {
     return WallShearStress[val_marker][val_vertex];
   }
 
+
   /*!
    * \brief Get the heat flux.
    * \param[in] val_marker - Surface marker where the coefficient is computed.
@@ -2387,6 +2390,14 @@ class CFVMFlowSolverBase : public CSolver {
    */
   inline su2double GetHeatFlux(unsigned short val_marker, unsigned long val_vertex) const final {
     return HeatFlux[val_marker][val_vertex];
+  }
+
+  inline su2double GetHeatFluxRadiative(unsigned short val_marker, unsigned long val_vertex) const final {
+    return HeatFluxRadiative[val_marker][val_vertex];
+  }
+
+  inline su2double GetHeatFluxConvective(unsigned short val_marker, unsigned long val_vertex) const final {
+    return HeatFluxConvective[val_marker][val_vertex];
   }
 
   /*!

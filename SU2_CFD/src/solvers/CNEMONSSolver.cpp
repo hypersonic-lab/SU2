@@ -901,6 +901,126 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
   delete [] dVdU;
 }
 
+
+void CNEMONSSolver::BC_RadiativeEquilibriumNonCatalytic_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
+                                CNumerics *visc_numerics, CConfig *config, unsigned short val_marker){
+
+  const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  su2double UnitNormal[MAXNDIM] = {0.0};
+
+
+  /*--- Identify the boundary ---*/
+  const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
+
+  const unsigned short T_INDEX        = nodes->GetTIndex();
+  const unsigned short TVE_INDEX      = nodes->GetTveIndex();
+  const unsigned short RHO_INDEX      = nodes->GetRhoIndex();
+  const unsigned short RHOCVTR__INDEX = nodes->GetTIndex();
+
+  /*--- Loop over boundary points ---*/
+  SU2_OMP_FOR_DYN(OMP_MIN_SIZE)
+  for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++){
+
+    // Get index of point on boundary
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    if (!geometry->nodes->GetDomain(iPoint)) continue;
+
+    // Get normal
+    const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+    
+    // Get area
+    const su2double Area = GeometryToolbox::Norm(nDim, Normal);
+
+    su2double Res_Visc[MAXNVAR] = {0.0};
+
+    const auto V = nodes->GetPrimitive(iPoint);
+
+    /*--- Compute closest normal neighbor and wall-to-neighbor distance ---*/
+    const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+    const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+    const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
+    const su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+
+    /*--- Temperature at wall (i) and interior neighbor (j) ---*/
+    const su2double Ti   = nodes->GetTemperature(iPoint);
+    const su2double Tj   = nodes->GetTemperature(Point_Normal);
+    const su2double Tvei = nodes->GetTemperature_ve(iPoint);
+    const su2double Tvej = nodes->GetTemperature_ve(Point_Normal);
+
+    const su2double ktr = nodes->GetThermalConductivity(iPoint);
+    const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+
+    const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
+    const su2double sigma = 5.67037442e-8; // Stefan-Boltzmann Constant [W/(m^2K^4)]
+    su2double C = 5;
+
+    
+    HeatFluxRadiative[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
+    HeatFluxConvective[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
+
+    // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer
+   
+    su2double q_conv = (ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij;
+    su2double q_rad = -epsilon*sigma*pow(Ti,4)*Area;
+    su2double q_err = abs(q_conv-q_rad);
+    
+    C = 135.56*pow(q_err, -0.7);
+    if (C > 40)
+      C = 40;
+    else if (C < 5)
+      C = 5;
+    
+    Res_Visc[nSpecies+nDim]   = q_conv - (q_conv-q_rad)*C;
+    
+    Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej))*Area/dist_ij;
+  
+    su2double zero[MAXNDIM] = {0.0};
+    nodes->SetVelocity_Old(iPoint, zero);
+
+    for (auto iDim = 0u; iDim < nDim; iDim++){
+      LinSysRes(iPoint, nSpecies+iDim) = 0.0;
+    }
+    nodes->SetVel_ResTruncError_Zero(iPoint);
+
+    LinSysRes.SubtractBlock(iPoint, Res_Visc);
+
+    /*--- Calculate Jacobian for implicit time stepping ---*/
+    if (implicit) {
+
+      /*--- Initialize Jacobian to zero ---*/
+      for (auto iVar = 0ul; iVar < nVar; iVar++)
+        for (auto jVar = 0ul; jVar < nVar; jVar++)
+          Jacobian_i[iVar][jVar] = 0.0;
+
+      /*--- Add contributions to the Jacobian from the weak enforcement of the energy equations. ---*/
+      const auto dTdU   = nodes->GetdTdU(iPoint);
+      const auto dTvedU = nodes->GetdTvedU(iPoint);
+      const su2double theta = GeometryToolbox::SquaredNorm(nDim, UnitNormal);
+
+      for (auto iVar = 0ul; iVar < nVar; iVar++) {
+        Jacobian_i[nSpecies+nDim][iVar]   = -(ktr*theta/dist_ij*dTdU[iVar] +
+                                              kve*theta/dist_ij*dTvedU[iVar])*Area;
+        Jacobian_i[nSpecies+nDim+1][iVar] = - kve*theta/dist_ij*dTvedU[iVar]*Area;
+      }
+    } // implicit
+
+    /*--- Enforce the no-slip boundary condition in a strong way by
+     modifying the velocity-rows of the Jacobian (1 on the diagonal).
+     And add the contributions to the Jacobian due to energy. ---*/
+    if (implicit) {
+      Jacobian.SubtractBlock2Diag(iPoint, Jacobian_i);
+
+      for (auto iVar = 1u; iVar <= nDim; iVar++) {
+        auto total_index = iPoint*nVar+iVar;
+        Jacobian.DeleteValsRowi(total_index);
+      }
+    }
+
+  }
+  END_SU2_OMP_FOR
+}
+
 void CNEMONSSolver::BC_Smoluchowski_Maxwell(CGeometry *geometry,
                                             CSolver **solver_container,
                                             CNumerics *conv_numerics,
