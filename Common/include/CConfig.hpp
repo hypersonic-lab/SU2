@@ -1261,6 +1261,7 @@ private:
   *Wall_Catalytic;                          /*!< \brief Pointer to catalytic walls. */
   string NoneqStateModel;                   /*!< \brief Nonequilibrium State Model. */
   bool Mpp_Temp_Solver_Robust;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
+  bool Poisson_Solver;                           /*!< \brief Poisson's equation vs Ambipolar diffusion */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
@@ -3961,12 +3962,17 @@ public:
    */
   string GetNoneqStateModel(void) const {return NoneqStateModel;}
 
-    /*!
+  /*!
    * \brief 2T Nonequilibrium numerical method to solve for temperatures.
    * \return Bool to use M++ implementation vs. Perturbation Method.
    */
   bool Get_Mpp_Temp_Solver_Robust(void) const {return Mpp_Temp_Solver_Robust;}
 
+  /*!
+   * \brief Use Poisson's equation to model the electric potential.
+   * \return Bool to use Poisson's equation vs ambipolar diffusion
+   */
+  bool Get_Poisson_Solver(void) const {return Poisson_Solver;}
 
   /*!
    * \brief Get the transport coefficient model.

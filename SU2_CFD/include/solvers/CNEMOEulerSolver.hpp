@@ -352,4 +352,10 @@ public:
    */
   void SetPressureDiffusionSensor(CGeometry *geometry, CConfig *config);
 
+  /*!
+   * \brief Compute the electric potential everywhere.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeElectricPotential_SOR(CGeometry *geometry, CConfig *config);
 };
