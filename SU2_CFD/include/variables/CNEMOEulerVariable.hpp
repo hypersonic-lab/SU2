@@ -306,6 +306,13 @@ class CNEMOEulerVariable : public CFlowVariable {
   inline su2double GetElectricPotential(unsigned long iPoint) const final
                                     { return Primitive(iPoint,EPOT_INDEX); }
   /*!
+   * \brief Set the electric potential at a point
+   * \param[in] iPoint - Node index
+   * \param[in] val - Electric potential
+   */
+  inline void SetElectricPotential(unsigned long iPoint, su2double val) final { Primitive(iPoint, EPOT_INDEX) = val; }
+
+  /*!
    * \brief Sets the vibrational electronic temperature of the flow.
    * \return Value of the temperature of the flow.
    */

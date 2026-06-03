@@ -209,6 +209,7 @@ private:
   nMarker_Outlet,                 /*!< \brief Number of outlet flow markers. */
   nMarker_Smoluchowski_Maxwell,   /*!< \brief Number of smoluchowski/maxwell wall boundaries. */
   nMarker_Isothermal,             /*!< \brief Number of isothermal wall boundaries. */
+  nMarker_Charge,                 /*!< \brief Number of charge boundaries. */
   nMarker_Radiative_Equilibrium,  /*!< \brief Number of radiative equilibrium wall boundaries. */
   nMarker_HeatFlux,               /*!< \brief Number of constant heat flux wall boundaries. */
   nMarker_HeatTransfer,           /*!< \brief Number of heat-transfer/convection wall boundaries. */
@@ -265,6 +266,7 @@ private:
   *Marker_Outlet,                 /*!< \brief Outlet flow markers. */
   *Marker_Smoluchowski_Maxwell,   /*!< \brief Smoluchowski/Maxwell wall markers. */
   *Marker_Isothermal,             /*!< \brief Isothermal wall markers. */
+  *Marker_Charge,                 /*!< \brief Charge markers. */
   *Marker_Radiative_Equilibrium,  /*!< \brief Radiative equilibrium wall markers. */
   *Marker_HeatFlux,               /*!< \brief Constant heat flux wall markers. */
   *Marker_HeatTransfer,           /*!< \brief Heat-transfer/convection markers. */
@@ -1142,6 +1144,7 @@ private:
   unsigned short nMarker_Emissivity;   /*!< \brief Number of markers for which the emissivity is defined. */
   string *Marker_Emissivity;           /*!< \brief Wall markers with defined emissivity. */
   su2double *Wall_Emissivity;          /*!< \brief Emissivity of the wall. */
+  su2double *Charge_Voltage;           /*!< \brief Charge of the boundary. */
   bool Radiation;                      /*!< \brief Determines if a radiation model is incorporated. */
   su2double CFL_Rad;                   /*!< \brief CFL Number for the radiation solver. */
 
@@ -9764,6 +9767,13 @@ public:
    * \return The wall emissivity.
    */
   su2double GetWall_Emissivity(const string& val_index) const;
+
+  /*!
+   * \brief Get the charge in volts at a boundary.
+   * \param[in] val_index - Index corresponding to the boundary.
+   * \return The boundary charge.
+   */
+  su2double GetCharge(const string& val_index) const;
 
   /*!
    * \brief Get if boundary is strong or weak.

@@ -294,7 +294,7 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
 
   /*--- Electric Potential ---*/
   su2double electric_potential = 2.1;
-  V[EPOT_INDEX] = electric_potential;
+  //V[EPOT_INDEX] = electric_potential;
 
   return nonPhys;
 }

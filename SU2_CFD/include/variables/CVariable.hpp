@@ -1176,6 +1176,13 @@ public:
    */
   inline virtual void SetGammaEff(unsigned long iPoint) {}
 
+   /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
+   * \param[in] var Value of the local electric potential.
+   */ 
+  inline virtual void SetElectricPotential(unsigned long iPoint, su2double val) {}
+
   /*!
    * \brief A virtual member.
    * \param[in] iPoint - Point index.

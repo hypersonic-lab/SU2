@@ -1669,6 +1669,7 @@ enum BC_TYPE {
   CHT_WALL_INTERFACE = 50,    /*!< \brief Domain interface definition. */
   SMOLUCHOWSKI_MAXWELL = 55,  /*!< \brief Smoluchoski/Maxwell wall boundary condition. */
   RADIATIVE_EQUILIBRIUM = 56, /*!< \brief No slip radiative equilibrium wall boundary condition. */
+  CHARGE = 57,                /*!< \brief Set charge boundary condition. */
   SEND_RECEIVE = 99,          /*!< \brief Boundary send-receive definition. */
 };
 

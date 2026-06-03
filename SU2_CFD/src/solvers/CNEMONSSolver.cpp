@@ -549,6 +549,9 @@ void CNEMONSSolver::BC_IsothermalNonCatalytic_Wall(CGeometry *geometry,
   /*--- Retrieve the specified wall temperature ---*/
   const su2double Twall = config->GetIsothermal_Temperature(Marker_Tag);
 
+  /*--- Retrieve the specified charge ---*/
+  const su2double Vwall = config->GetCharge(Marker_Tag);
+
   su2double **Jacobian_i = nullptr;
   if (implicit) {
     Jacobian_i = new su2double* [nVar];
@@ -591,8 +594,8 @@ void CNEMONSSolver::BC_IsothermalNonCatalytic_Wall(CGeometry *geometry,
       LinSysRes(iPoint, nSpecies+iDim) = 0.0;
     nodes->SetVel_ResTruncError_Zero(iPoint);
 
-    /*--- Change electric potential to 5.5 ---*/
-    nodes->SetElectricPotential(iPoint, 5.5);
+    /*--- Change electric potential to Vwall ---*/
+    nodes->SetElectricPotential(iPoint, Vwall);
 
     /*--- Calculate the gradient of temperature ---*/
     const su2double Ti   = nodes->GetTemperature(iPoint);
