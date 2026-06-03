@@ -47,43 +47,8 @@ CChemGen::CChemGen(const CConfig* config, unsigned short val_nDim): CNEMOGas(con
   omegaJRho.resize(nSpecies,0.0);
   omegaJTTv.resize(nEnergyEq,0.0);
 
-  /*--- Set up inputs to define type of mixture in the Mutation++ library ---*/
-
-  /*--- Define transport model -- ChemGen won't have a transport model model input
-  if(Kind_TransCoeffModel == TRANSCOEFFMODEL::WILKE)
-    transport_model = "Wilke";
-  else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::GUPTAYOS)
-    transport_model = "Gupta-Yos";
-  else if (Kind_TransCoeffModel == TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
-    transport_model = "Chapmann-Enskog_LDLT";
-
-  NEWTON_ROBUST = config->Get_Mpp_Temp_Solver_Robust();
-  if (NoneqStateModel == "2T") {
-      opt.setStateModel("ChemNonEqTTv");
-  }
-  else if (NoneqStateModel == "1T"){
-      opt.setStateModel("ChemNonEq1T");
-  }
-  else if (NoneqStateModel == "EQUILIBRIUM"){
-      opt.setStateModel("Equil");
-  }
-
-  if (frozen) opt.setMechanism("none");
-  
-  if (transport_model == "Gupta-Yos")
-  {
-      opt.setViscosityAlgorithm(transport_model);
-      opt.setThermalConductivityAlgorithm("Chapmann-Enskog_LDLT");
-  }
-  else
-  {
-      opt.setViscosityAlgorithm(transport_model);
-      opt.setThermalConductivityAlgorithm(transport_model);
-  }
-  ---*/
 
   /* Initialize mixture object */
-  //mix.reset(new Mutation::Mixture(opt)); // will have to link chemgen here
   //chemgen_mix.reset(new ChemGen::Mixture()); // I don't think it will need a transport model
 
   for(iSpecies = 0; iSpecies < nSpecies; iSpecies++){
