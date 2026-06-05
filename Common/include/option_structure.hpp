@@ -1949,6 +1949,8 @@ enum RAMP_COEFF{
 enum class INLET_TYPE {
   TOTAL_CONDITIONS, /*!< \brief User specifies total pressure, total temperature, and flow direction. */
   MASS_FLOW,        /*!< \brief User specifies density and velocity (mass flow). */
+  TOTAL_TEMP_MASS_FLOW, /*!< \brief User specifies total temperature and mass flow per unit area. */
+  TOTAL_TEMP_MASS_FLOW_ALT, /*!< \brief User specifies total temperature and mass flow per unit area, alternate apprach */
   INPUT_FILE,       /*!< \brief User specifies an input file. */
   VELOCITY_INLET,   /*!< \brief Velocity inlet for an incompressible flow. */
   PRESSURE_INLET,   /*!< \brief Total pressure inlet for an incompressible flow. */
@@ -1956,6 +1958,8 @@ enum class INLET_TYPE {
 static const MapType<std::string, INLET_TYPE> Inlet_Map = {
   MakePair("TOTAL_CONDITIONS", INLET_TYPE::TOTAL_CONDITIONS)
   MakePair("MASS_FLOW", INLET_TYPE::MASS_FLOW)
+  MakePair("TOTAL_TEMP_MASS_FLOW", INLET_TYPE::TOTAL_TEMP_MASS_FLOW)
+  MakePair("TOTAL_TEMP_MASS_FLOW_ALT", INLET_TYPE::TOTAL_TEMP_MASS_FLOW_ALT)
   MakePair("INPUT_FILE", INLET_TYPE::INPUT_FILE)
   MakePair("VELOCITY_INLET", INLET_TYPE::VELOCITY_INLET)
   MakePair("PRESSURE_INLET", INLET_TYPE::PRESSURE_INLET)

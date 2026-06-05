@@ -6908,13 +6908,14 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
                             CConfig *config, unsigned short val_marker) {
   unsigned short iDim;
   su2double P_Total, T_Total, Velocity[MAXNDIM], Velocity2, H_Total, Temperature, Riemann,
-  Pressure, Density, Energy, Flow_Dir[MAXNDIM], Mach2, SoundSpeed2, SoundSpeed_Total2, Vel_Mag,
+  Pressure, Density, Energy, Flow_Dir[MAXNDIM], Mach2, SoundSpeed2, SoundSpeed_Total2, Vel_Mag, rhoV,
   alpha, aa, bb, cc, dd, Area, UnitNormal[MAXNDIM], Normal[MAXNDIM];
   su2double *V_inlet, *V_domain;
 
   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
   const su2double Two_Gamma_M1 = 2.0 / Gamma_Minus_One;
   const su2double Gas_Constant = config->GetGas_ConstantND();
+  const su2double Cp = Gas_Constant * Gamma/Gamma_Minus_One;
   const auto Kind_Inlet_Cfg = config->GetKind_Inlet();
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
   const bool tkeNeeded = (config->GetKind_Turb_Model() == TURB_MODEL::SST);
@@ -7157,6 +7158,315 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
         V_inlet[0] = Temperature;
         for (iDim = 0; iDim < nDim; iDim++)
           V_inlet[iDim+1] = Vel_Mag*Flow_Dir[iDim];
+        V_inlet[nDim+1] = Pressure;
+        V_inlet[nDim+2] = Density;
+        V_inlet[nDim+3] = Energy + Pressure/Density;
+
+        break;
+      }
+      /*--- Total Temperature and mass flow per unit area defined at the inlet ---*/
+
+      case INLET_TYPE::TOTAL_TEMP_MASS_FLOW: {
+
+        /*--- Retrieve the specified total temperature and mass flow for this inlet. ---*/
+
+        // P_Total = Inlet_Ptotal[val_marker][iVertex];
+        rhoV = Inlet_Ptotal[val_marker][iVertex];
+        T_Total = Inlet_Ttotal[val_marker][iVertex];
+        
+        const su2double* dir = Inlet_FlowDir[val_marker][iVertex];
+        const su2double mag = GeometryToolbox::Norm(nDim, dir);
+
+        
+
+        /*--- Store the unit flow direction vector.
+         If requested, use the local boundary normal (negative),
+         instead of the prescribed flow direction in the config. ---*/
+
+        if (config->GetInletUseNormal()) {
+          for (iDim = 0; iDim < nDim; iDim++)
+            Flow_Dir[iDim] = -UnitNormal[iDim];
+        } else {
+          for (iDim = 0; iDim < nDim; iDim++)
+            Flow_Dir[iDim] = dir[iDim]/mag;
+        }
+
+        /*--- Non-dim. the inputs if necessary. ---*/
+
+        //P_Total /= config->GetPressure_Ref();
+        T_Total /= config->GetTemperature_Ref();
+
+        if (geometry->nodes->GetViscousBoundary(iPoint)) {
+          //P_Total = nodes->GetPressure(iPoint);
+          T_Total = nodes->GetTemperature(iPoint);
+        }
+
+        /*--- Store primitives and set some variables for clarity. ---*/
+
+        Density = V_domain[nDim+2];
+        Velocity2 = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++) {
+          Velocity[iDim] = V_domain[iDim+1];
+          Velocity2 += Velocity[iDim]*Velocity[iDim];
+        }
+        Energy      = V_domain[nDim+3] - V_domain[nDim+1]/V_domain[nDim+2];
+        Pressure    = V_domain[nDim+1];
+        H_Total     = (Gamma*Gas_Constant/Gamma_Minus_One)*T_Total;
+        SoundSpeed2 = Gamma*Pressure/Density;
+
+        Mach2 = Velocity2/SoundSpeed2;
+        P_Total = rhoV * (sqrt(T_Total*Gas_Constant/Gamma) * (1.0/sqrt(Mach2)) * pow((1.0+(Gamma_Minus_One/2)*Mach2), ((Gamma+1.0)/(2.0*Gamma_Minus_One))));
+
+        if (geometry->nodes->GetViscousBoundary(iPoint)) {
+          P_Total = nodes->GetPressure(iPoint);
+          //T_Total = nodes->GetTemperature(iPoint);
+        }
+
+        /*--- Compute the acoustic Riemann invariant that is extrapolated
+            from the domain interior. ---*/
+
+        Riemann   = 2.0*sqrt(SoundSpeed2)/Gamma_Minus_One;
+        for (iDim = 0; iDim < nDim; iDim++)
+          Riemann += Velocity[iDim]*UnitNormal[iDim];
+
+        /*--- Total speed of sound ---*/
+
+        SoundSpeed_Total2 = Gamma_Minus_One*(H_Total - (Energy + Pressure/Density)+0.5*Velocity2) + SoundSpeed2;
+
+        /*--- Dot product of normal and flow direction. This should
+            be negative due to outward facing boundary normal convention. ---*/
+
+        alpha = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++)
+          alpha += UnitNormal[iDim]*Flow_Dir[iDim];
+
+        /*--- Coefficients in the quadratic equation for the velocity ---*/
+
+        aa =  1.0 + 0.5*Gamma_Minus_One*alpha*alpha;
+        bb = -1.0*Gamma_Minus_One*alpha*Riemann;
+        cc =  0.5*Gamma_Minus_One*Riemann*Riemann
+            -2.0*SoundSpeed_Total2/Gamma_Minus_One;
+
+        /*--- Solve quadratic equation for velocity magnitude. Value must
+            be positive, so the choice of root is clear. ---*/
+
+        dd = bb*bb - 4.0*aa*cc;
+        dd = sqrt(max(0.0, dd));
+        Vel_Mag   = (-bb + dd)/(2.0*aa);
+        Vel_Mag   = max(0.0, Vel_Mag);
+        Velocity2 = Vel_Mag*Vel_Mag;
+
+        /*--- Compute speed of sound from total speed of sound eqn. ---*/
+
+        SoundSpeed2 = SoundSpeed_Total2 - 0.5*Gamma_Minus_One*Velocity2;
+
+        /*--- Mach squared (cut between 0-1), use to adapt velocity ---*/
+
+        Mach2 = Velocity2/SoundSpeed2;
+        Mach2 = min(1.0, Mach2);
+        Velocity2   = Mach2*SoundSpeed2;
+        Vel_Mag     = sqrt(Velocity2);
+        SoundSpeed2 = SoundSpeed_Total2 - 0.5*Gamma_Minus_One*Velocity2;
+
+        /*--- Compute new velocity vector at the inlet ---*/
+
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
+
+        /*--- Static temperature from the speed of sound relation ---*/
+
+        Temperature = SoundSpeed2/(Gamma*Gas_Constant);
+
+        /*--- Static pressure using isentropic relation at a point ---*/
+
+        Pressure = P_Total*pow((Temperature/T_Total), Gamma/Gamma_Minus_One);
+
+        /*--- Density at the inlet from the gas law ---*/
+
+        Density = Pressure/(Gas_Constant*Temperature);
+
+        /*--- Using pressure, density, & velocity, compute the energy ---*/
+
+        Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Velocity2;
+        if (tkeNeeded) Energy += GetTke_Inf();
+
+        /*--- Primitive variables, using the derived quantities ---*/
+
+        V_inlet[0] = Temperature;
+        for (iDim = 0; iDim < nDim; iDim++)
+          V_inlet[iDim+1] = Velocity[iDim];
+        V_inlet[nDim+1] = Pressure;
+        V_inlet[nDim+2] = Density;
+        V_inlet[nDim+3] = Energy + Pressure/Density;
+
+        break;
+      }
+      /*--- Total Temperature and mass flow per unit area defined at the inlet, alternate approach ---*/
+
+      case INLET_TYPE::TOTAL_TEMP_MASS_FLOW_ALT_OFF: {
+
+        /*--- Retrieve the specified total temperature and mass flow for this inlet. ---*/
+
+        // P_Total = Inlet_Ptotal[val_marker][iVertex];
+        rhoV = Inlet_Ptotal[val_marker][iVertex];
+        T_Total = Inlet_Ttotal[val_marker][iVertex];
+        
+        const su2double* dir = Inlet_FlowDir[val_marker][iVertex];
+        const su2double mag = GeometryToolbox::Norm(nDim, dir);
+
+        
+
+        /*--- Store the unit flow direction vector.
+         If requested, use the local boundary normal (negative),
+         instead of the prescribed flow direction in the config. ---*/
+
+        if (config->GetInletUseNormal()) {
+          for (iDim = 0; iDim < nDim; iDim++)
+            Flow_Dir[iDim] = -UnitNormal[iDim];
+        } else {
+          for (iDim = 0; iDim < nDim; iDim++)
+            Flow_Dir[iDim] = dir[iDim]/mag;
+        }
+
+        /*--- Non-dim. the inputs if necessary. ---*/
+
+        T_Total /= config->GetTemperature_Ref();
+
+        if (geometry->nodes->GetViscousBoundary(iPoint)) {
+          T_Total = nodes->GetTemperature(iPoint);
+        }
+
+        /*--- Store primitives and set some variables for clarity. ---*/
+
+        Density = V_domain[nDim+2];
+        Velocity2 = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++) {
+          Velocity[iDim] = V_domain[iDim+1];
+          Velocity2 += Velocity[iDim]*Velocity[iDim];
+        }
+        Energy      = V_domain[nDim+3] - V_domain[nDim+1]/V_domain[nDim+2];
+        Pressure    = V_domain[nDim+1];
+        H_Total     = (Gamma*Gas_Constant/Gamma_Minus_One)*T_Total; // this is equal to Cp * Ttot = Cp*T + |u^2|/2
+        SoundSpeed2 = Gamma*Pressure/Density;
+
+        Mach2 = Velocity2/SoundSpeed2;
+
+        /*--- Coefficients in the quadratic equation for the static temperature ---*/
+
+        aa = 0.5*pow((rhoV*Gas_Constant/Pressure),2.0);
+        bb = (Gamma*Gas_Constant/Gamma_Minus_One); // = Cp
+        cc =  -H_Total;
+
+        /*--- Solve quadratic equation for static temperature. Value must
+            be positive, so the choice of root is clear. ---*/
+
+        dd = bb*bb - 4.0*aa*cc;
+        dd = sqrt(max(0.0, dd));
+        Temperature   = max( ((-bb + dd)/(2.0*aa)), ((-bb - dd)/(2.0*aa)) );
+
+        /*--- Update Velocity Magnitude ---*/
+        Vel_Mag = Temperature/Gamma * rhoV/Pressure;
+
+        /*--- Compute new velocity vector at the inlet ---*/
+
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
+
+        /*--- Density at the inlet ---*/
+
+        Density = rhoV/Vel_Mag;
+
+        /*--- Pressure at the inlet ---*/
+        Pressure = Density * Temperature / Gamma;
+
+        /*--- Using pressure, density, & velocity, compute the energy ---*/
+
+        Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Velocity2;
+        if (tkeNeeded) Energy += GetTke_Inf();
+
+        /*--- Primitive variables, using the derived quantities ---*/
+
+        V_inlet[0] = Temperature;
+        for (iDim = 0; iDim < nDim; iDim++)
+          V_inlet[iDim+1] = Velocity[iDim];
+        V_inlet[nDim+1] = Pressure;
+        V_inlet[nDim+2] = Density;
+        V_inlet[nDim+3] = Energy + Pressure/Density;
+
+        break;
+      }
+      case INLET_TYPE::TOTAL_TEMP_MASS_FLOW_ALT: {
+
+        /*--- Retrieve the specified total temperature and mass flux for this inlet. ---*/
+
+        rhoV = Inlet_Ptotal[val_marker][iVertex];
+        T_Total = Inlet_Ttotal[val_marker][iVertex];
+        
+        const su2double* dir = Inlet_FlowDir[val_marker][iVertex];
+        const su2double mag = GeometryToolbox::Norm(nDim, dir);
+
+        /*--- Store the unit flow direction vector.
+         If requested, use the local boundary normal (negative),
+         instead of the prescribed flow direction in the config. ---*/
+
+        if (config->GetInletUseNormal()) {
+          for (iDim = 0; iDim < nDim; iDim++)
+            Flow_Dir[iDim] = -UnitNormal[iDim];
+        } else {
+          for (iDim = 0; iDim < nDim; iDim++)
+            Flow_Dir[iDim] = dir[iDim]/mag;
+        }
+
+        /*--- Non-dim. the inputs if necessary. ---*/
+
+        T_Total /= config->GetTemperature_Ref();
+
+        if (geometry->nodes->GetViscousBoundary(iPoint)) {
+          T_Total = nodes->GetTemperature(iPoint);
+        }
+
+        /*--- Store primitives and set some variables for clarity. ---*/
+
+        Density = V_domain[nDim+2];
+        Velocity2 = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++) {
+          Velocity[iDim] = V_domain[iDim+1];
+          Velocity2 += Velocity[iDim]*Velocity[iDim];
+        }
+        Energy      = V_domain[nDim+3] - V_domain[nDim+1]/V_domain[nDim+2];
+        Pressure    = V_domain[nDim+1];
+        H_Total     = (Gamma*Gas_Constant/Gamma_Minus_One)*T_Total; // this is equal to Cp * Ttot = Cp*T + |u^2|/2
+        SoundSpeed2 = Gamma*Pressure/Density;
+
+        Mach2 = Velocity2/SoundSpeed2;
+
+
+
+        /*--- Density at inlet extrapolated from interior, yields velocity ---*/
+        Vel_Mag = rhoV/Density; // this is the velocity normal to the face
+
+        /*--- Compute new velocity vector at the inlet ---*/
+
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
+          Velocity2 += Velocity[iDim]*Velocity[iDim];
+
+        /*--- Static Temperature at the inlet ---*/
+        Temperature = T_Total - Gamma_Minus_One/(2*Gamma*Gas_Constant)*Velocity2;
+
+        /*--- Pressure at the inlet ---*/
+        Pressure = Density * Gas_Constant * Temperature;
+
+        /*--- Using pressure, density, & velocity, compute the energy ---*/
+        
+        Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Velocity2;
+        if (tkeNeeded) Energy += GetTke_Inf();
+
+        /*--- Primitive variables, using the derived quantities ---*/
+
+        V_inlet[0] = Temperature;
+        for (iDim = 0; iDim < nDim; iDim++)
+          V_inlet[iDim+1] = Velocity[iDim];
         V_inlet[nDim+1] = Pressure;
         V_inlet[nDim+2] = Density;
         V_inlet[nDim+3] = Energy + Pressure/Density;
