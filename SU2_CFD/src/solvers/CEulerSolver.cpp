@@ -7303,98 +7303,98 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       }
       /*--- Total Temperature and mass flow per unit area defined at the inlet, alternate approach ---*/
 
-      case INLET_TYPE::TOTAL_TEMP_MASS_FLOW_ALT_OFF: {
+      // case INLET_TYPE::TOTAL_TEMP_MASS_FLOW_ALT_OFF: {
 
-        /*--- Retrieve the specified total temperature and mass flow for this inlet. ---*/
+      //   /*--- Retrieve the specified total temperature and mass flow for this inlet. ---*/
 
-        // P_Total = Inlet_Ptotal[val_marker][iVertex];
-        rhoV = Inlet_Ptotal[val_marker][iVertex];
-        T_Total = Inlet_Ttotal[val_marker][iVertex];
+      //   // P_Total = Inlet_Ptotal[val_marker][iVertex];
+      //   rhoV = Inlet_Ptotal[val_marker][iVertex];
+      //   T_Total = Inlet_Ttotal[val_marker][iVertex];
         
-        const su2double* dir = Inlet_FlowDir[val_marker][iVertex];
-        const su2double mag = GeometryToolbox::Norm(nDim, dir);
+      //   const su2double* dir = Inlet_FlowDir[val_marker][iVertex];
+      //   const su2double mag = GeometryToolbox::Norm(nDim, dir);
 
         
 
-        /*--- Store the unit flow direction vector.
-         If requested, use the local boundary normal (negative),
-         instead of the prescribed flow direction in the config. ---*/
+      //   /*--- Store the unit flow direction vector.
+      //    If requested, use the local boundary normal (negative),
+      //    instead of the prescribed flow direction in the config. ---*/
 
-        if (config->GetInletUseNormal()) {
-          for (iDim = 0; iDim < nDim; iDim++)
-            Flow_Dir[iDim] = -UnitNormal[iDim];
-        } else {
-          for (iDim = 0; iDim < nDim; iDim++)
-            Flow_Dir[iDim] = dir[iDim]/mag;
-        }
+      //   if (config->GetInletUseNormal()) {
+      //     for (iDim = 0; iDim < nDim; iDim++)
+      //       Flow_Dir[iDim] = -UnitNormal[iDim];
+      //   } else {
+      //     for (iDim = 0; iDim < nDim; iDim++)
+      //       Flow_Dir[iDim] = dir[iDim]/mag;
+      //   }
 
-        /*--- Non-dim. the inputs if necessary. ---*/
+      //   /*--- Non-dim. the inputs if necessary. ---*/
 
-        T_Total /= config->GetTemperature_Ref();
+      //   T_Total /= config->GetTemperature_Ref();
 
-        if (geometry->nodes->GetViscousBoundary(iPoint)) {
-          T_Total = nodes->GetTemperature(iPoint);
-        }
+      //   if (geometry->nodes->GetViscousBoundary(iPoint)) {
+      //     T_Total = nodes->GetTemperature(iPoint);
+      //   }
 
-        /*--- Store primitives and set some variables for clarity. ---*/
+      //   /*--- Store primitives and set some variables for clarity. ---*/
 
-        Density = V_domain[nDim+2];
-        Velocity2 = 0.0;
-        for (iDim = 0; iDim < nDim; iDim++) {
-          Velocity[iDim] = V_domain[iDim+1];
-          Velocity2 += Velocity[iDim]*Velocity[iDim];
-        }
-        Energy      = V_domain[nDim+3] - V_domain[nDim+1]/V_domain[nDim+2];
-        Pressure    = V_domain[nDim+1];
-        H_Total     = (Gamma*Gas_Constant/Gamma_Minus_One)*T_Total; // this is equal to Cp * Ttot = Cp*T + |u^2|/2
-        SoundSpeed2 = Gamma*Pressure/Density;
+      //   Density = V_domain[nDim+2];
+      //   Velocity2 = 0.0;
+      //   for (iDim = 0; iDim < nDim; iDim++) {
+      //     Velocity[iDim] = V_domain[iDim+1];
+      //     Velocity2 += Velocity[iDim]*Velocity[iDim];
+      //   }
+      //   Energy      = V_domain[nDim+3] - V_domain[nDim+1]/V_domain[nDim+2];
+      //   Pressure    = V_domain[nDim+1];
+      //   H_Total     = (Gamma*Gas_Constant/Gamma_Minus_One)*T_Total; // this is equal to Cp * Ttot = Cp*T + |u^2|/2
+      //   SoundSpeed2 = Gamma*Pressure/Density;
 
-        Mach2 = Velocity2/SoundSpeed2;
+      //   Mach2 = Velocity2/SoundSpeed2;
 
-        /*--- Coefficients in the quadratic equation for the static temperature ---*/
+      //   /*--- Coefficients in the quadratic equation for the static temperature ---*/
 
-        aa = 0.5*pow((rhoV*Gas_Constant/Pressure),2.0);
-        bb = (Gamma*Gas_Constant/Gamma_Minus_One); // = Cp
-        cc =  -H_Total;
+      //   aa = 0.5*pow((rhoV*Gas_Constant/Pressure),2.0);
+      //   bb = (Gamma*Gas_Constant/Gamma_Minus_One); // = Cp
+      //   cc =  -H_Total;
 
-        /*--- Solve quadratic equation for static temperature. Value must
-            be positive, so the choice of root is clear. ---*/
+      //   /*--- Solve quadratic equation for static temperature. Value must
+      //       be positive, so the choice of root is clear. ---*/
 
-        dd = bb*bb - 4.0*aa*cc;
-        dd = sqrt(max(0.0, dd));
-        Temperature   = max( ((-bb + dd)/(2.0*aa)), ((-bb - dd)/(2.0*aa)) );
+      //   dd = bb*bb - 4.0*aa*cc;
+      //   dd = sqrt(max(0.0, dd));
+      //   Temperature   = max( ((-bb + dd)/(2.0*aa)), ((-bb - dd)/(2.0*aa)) );
 
-        /*--- Update Velocity Magnitude ---*/
-        Vel_Mag = Temperature/Gamma * rhoV/Pressure;
+      //   /*--- Update Velocity Magnitude ---*/
+      //   Vel_Mag = Temperature/Gamma * rhoV/Pressure;
 
-        /*--- Compute new velocity vector at the inlet ---*/
+      //   /*--- Compute new velocity vector at the inlet ---*/
 
-        for (iDim = 0; iDim < nDim; iDim++)
-          Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
+      //   for (iDim = 0; iDim < nDim; iDim++)
+      //     Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
 
-        /*--- Density at the inlet ---*/
+      //   /*--- Density at the inlet ---*/
 
-        Density = rhoV/Vel_Mag;
+      //   Density = rhoV/Vel_Mag;
 
-        /*--- Pressure at the inlet ---*/
-        Pressure = Density * Temperature / Gamma;
+      //   /*--- Pressure at the inlet ---*/
+      //   Pressure = Density * Temperature / Gamma;
 
-        /*--- Using pressure, density, & velocity, compute the energy ---*/
+      //   /*--- Using pressure, density, & velocity, compute the energy ---*/
 
-        Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Velocity2;
-        if (tkeNeeded) Energy += GetTke_Inf();
+      //   Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Velocity2;
+      //   if (tkeNeeded) Energy += GetTke_Inf();
 
-        /*--- Primitive variables, using the derived quantities ---*/
+      //   /*--- Primitive variables, using the derived quantities ---*/
 
-        V_inlet[0] = Temperature;
-        for (iDim = 0; iDim < nDim; iDim++)
-          V_inlet[iDim+1] = Velocity[iDim];
-        V_inlet[nDim+1] = Pressure;
-        V_inlet[nDim+2] = Density;
-        V_inlet[nDim+3] = Energy + Pressure/Density;
+      //   V_inlet[0] = Temperature;
+      //   for (iDim = 0; iDim < nDim; iDim++)
+      //     V_inlet[iDim+1] = Velocity[iDim];
+      //   V_inlet[nDim+1] = Pressure;
+      //   V_inlet[nDim+2] = Density;
+      //   V_inlet[nDim+3] = Energy + Pressure/Density;
 
-        break;
-      }
+      //   break;
+      // }
       case INLET_TYPE::TOTAL_TEMP_MASS_FLOW_ALT: {
 
         /*--- Retrieve the specified total temperature and mass flux for this inlet. ---*/
@@ -7442,14 +7442,16 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
 
 
 
-        /*--- Density at inlet extrapolated from interior, yields velocity ---*/
+        /*--- Density at inlet obtained from solution field, yields velocity ---*/
         Vel_Mag = rhoV/Density; // this is the velocity normal to the face
+        //std::cout << "nomRhoV: " << rhoV << " Density: " << Density << " VelMag: " << Vel_Mag << std::endl;  
 
         /*--- Compute new velocity vector at the inlet ---*/
-
-        for (iDim = 0; iDim < nDim; iDim++)
+        Velocity2 = 0.0; // reset to zero
+        for (iDim = 0; iDim < nDim; iDim++) {
           Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
           Velocity2 += Velocity[iDim]*Velocity[iDim];
+        }
 
         /*--- Static Temperature at the inlet ---*/
         Temperature = T_Total - Gamma_Minus_One/(2*Gamma*Gas_Constant)*Velocity2;
@@ -7470,6 +7472,13 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
         V_inlet[nDim+1] = Pressure;
         V_inlet[nDim+2] = Density;
         V_inlet[nDim+3] = Energy + Pressure/Density;
+
+        double compRhoV, recomp;
+        recomp = Velocity[0]*Velocity[0]+Velocity[1]*Velocity[1];
+        compRhoV = Density*(Velocity[0]);
+        //std::cout << " Velocity2: " << Velocity2 << " recomp: " << recomp << std::endl;
+        //std::cout << " VelMag: " << Vel_Mag << " VelX: " << Velocity[0] << " VelY: " << Velocity[1] << std::endl;
+        //std::cout << " computed rhoV: " << compRhoV << std::endl;
 
         break;
       }
