@@ -167,6 +167,23 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeVibRelaxation(const CConfig *conf
   return ResidualType<>(residual, jacobian, nullptr);
 }
 
+CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
+  cout << "Computing MHD\n";
+  const auto GV = PrimVar_Grad_i;
+  cout << "Calculated GV\n";
+  su2double Vector_EField[nDim] = {0.0};
+  cout << "Created Vector Field\n";
+  cout << "nDim = " << nDim << "\n";
+  cout << "nVar = " << nVar << ", EPOT_INDEX = " << EPOT_INDEX << "\n";
+  for (auto iDim = 0ul; iDim < nDim; iDim++){
+	  cout << "iDim = " << iDim << "\n";
+	  cout << "GV[EPOT_INDEX][iDim] = " << GV[EPOT_INDEX][iDim] << "\n";
+	  Vector_EField[iDim] = GV[EPOT_INDEX][iDim];
+  }
+  cout << "Electric Field Here here: " << Vector_EField[0] << "\n";
+  return ResidualType<>(residual, jacobian, nullptr);
+}
+
 CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *config) {
 
   /*--- Rename for convenience ---*/

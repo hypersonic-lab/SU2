@@ -69,6 +69,12 @@ public:
   ResidualType<> ComputeChemistry(const CConfig* config) final;
 
   /*!
+   * \brief Source residual of MHD.
+   * \param[in] config - Definition of the particular problem.
+   */
+  ResidualType<> ComputeMHD(const CConfig* config) final;
+
+  /*!
   * \brief Calculates constants used for Keq correlation.
   * \param[out] A - Pointer to coefficient array.
   * \param[in] val_reaction - Reaction number indicator.

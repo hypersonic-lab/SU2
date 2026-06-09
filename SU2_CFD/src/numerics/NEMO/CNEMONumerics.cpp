@@ -51,6 +51,8 @@ CNEMONumerics::CNEMONumerics(unsigned short val_nDim, unsigned short val_nVar,
     RHOCVVE_INDEX   = nSpecies+nDim+7;
     LAM_VISC_INDEX  = nSpecies+nDim+8;
     EDDY_VISC_INDEX = nSpecies+nDim+9;
+    CHARGE_INDEX    = nSpecies+nDim+10;
+    EPOT_INDEX      = nSpecies+nDim+11;
 
     /*--- Read from CConfig ---*/
     implicit   = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);

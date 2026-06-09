@@ -761,6 +761,7 @@ void CNEMOEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_con
   const bool axisymm    = config->GetAxisymmetric();
   const bool viscous    = config->GetViscous();
   const bool rans       = (config->GetKind_Turb_Model() != TURB_MODEL::NONE);
+  const bool mhd        = config->Get_Poisson_Solver();
 
   CNumerics* numerics = numerics_container[SOURCE_FIRST_TERM];
 
@@ -768,6 +769,7 @@ void CNEMOEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_con
   unsigned long eAxi_local = 0;
   unsigned long eChm_local = 0;
   unsigned long eVib_local = 0;
+  unsigned long eMHD_local = 0;
 
   /*--- Initialize the source residual to zero ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++) Residual[iVar] = 0.0;
@@ -834,6 +836,26 @@ void CNEMOEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_con
           Jacobian.SubtractBlock2Diag(iPoint, residual.jacobian_i);
       } else
         eVib_local++;
+    }
+
+    /*--- Compute MHD source terms ---*/
+    
+    if (mhd){
+      /*--- Set gradient of primitive variables ---*/
+      numerics->SetPrimVarGradient(nodes->GetGradient_Primitive(iPoint), nullptr);
+
+      auto residual = numerics->ComputeMHD(config);
+
+      /*--- Check for errors before applying source to the linear system ---*/
+      err = CNumerics::CheckResidualNaNs(implicit, nVar, residual);
+
+      /*--- Apply the vibrational relaxation terms to the linear system ---*/
+      if (!err) {
+        LinSysRes.SubtractBlock(iPoint, residual);
+        if (implicit)
+          Jacobian.SubtractBlock2Diag(iPoint, residual.jacobian_i);
+      } else
+        eMHD_local++;
     }
 
     /*--- Compute axisymmetric source terms (if needed) ---*/
