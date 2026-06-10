@@ -1496,46 +1496,53 @@ class COptionETC final : public COptionBase {
   unsigned short& size;
   string*& marker;
   su2double*& work_function;
-  su2double*& emissivity;
+  su2double*& temp_model;
+  su2double*& temp_param;
 
  public:
   COptionETC(const string option_field_name, unsigned short& nMarker_ETC, string*& Marker_ETC,
-             su2double*& Wall_Work_Function, su2double*& Wall_Emissivity)
+             su2double*& Wall_Work_Function, su2double*& ETC_Temperature_Model, su2double*& ETC_Temperature_Param)
       : name(option_field_name), size(nMarker_ETC), marker(Marker_ETC), work_function(Wall_Work_Function),
-        emissivity(Wall_Emissivity) {
+        temp_model(ETC_Temperature_Model), temp_param(ETC_Temperature_Param) {
     size = 0;
     marker = nullptr;
     work_function = nullptr;
-    emissivity = nullptr;
+    temp_model = nullptr;
+    temp_param = nullptr;
   }
 
   ~COptionETC() {
     delete[] marker;
     delete[] work_function;
-    delete[] emissivity;
+    delete[] temp_model;
+    delete[] temp_param;
     marker = nullptr;
     work_function = nullptr;
-    emissivity = nullptr;
+    temp_model = nullptr;
+    temp_param = nullptr;
   }
 
   string SetValue(const vector<string>& option_value) override {
     COptionBase::SetValue(option_value);
     const unsigned short totalVals = option_value.size();
     if ((totalVals == 1) && (option_value[0] == "NONE")) return "";
-    if (totalVals % 3 != 0) return name + ": must have a number of entries divisible by 3";
+    if (totalVals % 4 != 0) return name + ": must have a number of entries divisible by 4";
 
-    const unsigned short nVals = totalVals / 3;
+    const unsigned short nVals = totalVals / 4;
     size = nVals;
     marker = new string[nVals];
     work_function = new su2double[nVals];
-    emissivity = new su2double[nVals];
+    temp_model = new su2double[nVals];
+    temp_param = new su2double[nVals];
 
     for (unsigned short i = 0; i < nVals; i++) {
-      marker[i].assign(option_value[3 * i]);
-      istringstream ss_1st(option_value[3 * i + 1]);
+      marker[i].assign(option_value[4 * i]);
+      istringstream ss_1st(option_value[4 * i + 1]);
       if (!(ss_1st >> work_function[i])) return badValue("double", name);
-      istringstream ss_2nd(option_value[3 * i + 2]);
-      if (!(ss_2nd >> emissivity[i])) return badValue("double", name);
+      istringstream ss_2nd(option_value[4 * i + 2]);
+      if (!(ss_2nd >> temp_model[i])) return badValue("double", name);
+      istringstream ss_3nd(option_value[4 * i + 3]);
+      if (!(ss_3nd >> temp_param[i])) return badValue("double", name);
     }
     return "";
   }

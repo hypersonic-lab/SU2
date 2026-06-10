@@ -1144,7 +1144,9 @@ private:
   unsigned short nMarker_Emissivity;   /*!< \brief Number of markers for which the emissivity is defined. */
   string *Marker_Emissivity;           /*!< \brief Wall markers with defined emissivity. */
   su2double *Wall_Emissivity;          /*!< \brief Emissivity of the wall. */
-  su2double *Wall_Work_Function;          /*!< \brief Emissivity of the wall. */
+  su2double *Wall_Work_Function;       /*!< \brief Emissivity of the wall. */
+  su2double *ETC_Temperature_Model;/*!< \brief ETC temperature model of the wall. 0 = Isothermal, 1 = Radiative, 2 = ETC*/
+  su2double *ETC_Temperature_Param;/*!< \brief ETC temperature parameter of the wall. */
   bool Radiation;                      /*!< \brief Determines if a radiation model is incorporated. */
   su2double CFL_Rad;                   /*!< \brief CFL Number for the radiation solver. */
 
@@ -1376,7 +1378,7 @@ private:
                                  su2double* & double_field);
 
   void addETCOption(const string& name, unsigned short & list_size, string * & string_field,
-                    su2double* & double_field1, su2double* & double_field2);
+                    su2double* & double_field1, su2double* & double_field2, su2double* & double_field3);
 
   void addInletOption(const string& name, unsigned short & nMarker_Inlet, string * & Marker_Inlet,
                       su2double* & Ttotal, su2double* & Ptotal, su2double** & FlowDir);
@@ -9778,6 +9780,20 @@ public:
    */
   su2double GetWork_Function(const string& val_index) const;
 
+  /*!
+   * \brief Get the ETC temperature model at a boundary. 0 = Isothermal, 1 = Radiative, 2 = Full ETC
+   * \param[in] val_index - Index corresponding to the boundary.
+   * \return The wall work function.
+   */
+  su2double GetETCTempModel(const string& val_index) const;
+
+  /*!
+   * \brief Get the ETC parameter model at a boundary. Isothermal -> Wall Temp, Radiative/ETC -> Wall Emissivity
+   * \param[in] val_index - Index corresponding to the boundary.
+   * \return The wall work function.
+   */
+  su2double GetETCTempParam(const string& val_index) const;
+  
   /*!
    * \brief Get if boundary is strong or weak.
    * \param[in] val_index - Index corresponding to the boundary.

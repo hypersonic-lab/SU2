@@ -920,10 +920,6 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
 
   /*--- Identify the boundary ---*/
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
-  
-  if (implicit){
-    SU2_MPI::Error("Radiative equilibrium wall is not yet implemented for implicit", CURRENT_FUNCTION);
-  }
 
   const unsigned short T_INDEX        = nodes->GetTIndex();
   const unsigned short TVE_INDEX      = nodes->GetTveIndex();
@@ -966,7 +962,7 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
 
     const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
     const su2double sigma = 5.67037442e-8;
-    const su2double C = 10;
+    const su2double C = 5;
 
     
     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
@@ -990,6 +986,38 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     nodes->SetVel_ResTruncError_Zero(iPoint);
 
     LinSysRes.SubtractBlock(iPoint, Res_Visc);
+
+    /*--- Calculate Jacobian for implicit time stepping ---*/
+    if (implicit) {
+
+      /*--- Initialize Jacobian to zero ---*/
+      for (auto iVar = 0ul; iVar < nVar; iVar++)
+        for (auto jVar = 0ul; jVar < nVar; jVar++)
+          Jacobian_i[iVar][jVar] = 0.0;
+
+      /*--- Add contributions to the Jacobian from the weak enforcement of the energy equations. ---*/
+      const auto dTdU   = nodes->GetdTdU(iPoint);
+      const auto dTvedU = nodes->GetdTvedU(iPoint);
+      const su2double theta = GeometryToolbox::SquaredNorm(nDim, UnitNormal);
+
+      for (auto iVar = 0ul; iVar < nVar; iVar++) {
+        Jacobian_i[nSpecies+nDim][iVar]   = -(ktr*theta/dist_ij*dTdU[iVar] +
+                                              kve*theta/dist_ij*dTvedU[iVar])*Area;
+        Jacobian_i[nSpecies+nDim+1][iVar] = - kve*theta/dist_ij*dTvedU[iVar]*Area;
+      }
+    } // implicit
+
+    /*--- Enforce the no-slip boundary condition in a strong way by
+     modifying the velocity-rows of the Jacobian (1 on the diagonal).
+     And add the contributions to the Jacobian due to energy. ---*/
+    if (implicit) {
+      Jacobian.SubtractBlock2Diag(iPoint, Jacobian_i);
+
+      for (auto iVar = 1u; iVar <= nDim; iVar++) {
+        auto total_index = iPoint*nVar+iVar;
+        Jacobian.DeleteValsRowi(total_index);
+      }
+    }
 
   }
   END_SU2_OMP_FOR
@@ -1081,40 +1109,106 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       // ETC implementation
       
-      const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
+      su2double epsilon = 0;
+      su2double Twall = 0;
+      const su2double temp_model = config->GetETCTempModel(Marker_Tag);
+      const su2double temp_param = config->GetETCTempParam(Marker_Tag);
+      // temp_model = 0 for isothermal, 1 for radiative, 2 for ETC
+      // temp_param = wall_temp for isothermal, and wall_emissivity for the other two
+      if (temp_model > 0) {
+        epsilon = temp_param; 
+      } else {
+        Twall = temp_param;	
+      }
       const su2double e = 1.6021716634e-19; // [C]
       const su2double W_F = config->GetWork_Function(Marker_Tag); // [eV] 
       const su2double k_B = 1.380649e-23; // [J/K]
       const su2double sigma = 5.67037442e-8;
       const su2double A_R = 1.20e6;
       const su2double C = 10; // Multiplier for quicker convergence
-      const su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F*e/k_B/Ti); // [A/m2]
+      su2double Je_sat = A_R*Ti*Ti*exp(-1*e/k_B/Ti); // [A/m2]
       const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]
       const su2double Mole_Flux = Je_sat / (e*N_A); // Je_sat [(C/s)/m2] / N_A [mol^-1] / e [C] -> [mol/s/m2]
       const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
       const su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
 
 
-      Res_Visc[0] += electron_flux;
+      //Res_Visc[0] += electron_flux;
+      // // Momentum
+      // for (auto iDim = 0uL; iDim < nDim; iDim++){
+      //   Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
+      // }
 
-      const su2double q_rad = -epsilon*sigma*pow(Ti,4);
-      const su2double q_conv =  (ktr*(Ti-Tj) + kve*(Tvei-Tvej))/dij;
-      const su2double q_ETC = Je_sat*(W_F + 2*k_B*Ti/e);
-      HeatFluxRad[val_marker][iVertex]  = -q_rad;
-      HeatFluxConv[val_marker][iVertex] = -q_conv;
+      su2double q_rad = epsilon*sigma*pow(Ti,4); // Positive (+)
+      su2double q_conv =  (ktr*(Ti-Tj) + kve*(Tvei-Tvej))/dij; // Negative (-) if Tj > Ti (heat transfer to wall)
+      su2double q_ETC = Je_sat*(W_F + 2*k_B*Ti/e); // Positive (+)
+      HeatFluxRad[val_marker][iVertex]  = q_rad;
+      HeatFluxConv[val_marker][iVertex] = q_conv;
       HeatFluxETC[val_marker][iVertex] = q_ETC;
-      
-      // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
 
-      Res_Visc[nSpecies+nDim]   = q_conv*Area - C*(q_conv*Area - q_rad*Area + q_ETC*Area);
-      Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej)*Area/dij);
+      if (temp_model == 2) {
+        // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
+        su2double f = -1*q_conv - q_rad - q_ETC;
+        su2double q_conv_prime = (ktr+kve)/dij;
+        su2double q_rad_prime = 4*epsilon*sigma*pow(Ti,3);
+        su2double Je_sat_prime = 2*A_R*Ti*exp(-1*e/k_B/Ti) + A_R*Ti*Ti*exp(-1*e/k_B/Ti)*(e/k_B/Ti/Ti);
+        su2double q_ETC_prime = Je_sat*(2*k_B/e) + (W_F + 2*k_B*Ti/e)*Je_sat_prime;
+        su2double f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
+
+	while (abs(f/f_prime) > 1e-6){
+	  Twall -= f/f_prime;
+          q_rad = epsilon*sigma*pow(Twall,4); // Positive (+)
+          q_conv =  (ktr*(Twall-Tj) + kve*(Twall-Tvej))/dij; // Negative (-) if Tj > Ti (heat transfer to wall)
+          Je_sat = A_R*Twall*Twall*exp(-1*e/k_B/Twall);
+          q_ETC = Je_sat*(W_F + 2*k_B*Twall/e); // Positive (+)
+	  f = -1*q_conv - q_rad - q_ETC;
+           	  
+          q_conv_prime = (ktr+kve)/dij;
+          q_rad_prime = 4*epsilon*sigma*pow(Twall,3);
+          Je_sat_prime = 2*A_R*Twall*exp(-1*e/k_B/Twall) + A_R*Twall*Twall*exp(-1*e/k_B/Twall)*(e/k_B/Twall/Twall);
+          q_ETC_prime = Je_sat*(2*k_B/e) + (W_F + 2*k_B*Twall/e)*Je_sat_prime;
+          f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
+	  
+	}
+        
+      } else if (temp_model == 1){
+	// Radiative
+        su2double f = -1*q_conv - q_rad;
+        su2double q_conv_prime = (ktr+kve)/dij;
+        su2double q_rad_prime = 4*epsilon*sigma*pow(Ti,3);
+        su2double f_prime = -1*q_conv_prime - q_rad_prime;
+
+	while (abs(f/f_prime) > 1e-6){
+	  Twall -= f/f_prime;
+          q_rad = epsilon*sigma*pow(Twall,4); // Positive (+)
+          q_conv =  (ktr*(Twall-Tj) + kve*(Twall-Tvej))/dij; // Negative (-) if Tj > Ti (heat transfer to wall)
+	  f = -1*q_conv - q_rad;
+           	  
+          q_conv_prime = (ktr+kve)/dij;
+          q_rad_prime = 4*epsilon*sigma*pow(Twall,3);
+          f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
+	}
+      }
+       if (Twall < 0)
+	       Twall = 200;
+       //cout << "iPoint: " << iPoint << "\n";
+       //cout << "Twall: " << Twall << "\n";
+       //cout << "Ti: " << Ti << "\n";
+       //cout << "Tj: " << Tj << "\n";
+       //cout << "q_conv: " << q_conv << "\n";
+       //cout << "-------------------" << "\n";
+       
+       Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
+                                 (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
+                                 
+       Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej) + kve*(Twall-Tvei) *C)*Area/dij;
       const unsigned short T_INDEX        = nodes->GetTIndex();
       const unsigned short TVE_INDEX      = nodes->GetTveIndex();
       const unsigned short RHO_INDEX      = nodes->GetRhoIndex();
       const unsigned short RHOCVTR__INDEX = nodes->GetTIndex();
       const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
-      Res_Visc[nSpecies+nDim]   += (Res_Visc[0]*hs[0]);
-      Res_Visc[nSpecies+nDim+1] += (Res_Visc[0]*eves[0]);
+      // Res_Visc[nSpecies+nDim]   += (electron_flux*hs[0]);
+      // Res_Visc[nSpecies+nDim+1] += (electron_flux*eves[0]);
 
       /*--- Viscous contribution to the residual at the wall ---*/
       LinSysRes.SubtractBlock(iPoint, Res_Visc);
