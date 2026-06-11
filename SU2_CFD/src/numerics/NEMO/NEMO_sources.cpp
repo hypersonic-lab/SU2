@@ -168,19 +168,79 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeVibRelaxation(const CConfig *conf
 }
 
 CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
-  cout << "Computing MHD\n";
+  // Compute the source terms for MHD
   const auto GV = PrimVar_Grad_i;
-  cout << "Calculated GV\n";
+  const su2double T = V_i[T_INDEX];
+
   su2double Vector_EField[nDim] = {0.0};
-  cout << "Created Vector Field\n";
-  cout << "nDim = " << nDim << "\n";
-  cout << "nVar = " << nVar << ", EPOT_INDEX = " << EPOT_INDEX << "\n";
+  const su2double e = 1.6022e-19; // [C]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
-	  cout << "iDim = " << iDim << "\n";
-	  cout << "GV[EPOT_INDEX][iDim] = " << GV[EPOT_INDEX][iDim] << "\n";
-	  Vector_EField[iDim] = GV[EPOT_INDEX][iDim];
+    Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
   }
-  cout << "Electric Field Here here: " << Vector_EField[0] << "\n";
+  //cout << "Electric Field Here here: " << Vector_EField[0] << "\n";
+
+  /*--- Initialize residual and Jacobian arrays ---*/
+  for (auto iVar = 0ul; iVar < nVar; iVar++)
+    residual[iVar] = 0.0;
+
+  if (implicit)
+    for (auto iVar = 0ul; iVar < nVar; iVar++)
+      for (auto jVar = 0ul; jVar < nVar; jVar++)
+        jacobian[iVar][jVar] = 0.0;
+
+  vector<su2double> rhos;
+  rhos.resize(nSpecies, 0.0);
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+    rhos[iSpecies] = V_i[RHOS_INDEX+iSpecies];
+  const su2double N_A = 6.02214076e23;
+  const auto& Cs = fluidmodel->GetSpeciesCharge();
+  const auto& Ms  = fluidmodel->GetSpeciesMolarMass(); // g/mol
+
+  // Forced diffusion mass source
+
+  // Momentum source
+  vector<su2double> Ns;
+  Ns.resize(nSpecies,0.0);
+
+
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
+    Ns[iSpecies] = rhos[iSpecies] / (Ms[iSpecies] / 1000) * N_A; // [kg/m3] / [kg/mol] * [#/mol] = [#/m3]
+  }
+
+  for (auto iDim = 0ul; iDim < nDim; iDim++){
+    auto momentum_source_iDim = 0;
+    for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
+      momentum_source_iDim += Ns[iSpecies] * Cs[iSpecies] * e * Vector_EField[iDim]; // Eq. (22) from 10.2514/1.J059307
+    }
+    residual[nSpecies+iDim] = momentum_source_iDim;
+  }
+
+  if (implicit) {
+    for (auto iVar = 0ul; iVar<nVar; iVar++) {
+      for (auto jVar = 0ul; jVar<nVar; jVar++) {
+        jacobian[iVar][jVar] *= Volume;
+      }
+    }
+  }
+
+  // Energy source (Joule heating)
+
+  // Calculate conductivity
+  su2double N_total = accumulate(Ns.begin(), Ns.end(), 0);
+  su2double alpha = Ns[0] / N_total; // Hanquist thesis Eq. (2.25)
+  Q = 5e-17; // [cm2]
+  su2double sigma = 3.34e-12 * alpha / Q * pow(T, -0.5) * 100; // mho/m
+  
+  su2double current[nDim] = {0.0};
+  su2double energy_source = 0.0;
+  
+  for (auto iDim = 0ul; iDim < nDim; iDim++){
+    current[iDim] = sigma*Vector_EField[iDim]; // Eq. (2.24a) Hanquist thesis
+    energy_source += current[iDim]*Vector_EField[iDim];
+  }
+  residual[nSpecies+nDim] = energy_source;
+  residual[nSpecies+nDim+1] = energy_source;
+  
   return ResidualType<>(residual, jacobian, nullptr);
 }
 

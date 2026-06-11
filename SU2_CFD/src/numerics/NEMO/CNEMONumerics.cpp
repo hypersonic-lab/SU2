@@ -255,8 +255,12 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const auto& hs = fluidmodel->ComputeSpeciesEnthalpy(T, Tve, val_eve);
   const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& Cs = fluidmodel->GetSpeciesCharge();
+  const auto& Ps = fluidmodel->GetSpeciesPolarizability();
 
-  /*--- Pre-compute mixture quantities ---*/  //TODO
+  const su2double e = 1.6021716634e-19;
+  const su2double kB = 1.380649e-23;
+
+  /*--- Pre-compute mixture quantities ---*/  //TODO CW: Why does this say TODO?
   su2double Vector[MAXNDIM] = {0.0};
   for (auto iDim = 0; iDim < nDim; iDim++) {
     for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
@@ -267,6 +271,39 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   /*--- Compute the viscous stress tensor ---*/
   ComputeStressTensor(nDim,tau,val_gradprimvar+VEL_INDEX, mu);
 
+  /*--- Compute the electric field ---*/
+  su2double Vector_EField[nDim] = {0.0};
+  const su2double epsilon_0 = 8.8541878188e-12; // [F/m]
+  for (auto iDim = 0ul; iDim < nDim; iDim++){
+    Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
+  }
+
+  /*--- Compute the ion mobilities - Hanquist Eqns. (2.32a, 2.32b) which comes from Eiceman, Karpas, Hill Jr. 3rd Edition Eq. (10.19) ---*/
+  su2double Ksj[nSpecies][nSpecies] = {0.0};
+  for (iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
+    for (jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
+      mu_sj = Ms[iSpecies]*Ms[jSpecies]/(Ms[iSpecies]+Ms[jSpecies]); // Reduced mass in g/mol (Dalton)
+      Ksj[iSpecies][jSpecies] = 13.853e-4*pow(Ps[jSpecies]*mu_sj,-0.5); // ion mobilities
+    }
+  }
+
+  su2double Ks[nSpecies] = {0.0};
+  su2double temp_sum = 0.0;
+  for (iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
+
+    temp_sum = 0.0;
+    for (jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
+      temp_sum += V[jSpecies]/Ksj[iSpecies][jSpecies];
+    }
+
+    Ks[iSpecies] = 1.0/temp_sum;
+  }
+
+  // For electrons:
+  su2double Ke = e*Ds[0]/kB/Tve;
+  Ks[0] = Ke;
+  
+
   /*--- Populate entries in the viscous flux vector ---*/
   for (auto iDim = 0ul; iDim < nDim; iDim++) {
 
@@ -275,9 +312,27 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
       Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
-      if (nEl == 1){                   
-        Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
+
+      // Electric Field Effects - Hanquist Thesis Eqns. (2.30b, 2.31)
+      if (config->Get_Poisson_Solver()){
+        su2double temp_sum2 = 0.0;
+        for (jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
+          temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
+        }
+        u_d = (Cs[iSpecies]*Ks[iSpeices]-temp_sum2)*Vector_EField[iDim];
       }
+
+      if (nEl == 1){                   
+        if (!config->Get_Poisson_Solver()){
+          // Ambipolar diffusion
+          Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
+        }
+      }
+    }
+
+    if (config->Get_Poisson_Solver()){
+      // Electric Field Effects
+      Flux_Tensor[0][iDim] += V[0] * Ke * Vector_EField[iDim];  
     }
 
     /*--- Shear-stress/momentum related terms ---*/

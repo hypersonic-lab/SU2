@@ -45,6 +45,7 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   JacTv.resize(nSpecies,0.0);
   omegaJRho.resize(nSpecies,0.0);
   omegaJTTv.resize(nEnergyEq,0.0);
+  Polarizabilities.resize(nSpecies,0.0);
 
   /*--- Set up inputs to define type of mixture in the Mutation++ library ---*/
 
@@ -119,6 +120,29 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
   } else {
     if (config->GetCatalytic())
       SU2_MPI::Error("Catalytic wall recombination not implemented for specified Mutation gas model.", CURRENT_FUNCTION);
+  }
+
+  /*--- Setup polarizabilities - Data from Selle and Riedel AIAA 2000-0211 ---*/
+  if (gas_model == "air_7") {
+    Polarizabilities[0] = 0;     // e-, should be unused
+    Polarizabilities[1] = 1.021; // NO+
+    Polarizabilities[2] = 1.100; // N
+    Polarizabilities[3] = 0.802; // O 
+    Polarizabilities[4] = 1.700; // NO
+    Polarizabilities[5] = 1.740; // N2
+    Polarizabilities[6] = 1.581; // O2
+  } else if (gas_model == "air_11"){
+    Polarizabilities[0] = 0;     // e-, should be unused
+    Polarizabilities[1] = 0.559; // N+
+    Polarizabilities[2] = 0.345; // O+
+    Polarizabilities[3] = 1.021; // NO+
+    Polarizabilities[4] = 0.381; // N2+
+    Polarizabilities[5] = 0.238; // O2+
+    Polarizabilities[6] = 1.100; // N
+    Polarizabilities[7] = 0.802; // O 
+    Polarizabilities[8] = 1.700; // NO
+    Polarizabilities[9] = 1.740; // N2
+    Polarizabilities[10] = 1.581;// O2
   }
 
 }
