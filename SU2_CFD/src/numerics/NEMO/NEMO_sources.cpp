@@ -228,7 +228,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
   // Calculate conductivity
   su2double N_total = accumulate(Ns.begin(), Ns.end(), 0);
   su2double alpha = Ns[0] / N_total; // Hanquist thesis Eq. (2.25)
-  Q = 5e-17; // [cm2]
+  auto Q = 5e-17; // [cm2]
   su2double sigma = 3.34e-12 * alpha / Q * pow(T, -0.5) * 100; // mho/m
   
   su2double current[nDim] = {0.0};

@@ -148,6 +148,11 @@ public:
   vector<su2double>& GetSpeciesCharge() final { return ChargeSpecies; }
 
   /*!
+   * \brief Get species polarizability.
+   */
+  vector<su2double>& GetSpeciesPolarizability() final { return Polarizabilities; }
+
+  /*!
    * \brief Get species T-R specific heats at constant volume.
    */
   vector<su2double>& GetSpeciesCvTraRot() final;

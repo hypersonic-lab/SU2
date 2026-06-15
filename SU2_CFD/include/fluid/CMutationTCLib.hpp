@@ -161,6 +161,11 @@ public:
    vector<su2double>& GetSpeciesCharge() final;
 
   /*!
+   * \brief Get species polarizability.
+   */
+   vector<su2double>& GetSpeciesPolarizability() final;
+
+  /*!
    * \brief Get reference temperature.
    */
   vector<su2double>& GetRefTemperature() final;

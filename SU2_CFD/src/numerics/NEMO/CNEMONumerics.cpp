@@ -256,7 +256,6 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& Cs = fluidmodel->GetSpeciesCharge();
   const auto& Ps = fluidmodel->GetSpeciesPolarizability();
-
   const su2double e = 1.6021716634e-19;
   const su2double kB = 1.380649e-23;
 
@@ -280,19 +279,19 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
   /*--- Compute the ion mobilities - Hanquist Eqns. (2.32a, 2.32b) which comes from Eiceman, Karpas, Hill Jr. 3rd Edition Eq. (10.19) ---*/
   su2double Ksj[nSpecies][nSpecies] = {0.0};
-  for (iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
-    for (jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
-      mu_sj = Ms[iSpecies]*Ms[jSpecies]/(Ms[iSpecies]+Ms[jSpecies]); // Reduced mass in g/mol (Dalton)
+  for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
+    for (auto jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
+      su2double mu_sj = Ms[iSpecies]*Ms[jSpecies]/(Ms[iSpecies]+Ms[jSpecies]); // Reduced mass in g/mol (Dalton)
       Ksj[iSpecies][jSpecies] = 13.853e-4*pow(Ps[jSpecies]*mu_sj,-0.5); // ion mobilities
     }
   }
 
   su2double Ks[nSpecies] = {0.0};
   su2double temp_sum = 0.0;
-  for (iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
+  for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
 
     temp_sum = 0.0;
-    for (jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
+    for (auto jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
       temp_sum += V[jSpecies]/Ksj[iSpecies][jSpecies];
     }
 
@@ -302,6 +301,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   // For electrons:
   su2double Ke = e*Ds[0]/kB/Tve;
   Ks[0] = Ke;
+  su2double u_d = 0.0;
   
 
   /*--- Populate entries in the viscous flux vector ---*/
@@ -316,10 +316,11 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
       // Electric Field Effects - Hanquist Thesis Eqns. (2.30b, 2.31)
       if (config->Get_Poisson_Solver()){
         su2double temp_sum2 = 0.0;
-        for (jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
+        for (auto jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
           temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
         }
-        u_d = (Cs[iSpecies]*Ks[iSpeices]-temp_sum2)*Vector_EField[iDim];
+        u_d = (Cs[iSpecies]*Ks[iSpecies]-temp_sum2)*Vector_EField[iDim];
+        Flux_Tensor[iSpecies][iDim] += -1.0 * rho*u_d*V[RHOS_INDEX+iSpecies]*Cs[iSpecies]; 
       }
 
       if (nEl == 1){                   
@@ -332,7 +333,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
     if (config->Get_Poisson_Solver()){
       // Electric Field Effects
-      Flux_Tensor[0][iDim] += V[0] * Ke * Vector_EField[iDim];  
+      Flux_Tensor[0][iDim] += -1*V[0] * Ke * Vector_EField[iDim];  
     }
 
     /*--- Shear-stress/momentum related terms ---*/

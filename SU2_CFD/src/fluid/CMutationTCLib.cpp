@@ -184,6 +184,10 @@ vector<su2double>& CMutationTCLib::GetSpeciesCharge(){
    return ChargeSpecies;
 }
 
+vector<su2double>& CMutationTCLib::GetSpeciesPolarizability(){
+  return Polarizabilities;
+}
+
 vector<su2double>& CMutationTCLib::GetSpeciesCvTraRot(){
 
    mix->getCvsMass(Cv_ks.data());
