@@ -104,7 +104,7 @@ CNEMOEulerSolver::CNEMOEulerSolver(CGeometry *geometry, CConfig *config,
   nVar         = nSpecies + nDim + 2;
   if (navier_stokes) { nPrimVar   = nSpecies + nDim + 12; }
   else {               nPrimVar   = nSpecies + nDim + 10;    }
-  nPrimVarGrad = nSpecies + nDim + 7;
+  nPrimVarGrad = nSpecies + nDim + 12;
 
   /*--- Initialize nVarGrad for deallocation ---*/
   nVarGrad     = nPrimVarGrad;
