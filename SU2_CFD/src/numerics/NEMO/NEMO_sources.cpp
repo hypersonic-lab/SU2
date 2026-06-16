@@ -212,7 +212,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
       momentum_source_iDim += Ns[iSpecies] * Cs[iSpecies] * e * Vector_EField[iDim]; // Eq. (22) from 10.2514/1.J059307
     }
-    residual[nSpecies+iDim] = momentum_source_iDim;
+    //residual[nSpecies+iDim] = momentum_source_iDim;
   }
 
   if (implicit) {
@@ -238,8 +238,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
     current[iDim] = sigma*Vector_EField[iDim]; // Eq. (2.24a) Hanquist thesis
     energy_source += current[iDim]*Vector_EField[iDim];
   }
-  residual[nSpecies+nDim] = energy_source;
-  residual[nSpecies+nDim+1] = energy_source;
+  //residual[nSpecies+nDim] = energy_source;
+  //residual[nSpecies+nDim+1] = energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }

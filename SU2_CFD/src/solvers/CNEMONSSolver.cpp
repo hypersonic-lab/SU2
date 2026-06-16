@@ -595,7 +595,8 @@ void CNEMONSSolver::BC_IsothermalNonCatalytic_Wall(CGeometry *geometry,
     nodes->SetVel_ResTruncError_Zero(iPoint);
 
     /*--- Change electric potential to Vwall ---*/
-    nodes->SetElectricPotential(iPoint, Vwall);
+    if (Vwall != -123456789.0)
+      nodes->SetElectricPotential(iPoint, Vwall);
 
     /*--- Calculate the gradient of temperature ---*/
     const su2double Ti   = nodes->GetTemperature(iPoint);

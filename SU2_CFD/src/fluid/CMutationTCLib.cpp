@@ -25,7 +25,7 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#if defined(HAVE_MPP) && !defined(CODI_REVERSE_TYPE) && !defined(CODI_FORWARD_TYPE)
+//#if defined(HAVE_MPP) && !defined(CODI_REVERSE_TYPE) && !defined(CODI_FORWARD_TYPE)
 
 #include "../../include/fluid/CMutationTCLib.hpp"
 
@@ -83,6 +83,33 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
 
   /* Initialize mixture object */
   mix.reset(new Mutation::Mixture(opt));
+
+  // Use the actual species count from Mutation++, not the SU2 config placeholder.
+  nSpecies = mix->nSpecies();
+  MolarMass.resize(nSpecies);
+  MassFrac.resize(nSpecies);
+  MolarFractions.resize(nSpecies);
+  rhos.resize(nSpecies);
+  Cvtrs.resize(nSpecies);
+  Cvves.resize(nSpecies);
+  eves.resize(nSpecies);
+  hs.resize(2*nSpecies);
+  ws.resize(nSpecies);
+  taus.resize(nSpecies);
+  DiffusionCoeff.resize(nSpecies);
+  Enthalpy_Formation.resize(nSpecies);
+  Ref_Temperature.resize(nSpecies);
+  ChargeSpecies.resize(nSpecies);
+  Polarizabilities.resize(nSpecies);
+  CatRecombTable.resize(nSpecies,2) = 0;
+
+  Cv_ks.resize(nEnergyEq*nSpecies,0.0);
+  es.resize(nEnergyEq*nSpecies,0.0);
+  JacRho.resize(nSpecies*nSpecies,0.0);
+  JacT.resize(nSpecies,0.0);
+  JacTv.resize(nSpecies,0.0);
+  omegaJRho.resize(nSpecies,0.0);
+  omegaJTTv.resize(nEnergyEq,0.0);
 
   // x1000 to have Molar Mass in kg/kmol
   // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
@@ -363,4 +390,4 @@ vector<su2double>& CMutationTCLib::GetSpeciesFormationEnthalpy() {
 
    return Enthalpy_Formation;
 }
-#endif
+//#endif

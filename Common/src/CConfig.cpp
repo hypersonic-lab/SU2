@@ -885,7 +885,7 @@ void CConfig::SetPointersNull() {
   Isothermal_Temperature = nullptr;    HeatTransfer_Coeff     = nullptr;    HeatTransfer_WallTemp  = nullptr;
   Heat_Flux              = nullptr;    Displ_Value            = nullptr;    Load_Value             = nullptr;
   Damper_Constant        = nullptr;    Wall_Emissivity        = nullptr;
-  Roughness_Height       = nullptr;
+  Roughness_Height       = nullptr;    Charge_Voltage         = nullptr;
 
   /*--- Inlet Outlet Boundary Condition settings ---*/
 
@@ -1696,7 +1696,7 @@ void CConfig::SetConfig_Options() {
   addStringDoubleListOption("MARKER_ISOTHERMAL", nMarker_Isothermal, Marker_Isothermal, Isothermal_Temperature);
   /*!\brief MARKER_CHARGE DESCRIPTION: Set electric potential of walls in Volts\n
    * Format: ( wall marker, wall charge, ... ) \ingroup Config  */
-  addStringDoubleListOption("MARKER_CHARGE", nMarker_Charge, Marker_Charge, Charge_Voltage);
+  addStringDoubleListOption("CHARGED_BC", nMarker_Charge, Marker_Charge, Charge_Voltage);
   /*!\brief MARKER_RADIATIVE_EQUILIBRIUM DESCRIPTION: Radiative equilibrium wall boundary marker(s)\n
    * Format: ( radiative equilibrium marker, wall emissivity, ... ) \ingroup Config  */
   addStringDoubleListOption("MARKER_RADIATIVE_EQUILIBRIUM", nMarker_Radiative_Equilibrium, Marker_Radiative_Equilibrium, Wall_Emissivity);
@@ -6057,11 +6057,11 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
     iMarker_CfgFile++;
   }
 
-  for (iMarker_Charge = 0; iMarker_Charge < nMarker_Charge; iMarker_Charge++) {
-    Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Charge[iMarker_Charge];
-    Marker_CfgFile_KindBC[iMarker_CfgFile] = CHARGE;
-    iMarker_CfgFile++;
-  }
+  // for (iMarker_Charge = 0; iMarker_Charge < nMarker_Charge; iMarker_Charge++) {
+  //   Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Charge[iMarker_Charge];
+  //   Marker_CfgFile_KindBC[iMarker_CfgFile] = CHARGE;
+  //   iMarker_CfgFile++;
+  // }
 
   for (iMarker_Radiative_Equilibrium = 0; iMarker_Radiative_Equilibrium < nMarker_Radiative_Equilibrium; iMarker_Radiative_Equilibrium++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Radiative_Equilibrium[iMarker_Radiative_Equilibrium];
@@ -8268,7 +8268,7 @@ bool CConfig::GetViscous_Wall(unsigned short iMarker) const {
           Marker_All_KindBC[iMarker] == HEAT_TRANSFER ||
           Marker_All_KindBC[iMarker] == SMOLUCHOWSKI_MAXWELL ||
           Marker_All_KindBC[iMarker] == CHT_WALL_INTERFACE ||
-	  Marker_All_KindBC[iMarker] == CHARGE);
+	        Marker_All_KindBC[iMarker] == CHARGE);
 }
 
 bool CConfig::GetCatalytic_Wall(unsigned short iMarker) const {
@@ -9941,8 +9941,9 @@ su2double CConfig::GetCharge(const string& val_marker) const {
   for (auto iMarker = 0u; iMarker < nMarker_Charge; iMarker++)
     if (Marker_Charge[iMarker] == val_marker)
       return Charge_Voltage[iMarker];
-  return 0;
+  return -123456789.0; // Number that should never be set
 }
+
 
 bool CConfig::GetMarker_StrongBC(const string& val_marker) const {
 

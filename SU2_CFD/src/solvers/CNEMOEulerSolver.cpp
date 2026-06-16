@@ -276,7 +276,11 @@ void CNEMOEulerSolver::CommonPreprocessing(CGeometry *geometry, CSolver **solver
     SetPressureDiffusionSensor(geometry, config);
 
   if (config->Get_Poisson_Solver()) {
-    ComputeElectricPotential_SOR(geometry, config);
+    for (auto efield_iter = 0; efield_iter < 100; efield_iter++){
+      ComputeElectricPotential_SOR(geometry, config);
+      if (efield_iter % 10 == 0)
+        cout << efield_iter << "\n";
+    }
     cout << "Computing Electric Potential\n";
   } else {
     cout << "False\n";
@@ -2414,9 +2418,8 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
       const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
       for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
         if (geometry->vertex[iMarker][iVertex]->GetNode() == iPoint) {
-          // iPoint belongs to marker iMarker
-          if (config->GetMarker_All_KindBC(iMarker) == CHARGE){
-            Vwall = config->GetCharge(Marker_Tag);
+          Vwall = config->GetCharge(Marker_Tag);
+          if (Vwall != -123456789.0){
             Dirichlet_Boundary = true;
           }
         }
