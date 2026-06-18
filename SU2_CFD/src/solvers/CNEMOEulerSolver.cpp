@@ -276,14 +276,14 @@ void CNEMOEulerSolver::CommonPreprocessing(CGeometry *geometry, CSolver **solver
     SetPressureDiffusionSensor(geometry, config);
 
   if (config->Get_Poisson_Solver()) {
-    for (auto efield_iter = 0; efield_iter < 100; efield_iter++){
+    for (auto efield_iter = 0; efield_iter < 1000; efield_iter++){
       ComputeElectricPotential_SOR(geometry, config);
       if (efield_iter % 10 == 0)
         cout << efield_iter << "\n";
     }
     cout << "Computing Electric Potential\n";
   } else {
-    cout << "False\n";
+    cout << "Poisson False\n";
   }
 
   /*--- Initialize the Jacobian matrix and residual, not needed for the reducer strategy
@@ -2408,9 +2408,24 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
   const auto nPtDomain = geometry->GetnPointDomain();
   const auto nDim = geometry->GetnDim();
 
-
   std::vector<su2double> diag(nPtDomain, 0.0);
-  su2double Vwall = 0;
+  su2double Vwall = -123456789.0;
+  /*--- Do all boundaries first ---*/
+  for (auto iPoint = 0ul; iPoint < nPointDomain; iPoint++){
+    for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+      const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
+      for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+        if (geometry->vertex[iMarker][iVertex]->GetNode() == iPoint) {
+          Vwall = config->GetCharge(Marker_Tag);
+          if (Vwall != -123456789.0){
+            nodes->SetElectricPotential(iPoint, Vwall);
+            Vwall = -123456789.0;
+          }
+        }
+      }
+    }
+  }
+
   /*--- Loop over interior points ---*/
   for (auto iPoint = 0ul; iPoint < nPointDomain; iPoint++) {
     bool Dirichlet_Boundary = false;
@@ -2458,13 +2473,30 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
 
     /*--- Add a source term for Poisson ---*/
     su2double rho_charge = nodes->GetChargeDensity(iPoint);
-    su2double source = rho_charge / epsilon_0 * Volume;
+    su2double source = -rho_charge / epsilon_0 * Volume;
 
     /*--- SOR update: phi_new = phi_old + omega * (residual / diagonal) ---*/
     su2double residual = flux_sum + source;
     if (diagonal > 1e-12) {
       su2double correction = omega * residual / diagonal;
       nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint) + correction);
+    }
+  }
+
+  Vwall = -123456789.0;
+  /*--- Do all boundaries first ---*/
+  for (auto iPoint = 0ul; iPoint < nPointDomain; iPoint++){
+    for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+      const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
+      for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+        if (geometry->vertex[iMarker][iVertex]->GetNode() == iPoint) {
+          Vwall = config->GetCharge(Marker_Tag);
+          if (Vwall != -123456789.0){
+            nodes->SetElectricPotential(iPoint, Vwall);
+            Vwall = -123456789.0;
+          }
+        }
+      }
     }
   }
 }
