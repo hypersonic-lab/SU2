@@ -176,6 +176,14 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
   const su2double e = 1.6022e-19; // [C]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
     Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
+    if (Vector_EField[iDim] > 3000){
+      Vector_EField[iDim] = 3000;
+    } else if (Vector_EField[iDim] < -3000){
+      Vector_EField[iDim] = -3000;
+    }
+    //if (abs(-1*GV[EPOT_INDEX][iDim]) > 5){
+    //  cout << "break\n";
+    //}
   }
   //cout << "Electric Field Here here: " << Vector_EField[0] << "\n";
 
@@ -203,8 +211,10 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
   Ns.resize(nSpecies,0.0);
 
 
+  su2double N_total = 0;
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
     Ns[iSpecies] = rhos[iSpecies] / (Ms[iSpecies] / 1000) * N_A; // [kg/m3] / [kg/mol] * [#/mol] = [#/m3]
+    N_total += Ns[iSpecies];
   }
 
   for (auto iDim = 0ul; iDim < nDim; iDim++){
@@ -212,7 +222,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
       momentum_source_iDim += Ns[iSpecies] * Cs[iSpecies] * e * Vector_EField[iDim]; // Eq. (22) from 10.2514/1.J059307
     }
-    //residual[nSpecies+iDim] = momentum_source_iDim;
+    residual[nSpecies+iDim] = momentum_source_iDim;
   }
 
   if (implicit) {
@@ -226,7 +236,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
   // Energy source (Joule heating)
 
   // Calculate conductivity
-  su2double N_total = accumulate(Ns.begin(), Ns.end(), 0);
+
   su2double alpha = Ns[0] / N_total; // Hanquist thesis Eq. (2.25)
   auto Q = 5e-17; // [cm2]
   su2double sigma = 3.34e-12 * alpha / Q * pow(T, -0.5) * 100; // mho/m
@@ -238,8 +248,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
     current[iDim] = sigma*Vector_EField[iDim]; // Eq. (2.24a) Hanquist thesis
     energy_source += current[iDim]*Vector_EField[iDim];
   }
-  //residual[nSpecies+nDim] = energy_source;
-  //residual[nSpecies+nDim+1] = energy_source;
+  residual[nSpecies+nDim] = 0;//energy_source;
+  residual[nSpecies+nDim+1] = 0;//energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }

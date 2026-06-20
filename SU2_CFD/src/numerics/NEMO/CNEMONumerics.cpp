@@ -275,6 +275,14 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const su2double epsilon_0 = 8.8541878188e-12; // [F/m]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
     Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
+    if (Vector_EField[iDim] > 3000){
+      Vector_EField[iDim] = 3000;
+    } else if (Vector_EField[iDim] < -3000){
+      Vector_EField[iDim] = -3000;
+    }
+    //if (abs(-1*GV[EPOT_INDEX][iDim]) > 5){
+    //  cout << "break\n";
+    //}
   }
 
   /*--- Compute the ion mobilities - Hanquist Eqns. (2.32a, 2.32b) which comes from Eiceman, Karpas, Hill Jr. 3rd Edition Eq. (10.19) ---*/
@@ -320,7 +328,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
           temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
         }
         u_d = (Cs[iSpecies]*Ks[iSpecies]-temp_sum2)*Vector_EField[iDim];
-        //Flux_Tensor[iSpecies][iDim] += -1.0 * rho*u_d*V[RHOS_INDEX+iSpecies]*Cs[iSpecies]; 
+        Flux_Tensor[iSpecies][iDim] += -1.0 * rho*u_d*V[RHOS_INDEX+iSpecies]*Cs[iSpecies]; 
       }
 
       if (nEl == 1){                   
@@ -333,7 +341,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
     if (config->Get_Poisson_Solver()){
       // Electric Field Effects
-      //Flux_Tensor[0][iDim] += -1*V[0] * Ke * Vector_EField[iDim];  
+      Flux_Tensor[0][iDim] += -1*V[0] * Ke * Vector_EField[iDim];  
     }
 
     /*--- Shear-stress/momentum related terms ---*/

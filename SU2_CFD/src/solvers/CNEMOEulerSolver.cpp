@@ -276,11 +276,12 @@ void CNEMOEulerSolver::CommonPreprocessing(CGeometry *geometry, CSolver **solver
     SetPressureDiffusionSensor(geometry, config);
 
   if (config->Get_Poisson_Solver()) {
-    for (auto efield_iter = 0; efield_iter < 1000; efield_iter++){
-      ComputeElectricPotential_SOR(geometry, config);
-      if (efield_iter % 10 == 0)
-        cout << efield_iter << "\n";
-    }
+    // for (auto efield_iter = 0; efield_iter < 1000; efield_iter++){
+    //   ComputeElectricPotential_SOR(geometry, config);
+    //   if (efield_iter % 10 == 0)
+    //     cout << efield_iter << "\n";
+    // }
+    ComputeElectricPotential_SOR(geometry, config);
     cout << "Computing Electric Potential\n";
   } else {
     cout << "Poisson False\n";
@@ -2408,95 +2409,89 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
   const auto nPtDomain = geometry->GetnPointDomain();
   const auto nDim = geometry->GetnDim();
 
-  std::vector<su2double> diag(nPtDomain, 0.0);
-  su2double Vwall = -123456789.0;
-  /*--- Do all boundaries first ---*/
-  for (auto iPoint = 0ul; iPoint < nPointDomain; iPoint++){
-    for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+  su2double max_change = 100;
+  while (max_change > 1e-5){
+    cout << "About to initiate comms, rank=" << rank << "\n";
+    InitiateComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
+    CompleteComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
+    cout << "Electric potential max change: " << max_change << "\n";
+    max_change = 0.0;
+    std::vector<su2double> diag(nPtDomain, 0.0);
+    std::vector<bool> is_dirichlet(nPtDomain, false);
+
+    for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++){
       const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
-      for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
-        if (geometry->vertex[iMarker][iVertex]->GetNode() == iPoint) {
-          Vwall = config->GetCharge(Marker_Tag);
-          if (Vwall != -123456789.0){
-            nodes->SetElectricPotential(iPoint, Vwall);
-            Vwall = -123456789.0;
-          }
+      su2double Vwall = config->GetCharge(Marker_Tag);
+      if (Vwall == -123456789.0) continue; // not Dirichlet
+
+      for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++){
+        auto iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+        if (iPoint < nPtDomain){
+          nodes->SetElectricPotential(iPoint, Vwall);
+          is_dirichlet[iPoint] = true;
         }
       }
     }
-  }
 
-  /*--- Loop over interior points ---*/
-  for (auto iPoint = 0ul; iPoint < nPointDomain; iPoint++) {
-    bool Dirichlet_Boundary = false;
-    for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
-      const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
-      for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
-        if (geometry->vertex[iMarker][iVertex]->GetNode() == iPoint) {
-          Vwall = config->GetCharge(Marker_Tag);
-          if (Vwall != -123456789.0){
-            Dirichlet_Boundary = true;
-          }
-        }
+    /*--- Loop over interior points ---*/
+    for (auto iPoint = 0ul; iPoint < nPtDomain; iPoint++) {
+      if (is_dirichlet[iPoint]){
+        continue;
       }
-    }
-    if (Dirichlet_Boundary){
-      nodes->SetElectricPotential(iPoint, Vwall);
-      continue;
-    }
-    su2double flux_sum = 0.0;
-    su2double diagonal = 0.0;
-    su2double Volume = geometry->nodes->GetVolume(iPoint);
-    
-    /*--- Loop over edges connected to the point ---*/
-    for (auto iEdge : geometry->nodes->GetEdges(iPoint)) {
-      const auto iPoint_temp = geometry->edges->GetNode(iEdge, 0);
-      const auto jPoint = geometry->edges->GetNode(iEdge,1);
-
-      const auto neighbor = (iPoint == iPoint_temp) ? jPoint : iPoint_temp;
-      const auto phi_j = nodes->GetElectricPotential(neighbor);
-
-      auto Normal = geometry->edges->GetNormal(iEdge);
-      su2double Area = GeometryToolbox::Norm(nDim, Normal);
-
-      const auto Coord_i = geometry->nodes->GetCoord(iPoint);
-      const auto Coord_j = geometry->nodes->GetCoord(neighbor);
-      su2double distance = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
-
-      su2double phi_i = nodes->GetElectricPotential(iPoint);
+      su2double flux_sum = 0.0;
+      su2double diagonal = 0.0;
+      su2double Volume = geometry->nodes->GetVolume(iPoint);
       
-      su2double flux = (phi_j - phi_i) / distance * Area;
+      /*--- Loop over edges connected to the point ---*/
+      for (auto iEdge : geometry->nodes->GetEdges(iPoint)) {
+        const auto iPoint_temp = geometry->edges->GetNode(iEdge, 0);
+        const auto jPoint = geometry->edges->GetNode(iEdge,1);
 
-      flux_sum += flux;
-      diagonal += Area / distance;
-    }
+        const auto neighbor = (iPoint == iPoint_temp) ? jPoint : iPoint_temp;
+        const auto phi_j = nodes->GetElectricPotential(neighbor);
 
-    /*--- Add a source term for Poisson ---*/
-    su2double rho_charge = nodes->GetChargeDensity(iPoint);
-    su2double source = -rho_charge / epsilon_0 * Volume;
+        auto Normal = geometry->edges->GetNormal(iEdge);
+        su2double Area = GeometryToolbox::Norm(nDim, Normal);
 
-    /*--- SOR update: phi_new = phi_old + omega * (residual / diagonal) ---*/
-    su2double residual = flux_sum + source;
-    if (diagonal > 1e-12) {
-      su2double correction = omega * residual / diagonal;
-      nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint) + correction);
-    }
-  }
-
-  Vwall = -123456789.0;
-  /*--- Do all boundaries first ---*/
-  for (auto iPoint = 0ul; iPoint < nPointDomain; iPoint++){
-    for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
-      const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
-      for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
-        if (geometry->vertex[iMarker][iVertex]->GetNode() == iPoint) {
-          Vwall = config->GetCharge(Marker_Tag);
-          if (Vwall != -123456789.0){
-            nodes->SetElectricPotential(iPoint, Vwall);
-            Vwall = -123456789.0;
-          }
+        const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+        const auto Coord_j = geometry->nodes->GetCoord(neighbor);
+        
+        su2double distance = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+        // Add this:
+        if (distance < 1e-14) {
+            cout << "DEGENERATE EDGE: iPoint=" << iPoint 
+                << " neighbor=" << neighbor
+                << " xi=(" << Coord_i[0] << "," << Coord_i[1] << ")"
+                << " xj=(" << Coord_j[0] << "," << Coord_j[1] << ")\n";
+            continue;
         }
+        su2double phi_i = nodes->GetElectricPotential(iPoint);
+        
+        su2double flux = (phi_j - phi_i) / distance * Area;
+
+        flux_sum += flux;
+        diagonal += Area / distance;
+      }
+      /*--- Add a source term for Poisson ---*/
+      su2double rho_charge = nodes->GetChargeDensity(iPoint);
+      su2double source = rho_charge / epsilon_0 * Volume;
+
+      const auto Coord_point = geometry->nodes->GetCoord(iPoint);
+      /*--- SOR update: phi_new = phi_old + omega * (residual / diagonal) ---*/
+      su2double residual = flux_sum + source;
+      //cout << "iPoint: " << iPoint << ", x: "<< Coord_point[0] << ", y: " << Coord_point[1] << ", flux_sum: " << flux_sum << ", source: " << source << "\n";
+      if (diagonal > 1e-12) {
+        su2double correction = omega * residual / diagonal;
+        if (abs(correction) > max_change){
+          max_change = abs(correction);
+        }
+        nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint) + correction);
       }
     }
+    su2double global_max_change = 0.0;
+    SU2_MPI::Allreduce(&max_change, &global_max_change, 1, MPI_DOUBLE, MPI_MAX, SU2_MPI::GetComm());
+    max_change = global_max_change;
+    
   }
+
 }

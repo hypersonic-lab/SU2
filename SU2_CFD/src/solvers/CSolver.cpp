@@ -1379,6 +1379,10 @@ void CSolver::GetCommCountAndType(const CConfig* config,
       COUNT_PER_POINT  = nVar;
       MPI_TYPE         = COMM_TYPE_DOUBLE;
       break;
+    case MPI_QUANTITIES::ELECTRIC_POTENTIAL:
+       COUNT_PER_POINT  = 1;
+       MPI_TYPE         = COMM_TYPE_DOUBLE;
+       break;
     default:
       SU2_MPI::Error("Unrecognized quantity for point-to-point MPI comms.",
                      CURRENT_FUNCTION);
@@ -1528,6 +1532,9 @@ void CSolver::InitiateComms(CGeometry *geometry,
             for (iVar = 0; iVar < nVar; iVar++)
               bufDSend[buf_offset+iVar] = base_nodes->GetSolution_time_n1(iPoint, iVar);
             break;
+          case MPI_QUANTITIES::ELECTRIC_POTENTIAL:
+             bufDSend[buf_offset] = base_nodes->GetElectricPotential(iPoint);
+             break;
           default:
             SU2_MPI::Error("Unrecognized quantity for point-to-point MPI comms.",
                            CURRENT_FUNCTION);
@@ -1676,6 +1683,9 @@ void CSolver::CompleteComms(CGeometry *geometry,
             for (iVar = 0; iVar < nVar; iVar++)
               base_nodes->Set_Solution_time_n1(iPoint, iVar, bufDRecv[buf_offset+iVar]);
             break;
+          case MPI_QUANTITIES::ELECTRIC_POTENTIAL:
+               base_nodes->SetElectricPotential(iPoint, bufDRecv[buf_offset]);
+             break;
           default:
             SU2_MPI::Error("Unrecognized quantity for point-to-point MPI comms.",
                            CURRENT_FUNCTION);
