@@ -204,12 +204,9 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
   const auto& Cs = fluidmodel->GetSpeciesCharge();
   const auto& Ms  = fluidmodel->GetSpeciesMolarMass(); // g/mol
 
-  // Forced diffusion mass source
-
   // Momentum source
   vector<su2double> Ns;
   Ns.resize(nSpecies,0.0);
-
 
   su2double N_total = 0;
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
@@ -241,15 +238,15 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
   auto Q = 5e-17; // [cm2]
   su2double sigma = 3.34e-12 * alpha / Q * pow(T, -0.5) * 100; // mho/m
   
-  su2double current[nDim] = {0.0};
+  su2double current = 0.0;
   su2double energy_source = 0.0;
   
   for (auto iDim = 0ul; iDim < nDim; iDim++){
-    current[iDim] = sigma*Vector_EField[iDim]; // Eq. (2.24a) Hanquist thesis
-    energy_source += current[iDim]*Vector_EField[iDim];
+    current = sigma*Vector_EField[iDim]; // Eq. (2.24a) Hanquist thesis
+    energy_source += current*Vector_EField[iDim];
   }
-  residual[nSpecies+nDim] = 0;//energy_source;
-  residual[nSpecies+nDim+1] = 0;//energy_source;
+  residual[nSpecies+nDim] = energy_source;
+  residual[nSpecies+nDim+1] = energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }

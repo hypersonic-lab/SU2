@@ -163,7 +163,7 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
     Polarizabilities[1] = 0.559; // N+
     Polarizabilities[2] = 0.345; // O+
     Polarizabilities[3] = 1.021; // NO+
-    Polarizabilities[4] = 0.381; // N2+
+    Polarizabilities[4] = 2.386; // N2+
     Polarizabilities[5] = 0.238; // O2+
     Polarizabilities[6] = 1.100; // N
     Polarizabilities[7] = 0.802; // O 

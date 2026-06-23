@@ -2410,11 +2410,14 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
   const auto nDim = geometry->GetnDim();
 
   su2double max_change = 100;
-  while (max_change > 1e-5){
-    cout << "About to initiate comms, rank=" << rank << "\n";
+  int iteration = 0;
+  while (max_change > 1){
+    iteration++;
+    if (rank == 0 && iteration % 1000 == 0)
+      cout << "Electric potential max change: " << max_change << "\n" << flush;
     InitiateComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
     CompleteComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
-    cout << "Electric potential max change: " << max_change << "\n";
+    //cout << "Electric potential max change: " << max_change << "\n";
     max_change = 0.0;
     std::vector<su2double> diag(nPtDomain, 0.0);
     std::vector<bool> is_dirichlet(nPtDomain, false);
@@ -2457,14 +2460,6 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
         const auto Coord_j = geometry->nodes->GetCoord(neighbor);
         
         su2double distance = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
-        // Add this:
-        if (distance < 1e-14) {
-            cout << "DEGENERATE EDGE: iPoint=" << iPoint 
-                << " neighbor=" << neighbor
-                << " xi=(" << Coord_i[0] << "," << Coord_i[1] << ")"
-                << " xj=(" << Coord_j[0] << "," << Coord_j[1] << ")\n";
-            continue;
-        }
         su2double phi_i = nodes->GetElectricPotential(iPoint);
         
         su2double flux = (phi_j - phi_i) / distance * Area;

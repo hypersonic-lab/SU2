@@ -316,7 +316,6 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   for (auto iDim = 0ul; iDim < nDim; iDim++) {
 
     /*--- Species diffusion velocity ---*/
-    if (nEl == 1) Flux_Tensor[0][iDim] = 0.0; // Ambipolar diffusion for electron is handled differently than heavy species below
     for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
       Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
@@ -328,12 +327,13 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
           temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
         }
         u_d = (Cs[iSpecies]*Ks[iSpecies]-temp_sum2)*Vector_EField[iDim];
-        Flux_Tensor[iSpecies][iDim] += -1.0 * rho*u_d*V[RHOS_INDEX+iSpecies]*Cs[iSpecies]; 
+        Flux_Tensor[iSpecies][iDim] += -1.0 * rho*u_d*V[iSpecies]*Cs[iSpecies]; 
       }
 
       if (nEl == 1){                   
         if (!config->Get_Poisson_Solver()){
           // Ambipolar diffusion
+          Flux_Tensor[0][iDim] = 0.0;
           Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
         }
       }
@@ -341,6 +341,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
     if (config->Get_Poisson_Solver()){
       // Electric Field Effects
+      Flux_Tensor[0][iDim] = rho*Ds[0]*GV[RHOS_INDEX][iDim]- V[RHOS_INDEX]*Vector[iDim];
       Flux_Tensor[0][iDim] += -1*V[0] * Ke * Vector_EField[iDim];  
     }
 
