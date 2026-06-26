@@ -2421,24 +2421,33 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
     max_change = 0.0;
     std::vector<su2double> diag(nPtDomain, 0.0);
     std::vector<bool> is_dirichlet(nPtDomain, false);
+    std::vector<bool> is_neumann(nPtDomain, false);
 
     for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++){
       const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
       su2double Vwall = config->GetCharge(Marker_Tag);
-      if (Vwall == -123456789.0) continue; // not Dirichlet
+      if (Vwall == -123456789.0) continue; // not Dirichlet or Neumann
 
       for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++){
         auto iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
         if (iPoint < nPtDomain){
-          nodes->SetElectricPotential(iPoint, Vwall);
-          is_dirichlet[iPoint] = true;
+          if (Vwall != 1234.0){
+            nodes->SetElectricPotential(iPoint, Vwall);
+            is_dirichlet[iPoint] = true;
+          } else {
+            // Set farfield, inlet, outlet as 0 gradient TEMPORARY: charged at 1234.0 = this condition
+            auto Normal = geometry->vertex[iMarker][iVertex]->GetNormal_Neighbor();
+            su2double normal_phi = nodes->GetElectricPotential(Normal);
+            nodes->SetElectricPotential(iPoint, normal_phi);
+            is_neumann[iPoint] = true;
+          }
         }
       }
     }
 
     /*--- Loop over interior points ---*/
     for (auto iPoint = 0ul; iPoint < nPtDomain; iPoint++) {
-      if (is_dirichlet[iPoint]){
+      if (is_dirichlet[iPoint] || is_neumann[iPoint]){
         continue;
       }
       su2double flux_sum = 0.0;
