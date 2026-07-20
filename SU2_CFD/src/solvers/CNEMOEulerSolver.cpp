@@ -103,7 +103,7 @@ CNEMOEulerSolver::CNEMOEulerSolver(CGeometry *geometry, CConfig *config,
   // Viscous: append [mu, mu_t]^T
   nVar         = nSpecies + nDim + 2;
   if (navier_stokes) { nPrimVar   = nSpecies + nDim + 11; }
-  else {               nPrimVar   = nSpecies +nDim + 9;    }
+  else {               nPrimVar   = nSpecies +nDim + 10;    }
   nPrimVarGrad = nSpecies + nDim + 7;
 
   /*--- Initialize nVarGrad for deallocation ---*/

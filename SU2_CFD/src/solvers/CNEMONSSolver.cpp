@@ -1133,7 +1133,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       const su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
 
 
-      //Res_Visc[0] += electron_flux;
+      Res_Visc[0] += electron_flux;
       // // Momentum
       // for (auto iDim = 0uL; iDim < nDim; iDim++){
       //   Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
@@ -1155,39 +1155,41 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         su2double q_ETC_prime = Je_sat*(2*k_B/e) + (W_F + 2*k_B*Ti/e)*Je_sat_prime;
         su2double f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
 
-	while (abs(f/f_prime) > 1e-6){
-	  Twall -= f/f_prime;
+        while (abs(f/f_prime) > 1e-6) {
+          Twall -= f/f_prime;
           q_rad = epsilon*sigma*pow(Twall,4); // Positive (+)
           q_conv =  (ktr*(Twall-Tj) + kve*(Twall-Tvej))/dij; // Negative (-) if Tj > Ti (heat transfer to wall)
           Je_sat = A_R*Twall*Twall*exp(-1*e/k_B/Twall);
           q_ETC = Je_sat*(W_F + 2*k_B*Twall/e); // Positive (+)
-	  f = -1*q_conv - q_rad - q_ETC;
-           	  
+          f = -1*q_conv - q_rad - q_ETC;
+                
           q_conv_prime = (ktr+kve)/dij;
           q_rad_prime = 4*epsilon*sigma*pow(Twall,3);
           Je_sat_prime = 2*A_R*Twall*exp(-1*e/k_B/Twall) + A_R*Twall*Twall*exp(-1*e/k_B/Twall)*(e/k_B/Twall/Twall);
           q_ETC_prime = Je_sat*(2*k_B/e) + (W_F + 2*k_B*Twall/e)*Je_sat_prime;
           f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
-	  
-	}
+      
+        }
         
       } else if (temp_model == 1){
-	// Radiative
+	      // Radiative
         su2double f = -1*q_conv - q_rad;
         su2double q_conv_prime = (ktr+kve)/dij;
         su2double q_rad_prime = 4*epsilon*sigma*pow(Ti,3);
         su2double f_prime = -1*q_conv_prime - q_rad_prime;
 
-	while (abs(f/f_prime) > 1e-6){
-	  Twall -= f/f_prime;
+	      while (abs(f/f_prime) > 1e-6){
+          Twall -= f/f_prime;
           q_rad = epsilon*sigma*pow(Twall,4); // Positive (+)
           q_conv =  (ktr*(Twall-Tj) + kve*(Twall-Tvej))/dij; // Negative (-) if Tj > Ti (heat transfer to wall)
-	  f = -1*q_conv - q_rad;
+          f = -1*q_conv - q_rad;
            	  
           q_conv_prime = (ktr+kve)/dij;
           q_rad_prime = 4*epsilon*sigma*pow(Twall,3);
-          f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
-	}
+          f_prime = -1*q_conv_prime - q_rad_prime;
+        }
+      } else if (temp_model == 0){
+        Twall = temp_param;
       }
        if (Twall < 0)
 	       Twall = 200;
