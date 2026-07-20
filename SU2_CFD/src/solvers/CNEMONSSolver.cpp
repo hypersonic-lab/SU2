@@ -817,9 +817,19 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
         /*--- Compute catalytic recombination flux ---*/
         // Ref: 10.2514/6.2022-1636
         // ws = gam_s*Ys*rho_wall*sqrt(Ru*Tw/(2*Pi*M_combine)*Area
-        for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+        
+        // Check if air-11
+        const su2double nEl = nSpecies == 11 ? 1 : 0;
+        for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
           int Index = SU2_TYPE::Int(RxnTable(iSpecies,1));
           Res_Visc[iSpecies] = RxnTable(iSpecies,0)*factor*Vi[Index]/Vi[RHO_INDEX]*sqrt(1/Ms[Index]);
+        }
+
+        if (nSpecies == 11) {
+          // Assume no ETC
+          for (auto iSpecies = 1; iSpecies < 6; iSpecies++){
+            Res_Visc[0] += Res_Visc[iSpecies];
+          }
         }
 
         if (implicit) {
