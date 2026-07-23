@@ -1393,12 +1393,12 @@ public:
   inline virtual ResidualType<> ComputeChemistry(const CConfig* config) { return ResidualType<>(nullptr,nullptr,nullptr); }
 
   /*!
-   * \brief Calculation of the MHD source term
+   * \brief Calculation of the EField source term
    * \param[in] config - Definition of the particular problem.
    * \param[out] val_residual - residual of the source terms
    * \param[out] val_Jacobian_i - Jacobian of the source terms
    */
-  inline virtual ResidualType<> ComputeMHD(const CConfig* config) { return ResidualType<>(nullptr,nullptr,nullptr); }
+  inline virtual ResidualType<> ComputeEFieldSources(const CConfig* config) { return ResidualType<>(nullptr,nullptr,nullptr); }
 
   /*!
    * \brief Check if residual constains a NaN value

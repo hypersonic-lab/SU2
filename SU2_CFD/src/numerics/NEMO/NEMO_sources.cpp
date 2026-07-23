@@ -167,8 +167,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeVibRelaxation(const CConfig *conf
   return ResidualType<>(residual, jacobian, nullptr);
 }
 
-CNumerics::ResidualType<> CSource_NEMO::ComputeMHD(const CConfig *config){
-  // Compute the source terms for MHD
+CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *config){
+  // Compute the source terms for the Poisson coupling
   const auto GV = PrimVar_Grad_i;
   const su2double T = V_i[T_INDEX];
 

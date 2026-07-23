@@ -69,10 +69,10 @@ public:
   ResidualType<> ComputeChemistry(const CConfig* config) final;
 
   /*!
-   * \brief Source residual of MHD.
+   * \brief Source residual of electric field source terms.
    * \param[in] config - Definition of the particular problem.
    */
-  ResidualType<> ComputeMHD(const CConfig* config) final;
+  ResidualType<> ComputeEFieldSources(const CConfig* config) final;
 
   /*!
   * \brief Calculates constants used for Keq correlation.
