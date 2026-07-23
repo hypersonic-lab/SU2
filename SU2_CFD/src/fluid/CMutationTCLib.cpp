@@ -117,17 +117,17 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
     CatRecombTable(5,0) =  0; CatRecombTable(5,1) = 4; // Ar
 
   } else if (gas_model == "air_11") {
-    CatRecombTable(0,0) =  0;  CatRecombTable(0,1) =  5; // e-
-    CatRecombTable(1,0) = -1;  CatRecombTable(1,1) =  0; // N+
-    CatRecombTable(2,0) = -1;  CatRecombTable(2,1) =  1; // O+
-    CatRecombTable(3,0) = -1;  CatRecombTable(3,1) =  2; // NO+
-    CatRecombTable(4,0) = -1;  CatRecombTable(4,1) =  3; // N2+
-    CatRecombTable(5,0) = -1;  CatRecombTable(5,1) =  4; // O2+
-    CatRecombTable(6,0) =  1;  CatRecombTable(6,1) =  0; // N
-    CatRecombTable(7,0) =  1;  CatRecombTable(7,1) =  1; // O
-    CatRecombTable(8,0) =  1;  CatRecombTable(8,1) =  2; // NO
-    CatRecombTable(9,0) =  1;  CatRecombTable(9,1) =  3; // N2
-    CatRecombTable(10,0) = 1; CatRecombTable(10,1) =  4; // O2
+    CatRecombTable(0,0) =  0;  CatRecombTable(0,1) =  0; // e-
+    CatRecombTable(1,0) = -1;  CatRecombTable(1,1) =  1; // N+
+    CatRecombTable(2,0) = -1;  CatRecombTable(2,1) =  2; // O+
+    CatRecombTable(3,0) = -1;  CatRecombTable(3,1) =  3; // NO+
+    CatRecombTable(4,0) = -1;  CatRecombTable(4,1) =  4; // N2+
+    CatRecombTable(5,0) = -1;  CatRecombTable(5,1) =  5; // O2+
+    CatRecombTable(6,0) =  1;  CatRecombTable(6,1) =  1; // N
+    CatRecombTable(7,0) =  1;  CatRecombTable(7,1) =  2; // O
+    CatRecombTable(8,0) =  1;  CatRecombTable(8,1) =  3; // NO
+    CatRecombTable(9,0) =  1;  CatRecombTable(9,1) =  4; // N2
+    CatRecombTable(10,0) = 1; CatRecombTable(10,1) =  5; // O2
 
   } else {
     if (config->GetCatalytic())

@@ -819,7 +819,7 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
         // ws = gam_s*Ys*rho_wall*sqrt(Ru*Tw/(2*Pi*M_combine)*Area
         
         // Check if air-11
-        const su2double nEl = nSpecies == 11 ? 1 : 0;
+        auto nEl = nSpecies == 11 ? 1 : 0;
         for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
           int Index = SU2_TYPE::Int(RxnTable(iSpecies,1));
           Res_Visc[iSpecies] = RxnTable(iSpecies,0)*factor*Vi[Index]/Vi[RHO_INDEX]*sqrt(1/Ms[Index]);
