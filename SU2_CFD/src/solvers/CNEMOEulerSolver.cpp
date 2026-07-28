@@ -282,9 +282,9 @@ void CNEMOEulerSolver::CommonPreprocessing(CGeometry *geometry, CSolver **solver
     //     cout << efield_iter << "\n";
     // }
     ComputeElectricPotential_SOR(geometry, config);
-    cout << "Computing Electric Potential\n";
+    //cout << "Computing Electric Potential\n";
   } else {
-    cout << "Poisson False\n";
+    //cout << "Poisson False\n";
   }
 
   /*--- Initialize the Jacobian matrix and residual, not needed for the reducer strategy
@@ -2403,7 +2403,7 @@ void CNEMOEulerSolver::SetPressureDiffusionSensor(CGeometry *geometry, CConfig *
 
 void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig *config){
   
-  const su2double omega = 1.0; // SOR relaxation parameter
+  const su2double omega = 1.3; // SOR relaxation parameter
   const su2double epsilon_0 = 8.8541878188e-12; // [F/m]
 
   const auto nPtDomain = geometry->GetnPointDomain();

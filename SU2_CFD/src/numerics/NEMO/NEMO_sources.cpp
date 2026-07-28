@@ -176,17 +176,25 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   const su2double e = 1.6022e-19; // [C]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
     Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
-    if (Vector_EField[iDim] > 3000){
-      Vector_EField[iDim] = 3000;
-    } else if (Vector_EField[iDim] < -3000){
-      Vector_EField[iDim] = -3000;
-    }
+    // if (Vector_EField[iDim] > 3000){
+    //   Vector_EField[iDim] = 3000;
+    // } else if (Vector_EField[iDim] < -3000){
+    //   Vector_EField[iDim] = -3000;
+    // }
     //if (abs(-1*GV[EPOT_INDEX][iDim]) > 5){
     //  cout << "break\n";
     //}
   }
   //cout << "Electric Field Here here: " << Vector_EField[0] << "\n";
-
+  su2double EField_mag = pow(pow(Vector_EField[0],2) + pow(Vector_EField[1],2) + pow(Vector_EField[2],2),0.5);
+  if (EField_mag > 5000){
+    // Damp anythin above 5000 V/m
+    su2double EField_mag_new = 5000 + (EField_mag - 5000)*0.01;
+    su2double damp_factor = EField_mag_new / EField_mag;
+    for (auto iDim = 0ul; iDim < nDim; iDim++){
+      Vector_EField[iDim] = Vector_EField[iDim] * damp_factor;
+    }
+  }
   /*--- Initialize residual and Jacobian arrays ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++)
     residual[iVar] = 0.0;
@@ -219,7 +227,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
       momentum_source_iDim += Ns[iSpecies] * Cs[iSpecies] * e * Vector_EField[iDim]; // Eq. (22) from 10.2514/1.J059307
     }
-    residual[nSpecies+iDim] = momentum_source_iDim;
+    residual[nSpecies+iDim] = -momentum_source_iDim;
   }
 
   if (implicit) {
@@ -245,8 +253,16 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
     current = sigma*Vector_EField[iDim]; // Eq. (2.24a) Hanquist thesis
     energy_source += current*Vector_EField[iDim];
   }
-  residual[nSpecies+nDim] = energy_source;
-  residual[nSpecies+nDim+1] = energy_source;
+
+  if (T < 240){
+    cout << "T: " << T << "\n";
+    cout << "Current: " << current << "\n";
+    cout << "Energy_Source: " << energy_source << "\n";
+  }
+    
+
+  residual[nSpecies+nDim] = -energy_source;
+  residual[nSpecies+nDim+1] = -energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }

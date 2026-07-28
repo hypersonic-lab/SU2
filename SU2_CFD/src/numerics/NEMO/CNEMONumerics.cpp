@@ -275,14 +275,24 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const su2double epsilon_0 = 8.8541878188e-12; // [F/m]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
     Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
-    if (Vector_EField[iDim] > 3000){
-      Vector_EField[iDim] = 3000;
-    } else if (Vector_EField[iDim] < -3000){
-      Vector_EField[iDim] = -3000;
-    }
+    // if (Vector_EField[iDim] > 3000){
+    //   Vector_EField[iDim] = 3000;
+    // } else if (Vector_EField[iDim] < -3000){
+    //   Vector_EField[iDim] = -3000;
+    // }
     //if (abs(-1*GV[EPOT_INDEX][iDim]) > 5){
     //  cout << "break\n";
     //}
+  }
+
+  su2double EField_mag = pow(pow(Vector_EField[0],2) + pow(Vector_EField[1],2) + pow(Vector_EField[2],2),0.5);
+  if (EField_mag > 5000){
+    // Damp anythin above 5000 V/m
+    su2double EField_mag_new = 5000 + (EField_mag - 5000)*0.01;
+    su2double damp_factor = EField_mag_new / EField_mag;
+    for (auto iDim = 0ul; iDim < nDim; iDim++){
+      Vector_EField[iDim] = Vector_EField[iDim] * damp_factor;
+    }
   }
 
   /*--- Compute the ion mobilities - Hanquist Eqns. (2.32a, 2.32b) which comes from Eiceman, Karpas, Hill Jr. 3rd Edition Eq. (10.19) ---*/
