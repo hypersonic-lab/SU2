@@ -121,7 +121,7 @@ class CSysMatrix {
   const int size; /*!< \brief MPI Size. */
 
   enum : size_t {
-    MAXNVAR = 100
+    MAXNVAR = 250
   }; /*!< \brief Maximum number of variables the matrix can handle. The static
                  size is needed for fast, per-thread, static memory allocation. */
 
