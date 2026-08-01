@@ -70,6 +70,7 @@ namespace std {
    %template() vector<string>;
    %template() map<string, unsigned short>;
    %template() map<string, string>;
+   %template(StringIntMap) map<string, int>;
    %template() pair<unsigned long, unsigned long>;
 }
 

@@ -34,6 +34,9 @@
 #include "../output/COutput.hpp"
 #include "../solvers/CSolver.hpp"
 
+//preCICE: include required header file for MatrixType
+#include "../../../Common/include/containers/container_decorators.hpp"
+
 /*!
  * \class CDriverBase
  * \ingroup Drivers
@@ -74,6 +77,25 @@ class CDriverBase {
                                            are solved). */
   CSurfaceMovement** surface_movement;  /*!< \brief Surface movement classes of the problem. */
   CVolumetricMovement*** grid_movement; /*!< \brief Volume grid movement classes of the problem. */
+
+  // preCICE:
+  using MatrixType = C2DContainer<unsigned long, su2double, StorageType::RowMajor,    64, DynamicSize, DynamicSize>;
+  MatrixType preCICE_Solution;                  /*!< \brief FLOW Solution of the problem - for preCICE implicit coupling. */
+  MatrixType preCICE_Solution_time_n;           /*!< \brief FLOW Solution of the problem at time n for dual-time stepping technique - for preCICE implicit coupling. */
+  MatrixType preCICE_Solution_time_n1;          /*!< \brief FLOW Solution of the problem at time n-1 for dual-time stepping technique - for preCICE implicit coupling. */
+  MatrixType preCICE_TURB_Solution;             /*!< \brief TURB Solution of the problem - for preCICE implicit coupling. */
+  MatrixType preCICE_TURB_Solution_time_n;      /*!< \brief TURB Solution of the problem at time n for dual-time stepping technique - for preCICE implicit coupling. */
+  MatrixType preCICE_TURB_Solution_time_n1;     /*!< \brief TURB Solution of the problem at time n-1 for dual-time stepping technique - for preCICE implicit coupling. */
+  MatrixType preCICE_MESH_Solution;             /*!< \brief MESH Solution of the problem - for preCICE implicit coupling. */
+  MatrixType preCICE_MESH_Solution_time_n;      /*!< \brief MESH Solution of the problem at time n for dual-time stepping technique - for preCICE implicit coupling. */
+  MatrixType preCICE_MESH_Solution_time_n1;     /*!< \brief MESHSolution of the problem at time n-1 for dual-time stepping technique - for preCICE implicit coupling. */
+
+
+  su2activematrix preCICE_Coord;                /*!< \brief vector with the coordinates of the node - for preCICE implicit coupling. */
+  su2activematrix preCICE_GridVel;              /*!< \brief Velocity of the grid for dynamic mesh cases - for preCICE implicit coupling. */
+  su2activevector preCICE_Volume;               /*!< \brief Volume or Area of the control volume in 3D and 2D - for preCICE implicit coupling. */
+  su2activevector preCICE_Volume_n;             /*!< \brief Volume at time n - for preCICE implicit coupling. */
+  su2activevector preCICE_Volume_nM1;           /*!< \brief Volume at time n-1 - for preCICE implicit coupling. */
 
   CConfig* main_config = nullptr;     /*!< \brief Reference to base (i.e. ZONE 0) configuration (used in driver API). */
   CGeometry* main_geometry = nullptr; /*!< \brief Reference to base (i.e. ZONE, INST, MESH 0) geometry (used in driver API). */

@@ -387,14 +387,44 @@ void CHeatSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_conta
   END_SU2_OMP_FOR
 }
 
+//void CHeatSolver::BC_HeatFlux_Wall(CGeometry* geometry, CSolver** solver_container, CNumerics* conv_numerics,
+//                                   CNumerics* visc_numerics, CConfig* config, unsigned short val_marker) {
+//  const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
+//  const bool IsPyCustom = config->GetMarker_All_PyCustom(val_marker);
+//
+//  su2double Wall_HeatFlux = config->GetWall_HeatFlux(Marker_Tag) / config->GetHeat_Flux_Ref();
+//  if (config->GetIntegrated_HeatFlux()) {
+//    Wall_HeatFlux /= geometry->GetSurfaceArea(config, val_marker);
+//  }
+//
+//  SU2_OMP_FOR_STAT(OMP_MIN_SIZE)
+//  for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+//    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+//    if (!geometry->nodes->GetDomain(iPoint)) continue;
+//
+//    if (IsPyCustom) {
+//      Wall_HeatFlux = geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex) / config->GetHeat_Flux_Ref();
+//    }
+//    /*--- Viscous contribution to the residual at the wall. ---*/
+//    const auto* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+//    const su2double Area = GeometryToolbox::Norm(nDim, Normal);
+//    const su2double flux = Wall_HeatFlux * Area;
+//    LinSysRes(iPoint, 0) -= flux;
+//  }
+//  END_SU2_OMP_FOR
+//}
+
+
 void CHeatSolver::BC_HeatFlux_Wall(CGeometry* geometry, CSolver** solver_container, CNumerics* conv_numerics,
-                                   CNumerics* visc_numerics, CConfig* config, unsigned short val_marker) {
+                               CNumerics* visc_numerics, CConfig* config, unsigned short val_marker) {
+
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
   const bool IsPyCustom = config->GetMarker_All_PyCustom(val_marker);
 
-  su2double Wall_HeatFlux = config->GetWall_HeatFlux(Marker_Tag) / config->GetHeat_Flux_Ref();
+  su2double ConfiguredHeatFlux = config->GetWall_HeatFlux(Marker_Tag);
+
   if (config->GetIntegrated_HeatFlux()) {
-    Wall_HeatFlux /= geometry->GetSurfaceArea(config, val_marker);
+    ConfiguredHeatFlux /= geometry->GetSurfaceArea(config, val_marker);
   }
 
   SU2_OMP_FOR_STAT(OMP_MIN_SIZE)
@@ -402,10 +432,13 @@ void CHeatSolver::BC_HeatFlux_Wall(CGeometry* geometry, CSolver** solver_contain
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
     if (!geometry->nodes->GetDomain(iPoint)) continue;
 
-    if (IsPyCustom) {
-      Wall_HeatFlux = geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex) / config->GetHeat_Flux_Ref();
+    const su2double DimensionalHeatFlux = IsPyCustom ? geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex) : ConfiguredHeatFlux;
+    const su2double Wall_HeatFlux = DimensionalHeatFlux / config->GetHeat_Flux_Ref();
+
+    if (IsPyCustom && iVertex == 0) {
+      std::cout << std::setprecision(16) << "[BC_HeatFlux_Wall] " << "Stored dimensional q = " << DimensionalHeatFlux << ", q_ref = " << config->GetHeat_Flux_Ref() << ", Used nondimensional q = " << Wall_HeatFlux << std::endl;
     }
-    /*--- Viscous contribution to the residual at the wall. ---*/
+
     const auto* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
     const su2double Area = GeometryToolbox::Norm(nDim, Normal);
     const su2double flux = Wall_HeatFlux * Area;

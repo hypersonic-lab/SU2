@@ -419,6 +419,30 @@ class CDriver : public CDriverBase {
     return nVar;
   }
 
+  /*!
+   * \brief Finalize reloading FLOW_SOL, for preCICE implicit coupling
+   * Precondition: SaveOldState called first
+   */
+   void FinalizeFLOW_SOL();
+
+  /*!
+   * \brief Finalize reloading HEAT_SOL, for preCICE implicit coupling
+   * Precondition: SaveOldState called first
+   */
+   void FinalizeHEAT_SOL();
+
+   /*!
+   * \brief Finalize reloading TURB_SOL, for preCICE implicit coupling
+   * Precondition: SaveOldState called first, RANS sim
+   */
+   void FinalizeTURB_SOL();
+
+  /*!
+   * \brief Finalize reloading MESH_SOL, for preCICE implicit coupling
+   * Precondition: SaveOldState called first, DEFORM_MESH= YES
+   */
+   void FinalizeMESH_SOL();
+
  public:
   /*!
    * \brief Launch the computation for all zones and all physics.
@@ -429,6 +453,11 @@ class CDriver : public CDriverBase {
    * \brief Deallocation routine
    */
   void Finalize() override;
+
+ /*!
+   * \brief A virtual member.
+   */
+  virtual void ResetConvergence();
 
   /*!
    * \brief Perform some pre-processing before an iteration of the physics.
@@ -470,6 +499,313 @@ class CDriver : public CDriverBase {
   void BoundaryConditionsUpdate();
 
   /*!
+   * \brief Get the total drag.
+   * \return Total drag.
+   */
+  passivedouble Get_Drag() const;
+
+  /*!
+   * \brief Get the total lift.
+   * \return Total lift.
+   */
+  passivedouble Get_Lift() const;
+
+  /*!
+   * \brief Get the total x moment.
+   * \return Total x moment.
+   */
+  passivedouble Get_Mx() const;
+
+  /*!
+   * \brief Get the total y moment.
+   * \return Total y moment.
+   */
+  passivedouble Get_My() const;
+
+  /*!
+   * \brief Get the total z moment.
+   * \return Total z moment.
+   */
+  passivedouble Get_Mz() const;
+
+  /*!
+   * \brief Get the total drag coefficient.
+   * \return Total drag coefficient.
+   */
+  passivedouble Get_DragCoeff() const;
+
+  /*!
+   * \brief Get the total lift coefficient.
+   * \return Total lift coefficient.
+   */
+  passivedouble Get_LiftCoeff() const;
+
+  /*!
+   * \brief Get the number of vertices (halo nodes included) from a specified marker.
+   * \param[in] iMarker -  Marker identifier.
+   * \return Number of vertices.
+   */
+  unsigned long GetNumberVertices(unsigned short iMarker) const;
+
+  /*!
+   * \brief Get the number of halo vertices from a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \return Number of vertices.
+   */
+  unsigned long GetNumberHaloVertices(unsigned short iMarker) const;
+
+  /*!
+   * \brief Check if a vertex is physical or not (halo node) on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return True if the specified vertex is a halo node.
+   */
+  bool IsAHaloNode(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Set the unsteady time step, for preCICE
+   * \param[in] val_delta_unsttime - dimensional timestep to set
+   */
+  void SetUnsteady_TimeStep(passivedouble val_delta_unsttime);
+
+  /*!
+   * \brief Reload saved old state, for preCICE implicit coupling
+   * Precondition: SaveOldState called first
+   */
+  void ReloadOldState();
+
+  /*!
+   * \brief Save old state, for preCICE implicit coupling
+  */
+  void SaveOldState();
+
+  /*!
+   * \brief Get the name of the output file for the surface.
+   * \return File name for the surface output.
+   */
+  string GetSurfaceFileName() const;
+
+  /*!
+   * \brief Get the global index of a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Vertex global index.
+   */
+  unsigned long GetVertexGlobalIndex(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Get undeformed coordinates from the mesh solver.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return x,y,z coordinates of the vertex.
+   */
+  vector<passivedouble> GetInitialMeshCoord(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Get the temperature at a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Temperature of the vertex.
+   */
+  passivedouble GetVertexTemperature(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Set the temperature of a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] val_WallTemp - Value of the temperature.
+   */
+  void SetVertexTemperature(unsigned short iMarker, unsigned long iVertex, passivedouble val_WallTemp);
+
+  /*!
+   * \brief Get the heat flux at a vertex on a specified marker (3 components).
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return True if the vertex is a halo node.
+   */
+  vector<passivedouble> GetVertexHeatFluxes(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Get the wall normal component of the heat flux at a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Wall normal component of the heat flux at the vertex.
+   */
+  passivedouble GetVertexNormalHeatFlux(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Set the wall normal component of the heat flux at a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] val_WallHeatFlux - Value of the normal heat flux.
+   */
+  void SetVertexNormalHeatFlux(unsigned short iMarker, unsigned long iVertex, passivedouble val_WallHeatFlux);
+
+  /*!
+   * \brief Get the thermal conductivity at a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Thermal conductivity at the vertex.
+   */
+  passivedouble GetThermalConductivity(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Get the normal (vector) at a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] unitNormal - Bool to normalise the vector.
+   * \return Normal (vector) at the vertex.
+   */
+  vector<passivedouble> GetVertexNormal(unsigned short iMarker, unsigned long iVertex, bool unitNormal = false) const;
+
+  /*!
+   * \brief Get the unit normal (vector) at a vertex on a specified marker.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Unit normal (vector) at the vertex.
+   */
+  inline vector<passivedouble> GetVertexUnitNormal(unsigned short iMarker, unsigned long iVertex) const {
+    return GetVertexNormal(iMarker, iVertex, true);
+  }
+
+  /*!
+   * \brief Get all the boundary markers tags.
+   * \return List of boundary markers tags.
+   */
+  vector<string> GetAllBoundaryMarkersTag() const;
+
+  /*!
+   * \brief Get all the deformable boundary marker tags.
+   * \return List of deformable boundary markers tags.
+   */
+  vector<string> GetAllDeformMeshMarkersTag() const;
+
+  /*!
+   * \brief Get all the heat transfer boundary markers tags.
+   * \return List of heat transfer boundary markers tags.
+   */
+  vector<string> GetAllCHTMarkersTag() const;
+
+  /*!
+   * \brief Get all the (subsonic) inlet boundary markers tags.
+   * \return List of inlet boundary markers tags.
+   */
+  vector<string> GetAllInletMarkersTag() const;
+
+  /*!
+   * \brief Get all the boundary markers tags with their associated indices.
+   * \return List of boundary markers tags with their indices.
+   */
+  map<string, int> GetAllBoundaryMarkers() const;
+
+  /*!
+   * \brief Get all the boundary markers tags with their associated types.
+   * \return List of boundary markers tags with their types.
+   */
+  map<string, string> GetAllBoundaryMarkersType() const;
+
+  /*!
+   * \brief Set the mesh displacement for the elasticity mesh solver.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] DispX - Value of the mesh displacement in the direction X.
+   * \param[in] DispY - Value of the mesh displacement in the direction Y.
+   * \param[in] DispZ - Value of the mesh displacement in the direction Z.
+   */
+  void SetMeshDisplacement(unsigned short iMarker, unsigned long iVertex, passivedouble DispX, passivedouble DispY, passivedouble DispZ);
+
+  /*!
+   * \brief Communicate the boundary mesh displacements in a python call
+   */
+  void CommunicateMeshDisplacement(void);
+
+  /*!
+   * \brief Return the sensitivities of the mesh boundary vertices.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Vector of sensitivities.
+   */
+  vector<passivedouble> GetMeshDisp_Sensitivity(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Set the load in X direction for the structural solver.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] LoadX - Value of the load in the direction X.
+   * \param[in] LoadX - Value of the load in the direction Y.
+   * \param[in] LoadX - Value of the load in the direction Z.
+   */
+  void SetFEA_Loads(unsigned short iMarker, unsigned long iVertex, passivedouble LoadX,
+                    passivedouble LoadY, passivedouble LoadZ);
+
+  /*!
+   * \brief Return the displacements from the FEA solver.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Vector of displacements.
+   */
+  vector<passivedouble> GetFEA_Displacements(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Return the velocities from the FEA Solver.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Vector of velocities.
+   */
+  vector<passivedouble> GetFEA_Velocity(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Return the velocities from the FEA Solver.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \return Vector of velocities at time n.
+   */
+  vector<passivedouble> GetFEA_Velocity_n(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Get the sensitivity of the flow loads for the structural solver.
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] LoadX - Value of the load in the direction X.
+   * \param[in] LoadX - Value of the load in the direction Y.
+   * \param[in] LoadX - Value of the load in the direction Z.
+   */
+  vector<passivedouble> GetFlowLoad_Sensitivity(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Get the flow load (from the extra step - the repeated methods should be unified once the postprocessing
+   * strategy is in place).
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   */
+  vector<passivedouble> GetFlowLoad(unsigned short iMarker, unsigned long iVertex) const;
+
+  /*!
+   * \brief Set the adjoint of the flow tractions (from the extra step -
+   * the repeated methods should be unified once the postprocessing strategy is in place).
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] val_AdjointX - Value of the adjoint in the direction X.
+   * \param[in] val_AdjointY - Value of the adjoint in the direction Y.
+   * \param[in] val_AdjointZ - Value of the adjoint in the direction Z.
+   */
+  void SetFlowLoad_Adjoint(unsigned short iMarker, unsigned long iVertex, passivedouble val_AdjointX,
+                                    passivedouble val_AdjointY, passivedouble val_AdjointZ);
+
+  /*!
+   * \brief Set the adjoint of the structural displacements (from an outside source)
+   * \param[in] iMarker - Marker identifier.
+   * \param[in] iVertex - Vertex identifier.
+   * \param[in] val_AdjointX - Value of the adjoint in the direction X.
+   * \param[in] val_AdjointY - Value of the adjoint in the direction Y.
+   * \param[in] val_AdjointZ - Value of the adjoint in the direction Z.
+   */
+  void SetSourceTerm_DispAdjoint(unsigned short iMarker, unsigned long iVertex, passivedouble val_AdjointX,
+                                 passivedouble val_AdjointY, passivedouble val_AdjointZ);
+  void SetSourceTerm_VelAdjoint(unsigned short iMarker, unsigned long iVertex, passivedouble val_AdjointX,
+                                 passivedouble val_AdjointY, passivedouble val_AdjointZ);
+
+  /*!
    * \brief Get the number of time iterations.
    * \return Number of time iterations.
    */
@@ -486,12 +822,6 @@ class CDriver : public CDriverBase {
    * \return Unsteady time step.
    */
   passivedouble GetUnsteadyTimeStep() const;
-
-  /*!
-   * \brief Get the name of the output file for the surface.
-   * \return File name for the surface output.
-   */
-  string GetSurfaceFileName() const;
 
   /*!
    * \brief Set the position of the heat source.
