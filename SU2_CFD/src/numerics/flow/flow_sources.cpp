@@ -63,77 +63,107 @@ CNumerics::ResidualType<> CSourceAxisymmetric_Flow::ComputeResidual(const CConfi
   su2double Pressure_i, Enthalpy_i, Velocity_i, sq_vel;
   unsigned short iDim, iVar, jVar;
 
-  if (Coord_i[1] > EPS) {
+  su2double rho = U_i[0];                     // density
+  su2double u = U_i[1]/U_i[0];                // u-velocity
+  su2double v = U_i[2]/U_i[0];                // v-velocity
+  su2double r = Coord_i[1];                   // radial coordinate
+  su2double dv_dr = PrimVar_Grad_i[2][1];     // dv/dr (radial velocity gradient of v)
+  su2double du_dr = PrimVar_Grad_i[1][1];     // du/dr (radial velocity gradient of u)
+  su2double alpha;
 
-    yinv = 1.0/Coord_i[1];
-
-    sq_vel = 0.0;
-    for (iDim = 0; iDim < nDim; iDim++) {
-      Velocity_i = U_i[iDim+1] / U_i[0];
-      sq_vel += Velocity_i *Velocity_i;
-    }
-
-    Pressure_i = Gamma_Minus_One*U_i[0]*(U_i[nDim+1]/U_i[0]-0.5*sq_vel);
-    Enthalpy_i = (U_i[nDim+1] + Pressure_i) / U_i[0];
-
-    residual[0] = yinv*Volume*U_i[2];
-    residual[1] = yinv*Volume*U_i[1]*U_i[2]/U_i[0];
-    residual[2] = yinv*Volume*(U_i[2]*U_i[2]/U_i[0]);
-    residual[3] = yinv*Volume*Enthalpy_i*U_i[2];
-
-    /*--- Inviscid component of the source term. ---*/
-
-    if (implicit) {
-      jacobian[0][0] = 0.0;
-      jacobian[0][1] = 0.0;
-      jacobian[0][2] = 1.0;
-      jacobian[0][3] = 0.0;
-
-      jacobian[1][0] = -U_i[1]*U_i[2]/(U_i[0]*U_i[0]);
-      jacobian[1][1] = U_i[2]/U_i[0];
-      jacobian[1][2] = U_i[1]/U_i[0];
-      jacobian[1][3] = 0.0;
-
-      jacobian[2][0] = -U_i[2]*U_i[2]/(U_i[0]*U_i[0]);
-      jacobian[2][1] = 0.0;
-      jacobian[2][2] = 2*U_i[2]/U_i[0];
-      jacobian[2][3] = 0.0;
-
-      jacobian[3][0] = -Gamma*U_i[2]*U_i[3]/(U_i[0]*U_i[0]) + (Gamma-1)*U_i[2]*(U_i[1]*U_i[1]+U_i[2]*U_i[2])/(U_i[0]*U_i[0]*U_i[0]);
-      jacobian[3][1] = -(Gamma-1)*U_i[2]*U_i[1]/(U_i[0]*U_i[0]);
-      jacobian[3][2] = Gamma*U_i[3]/U_i[0] - 1/2*(Gamma-1)*( (U_i[1]*U_i[1]+U_i[2]*U_i[2])/(U_i[0]*U_i[0]) + 2*U_i[2]*U_i[2]/(U_i[0]*U_i[0]) );
-      jacobian[3][3] = Gamma*U_i[2]/U_i[0];
-
-      for (iVar=0; iVar < nVar; iVar++)
-        for (jVar=0; jVar < nVar; jVar++)
-          jacobian[iVar][jVar] *= yinv*Volume;
-
-    }
-
-    /*--- Add the viscous terms if necessary. ---*/
-
-    if (viscous) ResidualDiffusion();
-
+  sq_vel = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++) {
+	  Velocity_i = U_i[iDim+1] / U_i[0];
+	  sq_vel += Velocity_i *Velocity_i;
   }
 
-  else {
+  Pressure_i = Gamma_Minus_One*U_i[0]*(U_i[nDim+1]/U_i[0]-0.5*sq_vel);
+  Enthalpy_i = (U_i[nDim+1] + Pressure_i) / U_i[0];
 
-    for (iVar=0; iVar < nVar; iVar++)
-      residual[iVar] = 0.0;
-
-    if (implicit) {
-      for (iVar=0; iVar < nVar; iVar++) {
-        for (jVar=0; jVar < nVar; jVar++)
-          jacobian[iVar][jVar] = 0.0;
-      }
-    }
-
+  if (r > EPS) {
+	  yinv = 1.0/r;
+	  alpha = 1.0;
+  } else {
+	  yinv = 0.0;
+	  alpha = 0.0;
   }
+
+  /*--- Standard format residuals. ---*/
+  su2double std_res[nVar];
+  std_res[0] = yinv*Volume*U_i[2];
+  std_res[1] = yinv*Volume*U_i[1]*U_i[2]/U_i[0];
+  std_res[2] = yinv*Volume*(U_i[2]*U_i[2]/U_i[0]);
+  std_res[3] = yinv*Volume*Enthalpy_i*U_i[2];
+  
+  /*--- Gradient format residuals. ---*/
+  su2double grad_res[nVar];
+  grad_res[0] = Volume * rho * dv_dr;                           // rho*(dv/dr)
+  grad_res[1] = Volume * (rho * u * dv_dr + rho * v * du_dr);   // rho*u*dv/dr + rho*v*du/dr
+  grad_res[2] = Volume * 2.0 * rho * v * dv_dr;                 // 2*rho*v*dv/dr
+  grad_res[3] = Volume * rho * Enthalpy_i * dv_dr;              // rho*H*dv/dr
+
+  /*--- Blending of residuals. ---*/
+/*  for (iVar=0; iVar < nVar; iVar++)
+	  residual[iVar] = (1.0 - alpha)*grad_res[iVar] + alpha*std_res[iVar];
+*/
+    if (r > EPS) {
+       for (iVar=0; iVar < nVar; iVar++)
+             residual[iVar] = std_res[iVar];
+    } else {
+       for (iVar=0; iVar < nVar; iVar++)
+             residual[iVar] = 0.;
+    } 
+
+
+  /*--- Inviscid component of the source term. ---*/
+
+  if (implicit) {
+	  if (r > EPS) {
+		  jacobian[0][0] = 0.0;
+                  jacobian[0][1] = 0.0;
+                  jacobian[0][2] = 1.0;
+                  jacobian[0][3] = 0.0;
+
+                  jacobian[1][0] = -U_i[1]*U_i[2]/(U_i[0]*U_i[0]);
+                  jacobian[1][1] = U_i[2]/U_i[0];
+                  jacobian[1][2] = U_i[1]/U_i[0];
+                  jacobian[1][3] = 0.0;
+
+                  jacobian[2][0] = -U_i[2]*U_i[2]/(U_i[0]*U_i[0]);
+                  jacobian[2][1] = 0.0;
+                  jacobian[2][2] = 2*U_i[2]/U_i[0];
+                  jacobian[2][3] = 0.0;
+
+                  jacobian[3][0] = -Gamma*U_i[2]*U_i[3]/(U_i[0]*U_i[0]) + (Gamma-1)*U_i[2]*(U_i[1]*U_i[1]+U_i[2]*U_i[2])/(U_i[0]*U_i[0]*U_i[0]);
+                  jacobian[3][1] = -(Gamma-1)*U_i[2]*U_i[1]/(U_i[0]*U_i[0]);
+                  jacobian[3][2] = Gamma*U_i[3]/U_i[0] - 1/2*(Gamma-1)*( (U_i[1]*U_i[1]+U_i[2]*U_i[2])/(U_i[0]*U_i[0]) + 2*U_i[2]*U_i[2]/(U_i[0]*U_i[0]) );
+                  jacobian[3][3] = Gamma*U_i[2]/U_i[0];
+
+                  for (iVar=0; iVar < nVar; iVar++)
+			  for (jVar=0; jVar < nVar; jVar++)
+				  jacobian[iVar][jVar] *= yinv*Volume;
+
+          } else {
+		  for (iVar=0; iVar < nVar; iVar++)
+			  for (jVar=0; jVar < nVar; jVar++)
+				  jacobian[iVar][jVar] = 0.0;
+	  }
+  }
+
+  /*--- Add the viscous terms if necessary. ---*/
+
+  if (viscous) ResidualDiffusion();
+
 
   return ResidualType<>(residual, jacobian, nullptr);
 }
 
 void CSourceAxisymmetric_Flow::ResidualDiffusion(){
+
+  if (Coord_i[1] > EPS)
+	  yinv = 1.0/Coord_i[1];
+  else
+	  yinv = 0.0;
 
   if (!rans){ turb_ke_i = 0.0; }
 

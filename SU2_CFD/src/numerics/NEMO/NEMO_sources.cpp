@@ -183,29 +183,55 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
   const su2double rhoEve = U_i[nVar-1];
   const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& hs = fluidmodel->ComputeSpeciesEnthalpy(V_i[T_INDEX], V_i[TVE_INDEX], eve_i );
+  const su2double u = V_i[VEL_INDEX];
+  const su2double v = V_i[VEL_INDEX+1];
+  su2double r = Coord_i[1];   
+  su2double du_dr,dv_dr;
+  su2double alpha;
 
   const bool viscous = config->GetViscous();
   const bool rans = (config->GetKind_Turb_Model() != TURB_MODEL::NONE);
+
+  du_dr = GV[VEL_INDEX][1];
+  dv_dr = GV[VEL_INDEX+1][1];
 
   /*--- Initialize residual and Jacobian arrays ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++) residual[iVar] = 0.0;
 
   /*--- Calculate inverse of y coordinate ---*/
   su2double yinv = 0.0;
-  if (Coord_i[1]!= 0.0) yinv = 1.0/Coord_i[1];
+  //if (r!= 0.0) yinv = 1.0/Coord_i[1];
+  if (r > EPS) yinv = 1.0/Coord_i[1];
   else yinv = 0.0;
+  
+  if (r > EPS) alpha = 1.0;
+  else alpha = 0.0;
 
   /*--- Rename mass flux for convenience ---*/
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
     Y[iSpecies] = V_i[RHOS_INDEX+iSpecies] / rho;
 
-  /*--- Compute residual for inviscid axisym flow---*/
+  /*--- Compute standard residual for inviscid axisym flow---*/
+  su2double std_res[nVar];
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
-    residual[iSpecies] = yinv*rhov*Y[iSpecies]*Volume;
-  residual[nSpecies]   = yinv*rhov*rhou/rho*Volume;
-  residual[nSpecies+1] = yinv*rhov*rhov/rho*Volume;
-  residual[nSpecies+2] = yinv*rhov*H*Volume;
-  residual[nSpecies+3] = yinv*rhov*rhoEve/rho*Volume;
+	  std_res[iSpecies] = yinv*rhov*Y[iSpecies]*Volume;
+  std_res[nSpecies]   = yinv*rhov*rhou/rho*Volume;
+  std_res[nSpecies+1] = yinv*rhov*rhov/rho*Volume;
+  std_res[nSpecies+2] = yinv*rhov*H*Volume;
+  std_res[nSpecies+3] = yinv*rhov*rhoEve/rho*Volume;
+
+  /*--- Compute gradient residual for inviscid axisym flow---*/
+  su2double grad_res[nVar];
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+    grad_res[iSpecies] = dv_dr*rho*Y[iSpecies]*Volume;
+  grad_res[nSpecies]   = (du_dr*rhov + dv_dr*rhou)*Volume;
+  grad_res[nSpecies+1] = 2.0*dv_dr*rhov*Volume;
+  grad_res[nSpecies+2] = dv_dr*rho*H*Volume;
+  grad_res[nSpecies+3] = dv_dr*rhoEve*Volume;
+
+  /*--- Compute residual from blendind standard and gradient for inviscid axisym flow---*/
+  for (auto iVar = 0ul; iVar < nVar; iVar++)
+	  residual[iVar] = (1.0 - alpha)*grad_res[iVar] + alpha*std_res[iVar];
 
   /*---Compute Jacobian for inviscid axisym flow ---*/
   if (implicit) {
