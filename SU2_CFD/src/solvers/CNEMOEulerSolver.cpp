@@ -210,6 +210,15 @@ CNEMOEulerSolver::CNEMOEulerSolver(CGeometry *geometry, CConfig *config,
   }
   SetBaseClassPointerToNodes();
 
+/* Todo: Look into it and fix it - RSCD  
+  const bool turbulent = (config->GetKind_Turb_Model() != TURB_MODEL::NONE);
+  const bool tkeNeeded = ((turbulent) && (config->GetKind_Turb_Model() == TURB_MODEL::SST));
+  su2double turb_ke;
+  if (tkeNeeded) turb_ke = config->GetTke_FreeStream();
+
+  if (tkeNeeded) node_infty->SetPrimVar(0, turb_ke, static_cast<CNEMOGas*>(FluidModel)); 
+  else node_infty->SetPrimVar(0, FluidModel);
+*/
   node_infty->SetPrimVar(0, FluidModel);
 
   /*--- Initial comms. ---*/
@@ -1920,6 +1929,8 @@ void CNEMOEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container
   const bool dynamic_grid = config->GetGrid_Movement();
   const bool gravity = config->GetGravityForce();
   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  const bool turbulent = (config->GetKind_Turb_Model() != TURB_MODEL::NONE);
+  const bool tkeNeeded = ((turbulent) && (config->GetKind_Turb_Model() == TURB_MODEL::SST));
 
   su2double *U_domain;
   auto *U_outlet = new su2double[nVar];
@@ -2069,7 +2080,8 @@ void CNEMOEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container
           U_outlet[nSpecies+iDim] = Velocity[iDim]*Density;
 
         U_outlet[nVar-2] = (energies[0] + 0.5*Velocity2) * Density;
-        U_outlet[nVar-1] = energies[1] * Density;
+        if(tkeNeeded) U_outlet[nVar-2] += Density * GetTke_Inf();
+	U_outlet[nVar-1] = energies[1] * Density;
 
       }
 

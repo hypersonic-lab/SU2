@@ -98,6 +98,10 @@ CNEMOEulerVariable::CNEMOEulerVariable(su2double val_pressure,
   const su2double soundspeed = fluidmodel->ComputeSoundSpeed();
   const su2double sqvel = GeometryToolbox::SquaredNorm(nDim, val_mach) * pow(soundspeed,2);
   const auto& energies = fluidmodel->ComputeMixtureEnergies();
+  const bool turbulent = (config->GetKind_Turb_Model() != TURB_MODEL::NONE);
+  const bool tkeNeeded = ((turbulent) && (config->GetKind_Turb_Model() == TURB_MODEL::SST));
+  su2double turb_ke;
+  if (tkeNeeded) turb_ke = config->GetTke_FreeStream();
 
   /*--- Loop over all points --*/
   for(unsigned long iPoint = 0; iPoint < nPoint; ++iPoint){
@@ -109,9 +113,9 @@ CNEMOEulerVariable::CNEMOEulerVariable(su2double val_pressure,
       Solution(iPoint,nSpecies+iDim)     = rho*val_mach[iDim]*soundspeed;
 
     Solution(iPoint,nSpecies+nDim)       = rho*(energies[0]+0.5*sqvel);
+//    if(tkeNeeded) Solution(iPoint,nSpecies+nDim) += rho*turb_ke; //Commented for now but need to add later - RSCD
     Solution(iPoint,nSpecies+nDim+1)     = rho*(energies[1]);
   }
-
   Solution_Old = Solution;
 
   if (classical_rk4) Solution_New = Solution;
