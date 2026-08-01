@@ -3,14 +3,14 @@
  * \brief Declaration of numerics classes for the AUSM family of schemes,
  *        including SLAU. The implementation is in ausm.cpp.
  * \author F. Palacios, T. Economon
- * \version 8.3.0 "Harrier"
+ * \version 8.4.0 "Harrier"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2025, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2026, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -222,6 +222,8 @@ public:
 class CUpwAUSM_Flow final : public CNumerics {
 private:
   bool implicit;
+  bool UseAccurateJacobian;
+  bool HasAnalyticalDerivatives;
   su2double *Diff_U;
   su2double Velocity_i[MAXNDIM], Velocity_j[MAXNDIM], RoeVelocity[MAXNDIM];
   su2double *ProjFlux_i, *ProjFlux_j;
@@ -233,10 +235,14 @@ private:
   ProjVelocity, ProjVelocity_i, ProjVelocity_j;
   unsigned short iDim, iVar, jVar, kVar;
   su2double mL, mR, mLP, mRM, mF, pLP, pRM, pF, Phi;
+  su2double FinDiffStep;
 
   su2double* Flux;        /*!< \brief The flux accross the face. */
   su2double** Jacobian_i; /*!< \brief The Jacobian w.r.t. point i after computation. */
   su2double** Jacobian_j; /*!< \brief The Jacobian w.r.t. point j after computation. */
+  
+  void ComputeAUSMFlux();
+  void AccurateJacobian(const CConfig* config, su2double **val_Jacobian_i, su2double **val_Jacobian_j);
 public:
 
   /*!
