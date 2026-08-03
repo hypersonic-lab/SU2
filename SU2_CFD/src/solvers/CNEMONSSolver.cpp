@@ -1113,6 +1113,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       su2double Twall = 0;
       const su2double temp_model = config->GetETCTempModel(Marker_Tag);
       const su2double temp_param = config->GetETCTempParam(Marker_Tag);
+      const su2double emission_model =  config->GetETCEmissionModel(Marker_Tag);
       // temp_model = 0 for isothermal, 1 for radiative, 2 for ETC
       // temp_param = wall_temp for isothermal, and wall_emissivity for the other two
       if (temp_model > 0) {
@@ -1126,17 +1127,17 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       const su2double sigma = 5.67037442e-8;
       const su2double A_R = 1.20e6;
       const su2double C = 10; // Multiplier for quicker convergence
-      su2double Je_sat = A_R*Ti*Ti*exp(-1*e/k_B/Ti); // [A/m2]
+      su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F*e/k_B/Ti); // [A/m2]
       const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]
       const su2double Mole_Flux = Je_sat / (e*N_A); // Je_sat [(C/s)/m2] / N_A [mol^-1] / e [C] -> [mol/s/m2]
       const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
       const su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
 
-
+    
       Res_Visc[0] += electron_flux;
       // // Momentum
       // for (auto iDim = 0uL; iDim < nDim; iDim++){
-      //   Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
+      //    Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
       // }
 
       su2double q_rad = epsilon*sigma*pow(Ti,4); // Positive (+)
@@ -1191,26 +1192,26 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       } else if (temp_model == 0){
         Twall = temp_param;
       }
-       if (Twall < 0)
-	       Twall = 200;
-       //cout << "iPoint: " << iPoint << "\n";
-       //cout << "Twall: " << Twall << "\n";
-       //cout << "Ti: " << Ti << "\n";
-       //cout << "Tj: " << Tj << "\n";
-       //cout << "q_conv: " << q_conv << "\n";
-       //cout << "-------------------" << "\n";
+      if (Twall < 0)
+	      Twall = 200;
+      //  cout << "iPoint: " << iPoint << "\n";
+      //  cout << "Twall: " << Twall << "\n";
+      //  cout << "Ti: " << Ti << "\n";
+      //  cout << "Tj: " << Tj << "\n";
+      //  cout << "q_conv: " << q_conv << "\n";
+      //  cout << "-------------------" << "\n";
        
-       Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
+      Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
                                  (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
                                  
-       Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej) + kve*(Twall-Tvei) *C)*Area/dij;
+      Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej) + kve*(Twall-Tvei) *C)*Area/dij;
       const unsigned short T_INDEX        = nodes->GetTIndex();
       const unsigned short TVE_INDEX      = nodes->GetTveIndex();
       const unsigned short RHO_INDEX      = nodes->GetRhoIndex();
       const unsigned short RHOCVTR__INDEX = nodes->GetTIndex();
       const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
-      // Res_Visc[nSpecies+nDim]   += (electron_flux*hs[0]);
-      // Res_Visc[nSpecies+nDim+1] += (electron_flux*eves[0]);
+      Res_Visc[nSpecies+nDim]   -= (electron_flux*hs[0]);
+      Res_Visc[nSpecies+nDim+1] -= (electron_flux*eves[0]);
 
       /*--- Viscous contribution to the residual at the wall ---*/
       LinSysRes.SubtractBlock(iPoint, Res_Visc);
