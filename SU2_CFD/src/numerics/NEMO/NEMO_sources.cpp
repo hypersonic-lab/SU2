@@ -259,11 +259,11 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
     energy_source += current*Vector_EField[iDim];
   }
 
-  if (Tve < 240){
-    cout << "Tve: " << Tve << "\n";
-    cout << "Current: " << current << "\n";
-    cout << "Energy_Source: " << energy_source << "\n";
-  }
+  // if (Tve < 240){
+  //   cout << "Tve: " << Tve << "\n";
+  //   cout << "Current: " << current << "\n";
+  //   cout << "Energy_Source: " << energy_source << "\n";
+  // }
     
 
   residual[nSpecies+nDim] = energy_source;
