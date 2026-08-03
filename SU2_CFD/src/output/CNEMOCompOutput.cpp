@@ -267,6 +267,9 @@ void CNEMOCompOutput::SetVolumeOutputFields(CConfig *config){
 
   }
 
+  AddVolumeOutput("NON_PHYSICAL", "NON_PHYSICAL", "SOLUTION", "Non-physical point flag (0=physical, 1=non-physical)");
+
+
   SetVolumeOutputFieldsScalarPrimitive(config);
 
   //Residuals
@@ -382,7 +385,8 @@ void CNEMOCompOutput::LoadVolumeData(CConfig *config, CGeometry *geometry, CSolv
       SetVolumeOutputValue("LIMITER_ENERGY", iPoint, Node_Flow->GetLimiter_Primitive(iPoint, 3));
     }
   }
-
+  
+  SetVolumeOutputValue("NON_PHYSICAL", iPoint, Node_Flow->GetNon_Physical(iPoint) ? 1.0 : 0.0);
   SetVolumeOutputValue("CHARGE_DENSITY", iPoint, Node_Flow->GetChargeDensity(iPoint));
   SetVolumeOutputValue("E-POTENTIAL", iPoint, Node_Flow->GetElectricPotential(iPoint));
 

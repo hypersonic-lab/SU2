@@ -296,6 +296,8 @@ void CFlowCompOutput::SetVolumeOutputFields(CConfig *config){
 
   SetVolumeOutputFieldsScalarMisc(config);
 
+  AddVolumeOutput("NON_PHYSICAL", "NON_PHYSICAL", "SOLUTION", "Non-physical point flag (0=physical, 1=non-physical)");
+
   // Roe Low Dissipation
   if (config->GetKind_RoeLowDiss() != NO_ROELOWDISS) {
     AddVolumeOutput("ROE_DISSIPATION", "Roe_Dissipation", "ROE_DISSIPATION", "Value of the Roe dissipation");
@@ -381,7 +383,8 @@ void CFlowCompOutput::LoadVolumeData(CConfig *config, CGeometry *geometry, CSolv
   if (config->GetKind_RoeLowDiss() != NO_ROELOWDISS){
     SetVolumeOutputValue("ROE_DISSIPATION", iPoint, Node_Flow->GetRoe_Dissipation(iPoint));
   }
-
+  
+  SetVolumeOutputValue("NON_PHYSICAL", iPoint, Node_Flow->GetNon_Physical(iPoint) ? 1.0 : 0.0);
   LoadVolumeDataScalar(config, solver, geometry, iPoint);
 
   LoadCommonFVMOutputs(config, geometry, iPoint);

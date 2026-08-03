@@ -172,6 +172,7 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
     Polarizabilities[10] = 1.581;// O2
   }
 
+
 }
 
 CMutationTCLib::~CMutationTCLib(){}
@@ -209,6 +210,10 @@ vector<su2double>& CMutationTCLib::GetSpeciesCharge(){
    for(iSpecies = 0; iSpecies < nSpecies; iSpecies++) ChargeSpecies[iSpecies] = mix->speciesCharge(iSpecies)/1.602176565E-19; // Charge divided by elementary charge so neutrals = 0, ions = +1, and electrons = -1
 
    return ChargeSpecies;
+}
+
+su2double CMutationTCLib::GetElectricalConductivity(){
+  return mix ? mix->electricConductivity() : 0.0;
 }
 
 vector<su2double>& CMutationTCLib::GetSpeciesPolarizability(){

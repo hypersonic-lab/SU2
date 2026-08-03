@@ -161,6 +161,11 @@ public:
    vector<su2double>& GetSpeciesCharge() final;
 
   /*!
+   * \brief Get the electrical conductivity in S/m.
+   */
+  su2double GetElectricalConductivity() final;
+
+  /*!
    * \brief Get species polarizability.
    */
    vector<su2double>& GetSpeciesPolarizability() final;

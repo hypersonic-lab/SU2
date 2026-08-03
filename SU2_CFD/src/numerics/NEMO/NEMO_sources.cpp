@@ -171,19 +171,14 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   // Compute the source terms for the Poisson coupling
   const auto GV = PrimVar_Grad_i;
   const su2double T = V_i[T_INDEX];
+  const su2double Tve = V_i[TVE_INDEX];
+  const su2double rho = V_i[RHO_INDEX];
+
 
   su2double Vector_EField[nDim] = {0.0};
   const su2double e = 1.6022e-19; // [C]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
     Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
-    // if (Vector_EField[iDim] > 3000){
-    //   Vector_EField[iDim] = 3000;
-    // } else if (Vector_EField[iDim] < -3000){
-    //   Vector_EField[iDim] = -3000;
-    // }
-    //if (abs(-1*GV[EPOT_INDEX][iDim]) > 5){
-    //  cout << "break\n";
-    //}
   }
   //cout << "Electric Field Here here: " << Vector_EField[0] << "\n";
   su2double EField_mag = pow(pow(Vector_EField[0],2) + pow(Vector_EField[1],2) + pow(Vector_EField[2],2),0.5);
@@ -208,6 +203,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   rhos.resize(nSpecies, 0.0);
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
     rhos[iSpecies] = V_i[RHOS_INDEX+iSpecies];
+
   const su2double N_A = 6.02214076e23;
   const auto& Cs = fluidmodel->GetSpeciesCharge();
   const auto& Ms  = fluidmodel->GetSpeciesMolarMass(); // g/mol
@@ -240,11 +236,20 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
 
   // Energy source (Joule heating)
 
-  // Calculate conductivity
+  // Toggle between analytical estimate and the Mutation++ conductivity.
+  bool use_mutation_e_cond = true;
+  su2double sigma = 0.0;
+  if (use_mutation_e_cond) {
+    fluidmodel->SetTDStateRhosTTv(rhos, T, V_i[TVE_INDEX]);
+    sigma = fluidmodel->GetElectricalConductivity();
+  }
+  
+  if (!use_mutation_e_cond || sigma <= 0.0) {
+    const su2double alpha = Ns[0] / N_total; // Hanquist thesis Eq. (2.25)
+    const su2double Q = 5e-17; // [cm2]
+    sigma = 3.34e-12 * alpha / Q * pow(T, -0.5) * 100; // mho/m
+  }
 
-  su2double alpha = Ns[0] / N_total; // Hanquist thesis Eq. (2.25)
-  auto Q = 5e-17; // [cm2]
-  su2double sigma = 3.34e-12 * alpha / Q * pow(T, -0.5) * 100; // mho/m
   
   su2double current = 0.0;
   su2double energy_source = 0.0;
@@ -254,15 +259,15 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
     energy_source += current*Vector_EField[iDim];
   }
 
-  if (T < 240){
-    cout << "T: " << T << "\n";
+  if (Tve < 240){
+    cout << "Tve: " << Tve << "\n";
     cout << "Current: " << current << "\n";
     cout << "Energy_Source: " << energy_source << "\n";
   }
     
 
-  residual[nSpecies+nDim] = -energy_source;
-  residual[nSpecies+nDim+1] = -energy_source;
+  residual[nSpecies+nDim] = energy_source;
+  residual[nSpecies+nDim+1] = energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }

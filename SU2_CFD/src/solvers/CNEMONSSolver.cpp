@@ -133,7 +133,7 @@ unsigned long CNEMONSSolver::SetPrimitive_Variables(CSolver **solver_container,C
     /*--- Compressible flow, primitive variables. ---*/
 
     bool nonphysical = nodes->SetPrimVar(iPoint,FluidModel);
-
+    nodes->SetNon_Physical(iPoint, nonphysical);
     /* Check for non-realizable states for reporting. */
 
     nonPhysicalPoints += nonphysical;

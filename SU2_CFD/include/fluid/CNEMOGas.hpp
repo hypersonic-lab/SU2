@@ -260,6 +260,11 @@ public:
   virtual const vector<su2double>& GetSpeciesCharge() = 0;
 
   /*!
+   * \brief Get the electrical conductivity in S/m.
+   */
+  virtual su2double GetElectricalConductivity() { return 0.0; }
+
+  /*!
    * \brief Get polarizabilities of all species
    */
   virtual const vector<su2double>& GetSpeciesPolarizability() = 0;
