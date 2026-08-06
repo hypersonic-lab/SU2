@@ -103,17 +103,8 @@ CNumerics::ResidualType<> CSourceAxisymmetric_Flow::ComputeResidual(const CConfi
   grad_res[3] = Volume * rho * Enthalpy_i * dv_dr;              // rho*H*dv/dr
 
   /*--- Blending of residuals. ---*/
-/*  for (iVar=0; iVar < nVar; iVar++)
+  for (iVar=0; iVar < nVar; iVar++)
 	  residual[iVar] = (1.0 - alpha)*grad_res[iVar] + alpha*std_res[iVar];
-*/
-    if (r > EPS) {
-       for (iVar=0; iVar < nVar; iVar++)
-             residual[iVar] = std_res[iVar];
-    } else {
-       for (iVar=0; iVar < nVar; iVar++)
-             residual[iVar] = 0.;
-    } 
-
 
   /*--- Inviscid component of the source term. ---*/
 
