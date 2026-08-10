@@ -1222,6 +1222,12 @@ private:
   su2double uq_urlx;            /*!< \brief Under-relaxation factor */
   bool uq_permute;              /*!< \brief Permutation of eigenvectors */
 
+  su2double debug_1;
+  su2double debug_2;
+  su2double debug_3;
+  su2double debug_4;
+  su2double debug_5;
+
   unsigned long pastix_fact_freq;  /*!< \brief (Re-)Factorization frequency for PaStiX */
   unsigned short pastix_verb_lvl;  /*!< \brief Verbosity level for PaStiX */
   unsigned short pastix_fill_lvl;  /*!< \brief Fill level for PaStiX ILU */
@@ -3973,6 +3979,36 @@ public:
    * \return Bool to use Poisson's equation vs ambipolar diffusion
    */
   bool Get_Poisson_Solver(void) const {return Poisson_Solver;}
+
+  /*!
+   * \brief Get Debug Variable 1
+   * \return Debug variable 1
+   */
+  su2double Get_Debug_1(void) const {return debug_1;}
+
+  /*!
+   * \brief Get Debug Variable 2
+   * \return Debug variable 2
+   */
+  su2double Get_Debug_2(void) const {return debug_2;}
+
+  /*!
+   * \brief Get Debug Variable 3
+   * \return Debug variable 3
+   */
+  su2double Get_Debug_3(void) const {return debug_3;}
+  
+  /*!
+   * \brief Get Debug Variable 4
+   * \return Debug variable 4
+   */
+  su2double Get_Debug_4(void) const {return debug_4;}
+
+  /*!
+   * \brief Get Debug Variable 5
+   * \return Debug variable 5
+   */
+  su2double Get_Debug_5(void) const {return debug_5;}
 
   /*!
    * \brief Get the transport coefficient model.

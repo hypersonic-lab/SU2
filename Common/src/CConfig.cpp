@@ -2643,6 +2643,13 @@ void CConfig::SetConfig_Options() {
 
   /* DESCRIPTION: Determines if the forces breakdown is written out */
   addBoolOption("WRT_FORCES_BREAKDOWN", Wrt_ForcesBreakdown, false);
+  
+  /* DESCRIPTION: Add 5 Debug Variables */
+  addDoubleOption("DEBUG1", debug_1, 0.0);
+  addDoubleOption("DEBUG2", debug_2, 0.0);
+  addDoubleOption("DEBUG3", debug_3, 0.0);
+  addDoubleOption("DEBUG4", debug_4, 0.0);
+  addDoubleOption("DEBUG5", debug_5, 0.0);
 
 
   /*!\par KIND_INTERPOLATION \n

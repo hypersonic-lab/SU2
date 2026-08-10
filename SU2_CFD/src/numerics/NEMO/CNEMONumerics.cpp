@@ -233,6 +233,12 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   // and gradient GV = [GY1, ... , GYn, GT, GTve, ... ]
   // rather than the standard V = [r1, ... , rn, T, Tve, ... ]
 
+  su2double debug_1 = config->Get_Debug_1(); 
+  su2double debug_2 = config->Get_Debug_2(); 
+  su2double debug_3 = config->Get_Debug_3(); 
+  su2double debug_4 = config->Get_Debug_4(); 
+  su2double debug_5 = config->Get_Debug_5(); 
+
   su2activematrix Flux_Tensor(nVar,nDim);
 
   /*--- Initialize ---*/
@@ -337,13 +343,14 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
           temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
         }
         u_d = (Cs[iSpecies]*Ks[iSpecies]-temp_sum2)*Vector_EField[iDim];
-        Flux_Tensor[iSpecies][iDim] += -1.0 * rho*u_d*V[iSpecies]*Cs[iSpecies]; 
+        Flux_Tensor[iSpecies][iDim] += debug_1*-1.0 * rho*u_d*V[iSpecies]*Cs[iSpecies]; 
       }
 
       if (nEl == 1){                   
         if (!config->Get_Poisson_Solver()){
           // Ambipolar diffusion
           Flux_Tensor[0][iDim] = 0.0;
+          cout << "HERE\n";
           Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
         }
       }
@@ -354,6 +361,8 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
       Flux_Tensor[0][iDim] = rho*Ds[0]*GV[RHOS_INDEX][iDim]- V[RHOS_INDEX]*Vector[iDim];
       Flux_Tensor[0][iDim] += -1*V[0] * Ke * Vector_EField[iDim];  
     }
+
+    Flux_Tensor[0][iDim] = Flux_Tensor[0][iDim] * debug_2;
 
     /*--- Shear-stress/momentum related terms ---*/
     Flux_Tensor[nSpecies+nDim][iDim] = 0.0;
