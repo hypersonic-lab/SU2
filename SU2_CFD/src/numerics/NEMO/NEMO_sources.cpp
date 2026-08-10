@@ -174,12 +174,6 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   const su2double Tve = V_i[TVE_INDEX];
   const su2double rho = V_i[RHO_INDEX];
 
-  su2double debug_1 = config->Get_Debug_1(); 
-  su2double debug_2 = config->Get_Debug_2(); 
-  su2double debug_3 = config->Get_Debug_3(); 
-  su2double debug_4 = config->Get_Debug_4(); 
-  su2double debug_5 = config->Get_Debug_5(); 
-
   su2double Vector_EField[nDim] = {0.0};
   const su2double e = 1.6022e-19; // [C]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
@@ -224,11 +218,11 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   }
 
   for (auto iDim = 0ul; iDim < nDim; iDim++){
-    auto momentum_source_iDim = 0;
+    su2double momentum_source_iDim = 0.0;
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
       momentum_source_iDim += Ns[iSpecies] * Cs[iSpecies] * e * Vector_EField[iDim]; // Eq. (22) from 10.2514/1.J059307
     }
-    residual[nSpecies+iDim] = debug_3*momentum_source_iDim;
+    residual[nSpecies+iDim] = momentum_source_iDim;
   }
 
   if (implicit) {
@@ -271,8 +265,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   // }
     
 
-  residual[nSpecies+nDim] = debug_4*energy_source;
-  residual[nSpecies+nDim+1] = debug_5*energy_source;
+  residual[nSpecies+nDim] = energy_source;
+  residual[nSpecies+nDim+1] = energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }
