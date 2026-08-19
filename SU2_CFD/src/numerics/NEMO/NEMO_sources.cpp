@@ -265,8 +265,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   // }
     
 
-  residual[nSpecies+nDim] = energy_source;
-  residual[nSpecies+nDim+1] = energy_source;
+  residual[nSpecies+nDim] = 0;//energy_source;
+  residual[nSpecies+nDim+1] = 0;//energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }

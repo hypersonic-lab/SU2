@@ -234,6 +234,8 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   // rather than the standard V = [r1, ... , rn, T, Tve, ... ]
 
   su2activematrix Flux_Tensor(nVar,nDim);
+  
+  su2double debug_1 = config->Get_Debug_1();
 
   /*--- Initialize ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++) {
@@ -337,7 +339,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
           temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
         }
         u_d = (Cs[iSpecies]*Ks[iSpecies]-temp_sum2)*Vector_EField[iDim];
-        Flux_Tensor[iSpecies][iDim] += rho*u_d*V[iSpecies]*Cs[iSpecies];
+        Flux_Tensor[iSpecies][iDim] += debug_1*rho*u_d*V[iSpecies]*Cs[iSpecies];
       }
     }
 
@@ -354,6 +356,8 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
       Flux_Tensor[0][iDim] = rho*Ds[0]*GV[RHOS_INDEX][iDim]- V[RHOS_INDEX]*Vector[iDim];
       Flux_Tensor[0][iDim] += rho*V[0] * Ke * Vector_EField[iDim];
     }
+
+    Flux_Tensor[0][iDim] *= debug_1;
 
     /*--- Shear-stress/momentum related terms ---*/
     Flux_Tensor[nSpecies+nDim][iDim] = 0.0;
