@@ -354,10 +354,8 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     if (config->Get_Poisson_Solver()){
       // Electric Field Effects
       Flux_Tensor[0][iDim] = rho*Ds[0]*GV[RHOS_INDEX][iDim]- V[RHOS_INDEX]*Vector[iDim];
-      Flux_Tensor[0][iDim] += rho*V[0] * Ke * Vector_EField[iDim];
+      Flux_Tensor[0][iDim] += debug_1 * -1.0 * rho*V[0] * Ke * Vector_EField[iDim];
     }
-
-    Flux_Tensor[0][iDim] *= debug_1;
 
     /*--- Shear-stress/momentum related terms ---*/
     Flux_Tensor[nSpecies+nDim][iDim] = 0.0;
