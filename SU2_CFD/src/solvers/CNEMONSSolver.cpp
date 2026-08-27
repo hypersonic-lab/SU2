@@ -1113,7 +1113,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       su2double Twall = 0;
       const su2double temp_model = config->GetETCTempModel(Marker_Tag);
       const su2double temp_param = config->GetETCTempParam(Marker_Tag);
-      const su2double emission_model =  config->GetETCEmissionModel(Marker_Tag);
       // temp_model = 0 for isothermal, 1 for radiative, 2 for ETC
       // temp_param = wall_temp for isothermal, and wall_emissivity for the other two
       if (temp_model > 0) {

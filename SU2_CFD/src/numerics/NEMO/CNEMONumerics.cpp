@@ -274,7 +274,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
       Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
       if (nEl == 1){                   
-        Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
+        Flux_Tensor[0][iDim] += Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
       }
     }
 
