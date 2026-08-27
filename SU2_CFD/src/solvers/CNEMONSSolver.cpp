@@ -1108,6 +1108,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
       // ETC implementation
+      // MARKER_ETC = ( wall, work function, temperature model, temperature param)
       
       su2double epsilon = 0;
       su2double Twall = 0;
