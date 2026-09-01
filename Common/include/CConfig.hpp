@@ -1270,6 +1270,7 @@ private:
   bool Poisson_Solver;                           /*!< \brief Poisson's equation vs Ambipolar diffusion */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
+  su2double SheathThickness;                /*!< \brief Sheath thickness at wall */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
   su2double Inlet_Temperature_ve;           /*!< \brief Specified Tve for supersonic inlet boundaries (NEMO solver). */
 
@@ -4035,6 +4036,12 @@ public:
    * \return wall catalytic efficiency value.
    */
   su2double GetCatalytic_Efficiency(void) const { return CatalyticEfficiency; }
+
+  /*!
+   * \brief Get sheath thickness at wall.
+   * \return Sheath thickness at wall.
+   */
+  su2double GetSheath_Thickness(void) const { return SheathThickness; }
 
   /*!
    * \brief Fluid model that we are using.

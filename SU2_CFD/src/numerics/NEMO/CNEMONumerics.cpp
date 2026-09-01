@@ -236,6 +236,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   su2activematrix Flux_Tensor(nVar,nDim);
   
   su2double debug_1 = config->Get_Debug_1();
+  bool ignore_sheath = config->GetSheath_Thickness() != 1234.0;
 
   /*--- Initialize ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++) {
@@ -354,7 +355,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     if (config->Get_Poisson_Solver()){
       // Electric Field Effects
       Flux_Tensor[0][iDim] = rho*Ds[0]*GV[RHOS_INDEX][iDim]- V[RHOS_INDEX]*Vector[iDim];
-      Flux_Tensor[0][iDim] += debug_1 * -1.0 * rho*V[0] * Ke * Vector_EField[iDim];
+      Flux_Tensor[0][iDim] += debug_1 * 1.0 * rho*V[0] * Ke * Vector_EField[iDim];
     }
 
     /*--- Shear-stress/momentum related terms ---*/

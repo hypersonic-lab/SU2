@@ -282,7 +282,7 @@ void CNEMOEulerSolver::CommonPreprocessing(CGeometry *geometry, CSolver **solver
     //     cout << efield_iter << "\n";
     // }
     ComputeElectricPotential_SOR(geometry, config);
-    //cout << "Computing Electric Potential\n";
+    cout << "Computing Electric Potential\n";
   } else {
     //cout << "Poisson False\n";
   }
@@ -2408,12 +2408,14 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
 
   const auto nPtDomain = geometry->GetnPointDomain();
   const auto nDim = geometry->GetnDim();
+  const bool ignore_sheath = config->GetSheath_Thickness() != 1234.0;
+  cout << "Sheath Thickness: " << ignore_sheath;
 
   su2double max_change = 100;
   int iteration = 0;
-  while (max_change > 1){
+  while (max_change > 0.0001){
     iteration++;
-    if (rank == 0 && iteration % 1000 == 0)
+    if (rank == 0 && iteration % 10 == 0)
       cout << "Electric potential max change: " << max_change << "\n" << flush;
     InitiateComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
     CompleteComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
@@ -2479,6 +2481,15 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
       /*--- Add a source term for Poisson ---*/
       su2double rho_charge = nodes->GetChargeDensity(iPoint);
       su2double source = rho_charge / epsilon_0 * Volume;
+
+      // Ignore within the sheath by setting the source term to zero there.
+      su2double wall_distance = geometry->nodes->GetWall_Distance(iPoint); 
+      //cout << "Wall Distance: " << wall_distance << "\n";
+      su2double sheath_thickness = config->GetSheath_Thickness();
+
+      if (wall_distance <= sheath_thickness && ignore_sheath){
+        source = 0;
+      }
 
       const auto Coord_point = geometry->nodes->GetCoord(iPoint);
       /*--- SOR update: phi_new = phi_old + omega * (residual / diagonal) ---*/

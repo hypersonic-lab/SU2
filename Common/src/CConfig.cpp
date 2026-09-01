@@ -1269,6 +1269,8 @@ void CConfig::SetConfig_Options() {
   /* DESCRIPTION: Specfify catalytic efficiency of wall if using gamma model */
   addDoubleOption("CATALYTIC_EFFICIENCY", CatalyticEfficiency, 1.0);
   /*!\brief MARKER_MONITORING\n DESCRIPTION: Marker(s) of the surface where evaluate the non-dimensional coefficients \ingroup Config*/
+  /* DESCRIPTION: Specfify sheath thickness, where inside the sheath ambipolar diffusion will be used and zero potential assumed */
+  addDoubleOption("SHEATH_THICKNESS", SheathThickness, 1234.0);
 
   /*--- Options related to VAN der WAALS MODEL and PENG ROBINSON ---*/
 
