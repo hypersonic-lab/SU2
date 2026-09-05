@@ -2409,7 +2409,7 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
   const auto nPtDomain = geometry->GetnPointDomain();
   const auto nDim = geometry->GetnDim();
   const bool ignore_sheath = config->GetSheath_Thickness() != 1234.0;
-  cout << "Sheath Thickness: " << ignore_sheath;
+  cout << "Sheath Thickness: " << config->GetSheath_Thickness() << "\n";
 
   su2double max_change = 100;
   int iteration = 0;
@@ -2494,13 +2494,18 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
       const auto Coord_point = geometry->nodes->GetCoord(iPoint);
       /*--- SOR update: phi_new = phi_old + omega * (residual / diagonal) ---*/
       su2double residual = flux_sum + source;
-      //cout << "iPoint: " << iPoint << ", x: "<< Coord_point[0] << ", y: " << Coord_point[1] << ", flux_sum: " << flux_sum << ", source: " << source << "\n";
+      //if (Coord_point[0] > -0.0007)
+      //  cout << "iPoint: " << iPoint << ", x: "<< Coord_point[0] << ", y: " << Coord_point[1] << ", flux_sum: " << flux_sum << ", source: " << source << "\n";
       if (diagonal > 1e-12) {
         su2double correction = omega * residual / diagonal;
         if (abs(correction) > max_change){
           max_change = abs(correction);
         }
-        nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint) + correction);
+        //if (wall_distance <= sheath_thickness && ignore_sheath){
+         // nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint));
+        //} else {
+          nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint) + correction);
+       // }
       }
     }
     su2double global_max_change = 0.0;

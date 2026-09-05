@@ -340,7 +340,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
           temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
         }
         u_d = (Cs[iSpecies]*Ks[iSpecies]-temp_sum2)*Vector_EField[iDim];
-        Flux_Tensor[iSpecies][iDim] += debug_1*rho*u_d*V[iSpecies]*Cs[iSpecies];
+        Flux_Tensor[iSpecies][iDim] -= debug_1*rho*u_d*V[iSpecies]*Cs[iSpecies];
       }
     }
 
@@ -348,14 +348,14 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
       // Ambipolar diffusion
       Flux_Tensor[0][iDim] = 0.0;
       for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
-        Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
+        Flux_Tensor[0][iDim] += Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
       }
     }
 
     if (config->Get_Poisson_Solver()){
       // Electric Field Effects
       Flux_Tensor[0][iDim] = rho*Ds[0]*GV[RHOS_INDEX][iDim]- V[RHOS_INDEX]*Vector[iDim];
-      Flux_Tensor[0][iDim] += debug_1 * 1.0 * rho*V[0] * Ke * Vector_EField[iDim];
+      Flux_Tensor[0][iDim] -= debug_1 * 1.0 * rho*V[0] * Ke * Vector_EField[iDim];
     }
 
     /*--- Shear-stress/momentum related terms ---*/

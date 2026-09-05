@@ -181,14 +181,14 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   }
   //cout << "Electric Field Here here: " << Vector_EField[0] << "\n";
   su2double EField_mag = pow(pow(Vector_EField[0],2) + pow(Vector_EField[1],2) + pow(Vector_EField[2],2),0.5);
-  if (EField_mag > 5000){
-    // Damp anythin above 5000 V/m
-    su2double EField_mag_new = 5000 + (EField_mag - 5000)*0.01;
-    su2double damp_factor = EField_mag_new / EField_mag;
-    for (auto iDim = 0ul; iDim < nDim; iDim++){
-      Vector_EField[iDim] = Vector_EField[iDim] * damp_factor;
-    }
-  }
+  //if (EField_mag > 5000){
+  //  // Damp anythin above 5000 V/m
+  //  su2double EField_mag_new = 5000 + (EField_mag - 5000)*0.01;
+  //  su2double damp_factor = EField_mag_new / EField_mag;
+  //  for (auto iDim = 0ul; iDim < nDim; iDim++){
+  //    Vector_EField[iDim] = Vector_EField[iDim] * damp_factor;
+  //  }
+ // }
   /*--- Initialize residual and Jacobian arrays ---*/
   for (auto iVar = 0ul; iVar < nVar; iVar++)
     residual[iVar] = 0.0;
@@ -265,8 +265,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   // }
     
 
-  residual[nSpecies+nDim] = 0;//energy_source;
-  residual[nSpecies+nDim+1] = 0;//energy_source;
+  residual[nSpecies+nDim] = energy_source;
+  residual[nSpecies+nDim+1] = energy_source;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }
