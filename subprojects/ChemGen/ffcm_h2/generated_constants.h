@@ -1,12 +1,12 @@
- constexpr Species molecular_weights()  {return {double(2.016),double(17.007),double(1.008),double(15.999),double(31.998),double(28.009999999999998),double(18.015),double(44.009),double(54.092),double(28.014)};}
- constexpr Species inv_molecular_weights()  {return {double(0.49603174603174605),double(0.05879931792791203),double(0.9920634920634921),double(0.06250390649415588),double(0.03125195324707794),double(0.03570153516601214),double(0.055509297807382736),double(0.022722624917630486),double(0.018487022110478445),double(0.03569643749553795)};}
+ constexpr Species molecular_weights()  {return {double(1.008),double(2.016),double(15.999),double(31.998),double(17.007),double(18.015),double(33.006),double(34.014),double(28.014)};}
+ constexpr Species inv_molecular_weights()  {return {double(0.9920634920634921),double(0.49603174603174605),double(0.06250390649415588),double(0.03125195324707794),double(0.05879931792791203),double(0.055509297807382736),double(0.030297521662727988),double(0.029399658963956014),double(0.03569643749553795)};}
     // Define the species names as a fixed-size array
     #pragma once
     #include <string>
 
-    static constexpr std::array<const char*, 10> species_names_gen()
+    static constexpr std::array<const char*, 9> species_names_gen()
     {
-        return {"H2", "OH", "H", "O", "O2", "CO", "H2O", "CO2", "C4H6", "N2"};
+        return {"H", "H2", "O", "O2", "OH", "H2O", "HO2", "H2O2", "N2"};
     }
 
     // Return the species name for a given index

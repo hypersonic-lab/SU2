@@ -2,6 +2,7 @@
  double pow_gen(const double& a, const double& b)  { return std::pow(a, b);}
 // Partial derivative of a^b with respect to a
  double dpow_da(const double& a, const double& b)  { return b * std::pow(a, b - double(1));}
+ double dpow_da_safe(const double& a, const double& b)  { return (a < 0.0) ? 0.0 : dpow_da(a, b);;}
 //chain rule if b = constant
  double dpow_da_chain(const double& a, const double& a_chain, const double& b)  { return a_chain * b * std::pow(a, b - double(1));}
 // Partial derivative of a^b with respect to b

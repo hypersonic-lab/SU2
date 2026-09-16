@@ -1,9 +1,9 @@
 
-const int n_species = 9;
-const int n_variables = 9 + 1;
-const int n_reactions = 25;
+const int n_species = 6;
+const int n_variables = 6 + 1;
+const int n_reactions = 3;
 const int n_order_thermo = 7 + 1;
-const int n_chemical_state = 9 + 1;
+const int n_chemical_state = 6 + 1;
 // Using alias for the array type (for example, an array of double values)
 using Species = std::array<double, n_species>;
 using Reactions = std::array<double, n_reactions>;

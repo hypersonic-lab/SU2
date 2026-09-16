@@ -23,6 +23,6 @@
 #include "reactions.h"
 #include "source.h"
 #include "chemical_state_functions.h"
-#include "rk4.h"
+// #include "rk4.h"
 
 #endif // CHEMGEN_H

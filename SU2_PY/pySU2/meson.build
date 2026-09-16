@@ -45,6 +45,7 @@ if get_option('enable-normal')
       include_directories : mpi4py_include,
       cpp_args : [default_warning_flags,su2_cpp_args],
       name_prefix : '',
+      name_suffix : 'so',
       install_dir: 'bin'
   )
 meson.add_install_script('install.sh', meson.current_build_dir(), 'pysu2.py')
@@ -64,6 +65,7 @@ if get_option('enable-autodiff')
       include_directories : mpi4py_include,
       cpp_args : [default_warning_flags, su2_cpp_args, codi_rev_args],
       name_prefix : '',
+      name_suffic : 'so',
       install_dir: 'bin'
   )
 meson.add_install_script('install.sh', meson.current_build_dir(), 'pysu2ad.py')
