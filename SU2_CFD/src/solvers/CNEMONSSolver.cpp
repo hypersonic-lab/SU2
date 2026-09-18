@@ -1200,6 +1200,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       //  cout << "Tj: " << Tj << "\n";
       //  cout << "q_conv: " << q_conv << "\n";
       //  cout << "-------------------" << "\n";
+      //HeatFluxRad[val_marker][iVertex]  = q_rad;
        
       Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
                                  (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
