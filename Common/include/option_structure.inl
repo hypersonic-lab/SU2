@@ -1498,17 +1498,21 @@ class COptionETC final : public COptionBase {
   su2double*& work_function;
   su2double*& temp_model;
   su2double*& temp_param;
+  su2double*& emission_model;
+  su2double*& emission_model_param;
 
  public:
   COptionETC(const string option_field_name, unsigned short& nMarker_ETC, string*& Marker_ETC,
-             su2double*& Wall_Work_Function, su2double*& ETC_Temperature_Model, su2double*& ETC_Temperature_Param)
+             su2double*& Wall_Work_Function, su2double*& ETC_Temperature_Model, su2double*& ETC_Temperature_Param, su2double*& ETC_Emission_Model, su2double*& ETC_Emission_Model_Param)
       : name(option_field_name), size(nMarker_ETC), marker(Marker_ETC), work_function(Wall_Work_Function),
-        temp_model(ETC_Temperature_Model), temp_param(ETC_Temperature_Param) {
+        temp_model(ETC_Temperature_Model), temp_param(ETC_Temperature_Param), emission_model(ETC_Emission_Model), emission_model_param(ETC_Emission_Model_Param) {
     size = 0;
     marker = nullptr;
     work_function = nullptr;
     temp_model = nullptr;
     temp_param = nullptr;
+    emission_model = nullptr;
+    emission_model_param = nullptr;
   }
 
   ~COptionETC() {
@@ -1516,33 +1520,43 @@ class COptionETC final : public COptionBase {
     delete[] work_function;
     delete[] temp_model;
     delete[] temp_param;
+    delete[] emission_model;
+    delete[] emission_model_param;
     marker = nullptr;
     work_function = nullptr;
     temp_model = nullptr;
     temp_param = nullptr;
+    emission_model = nullptr;
+    emission_model_param = nullptr;
   }
 
   string SetValue(const vector<string>& option_value) override {
     COptionBase::SetValue(option_value);
     const unsigned short totalVals = option_value.size();
     if ((totalVals == 1) && (option_value[0] == "NONE")) return "";
-    if (totalVals % 4 != 0) return name + ": must have a number of entries divisible by 4";
+    if (totalVals % 6 != 0) return name + ": must have a number of entries divisible by 4";
 
-    const unsigned short nVals = totalVals / 4;
+    const unsigned short nVals = totalVals / 6;
     size = nVals;
     marker = new string[nVals];
     work_function = new su2double[nVals];
     temp_model = new su2double[nVals];
     temp_param = new su2double[nVals];
+    emission_model = new su2double[nVals];
+    emission_model_param = new su2double[nVals];
 
     for (unsigned short i = 0; i < nVals; i++) {
-      marker[i].assign(option_value[4 * i]);
-      istringstream ss_1st(option_value[4 * i + 1]);
+      marker[i].assign(option_value[6 * i]);
+      istringstream ss_1st(option_value[6 * i + 1]);
       if (!(ss_1st >> work_function[i])) return badValue("double", name);
-      istringstream ss_2nd(option_value[4 * i + 2]);
+      istringstream ss_2nd(option_value[6 * i + 2]);
       if (!(ss_2nd >> temp_model[i])) return badValue("double", name);
-      istringstream ss_3nd(option_value[4 * i + 3]);
-      if (!(ss_3nd >> temp_param[i])) return badValue("double", name);
+      istringstream ss_3rd(option_value[6 * i + 3]);
+      if (!(ss_3rd >> temp_param[i])) return badValue("double", name);
+      istringstream ss_4th(option_value[6 * i + 4]);
+      if (!(ss_4th >> emission_model[i])) return badValue("double", name);
+      istringstream ss_5th(option_value[6 * i + 5]);
+      if (!(ss_5th >> emission_model_param[i])) return badValue("double", name);
     }
     return "";
   }

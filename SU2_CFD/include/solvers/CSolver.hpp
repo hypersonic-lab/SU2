@@ -3024,6 +3024,14 @@ public:
    */
   inline virtual su2double GetHeatFluxETC(unsigned short val_marker, unsigned long val_vertex) const { return 0; }
 
+  /*!\
+   * \brief A virtual member.
+   * \param[in] val_marker - Surface marker where the coefficient is computed.
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the coefficient is evaluated.
+   * \return Value of the ion number density with no ETC
+   */
+  inline virtual su2double GetIonNumberDensityNoETC(unsigned short val_marker, unsigned long val_vertex) const { return 0; }
+
   /*!
    * \brief A virtual member.
    * \param[in] val_marker - Surface marker where the coefficient is computed.

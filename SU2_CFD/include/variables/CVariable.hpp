@@ -1063,12 +1063,20 @@ public:
    */
   inline virtual su2double GetTemperature_ve(unsigned long iPoint) const { return 0.0; }
 
-   /*!
+  /*!
    * \brief A virtual member.
    * \param[in] iPoint - Point index.
    * \return Value of the local charge density.
    */ 
   inline virtual su2double GetChargeDensity(unsigned long iPoint) const { return 0.0; }
+
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
+   * \return Value of the ion number density before ETC.
+   */ 
+  inline virtual su2double GetIonNumberDensityNoETC(unsigned long iPoint) const { return 0.0; }
 
   /*!
    * \brief A virtual member -- Get the mixture specific heat at constant volume (trans.-rot.).
@@ -1434,6 +1442,13 @@ public:
    * \param[in] Gas_Constant - Value of the Gas Constant
    */
   inline virtual bool SetTemperature(unsigned long iPoint, su2double Gas_Constant) { return false; }
+
+  /*!
+   * \brief Sets the ion number density before ETC.
+   * \return Value of the ion number density before ETC.
+   */
+  inline virtual bool SetIonNumberDensityNoETC(unsigned long iPoint, su2double val_ion)
+                               { return false; }
 
   /*!
    * \brief Sets the vibrational electronic temperature of the flow.

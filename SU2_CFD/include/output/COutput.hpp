@@ -302,7 +302,7 @@ protected:
   unsigned short nRequestedVolumeFields;
 
   /*! \brief Minimum required volume fields for restart file. */
-  const std::vector<string> restartVolumeFields = {"COORDINATES", "SOLUTION", "SENSITIVITY", "GRID_VELOCITY"};
+  const std::vector<string> restartVolumeFields = {"COORDINATES", "SOLUTION", "SENSITIVITY", "GRID_VELOCITY", "NO_ETC_ION_NUMBER_DENSITY"};
 
   /*----------------------------- Convergence monitoring ----------------------------*/
 

@@ -263,6 +263,7 @@ void CNEMOCompOutput::SetVolumeOutputFields(CConfig *config){
     AddVolumeOutput("HEAT_FLUX_RAD", "Heat_Flux_Rad", "PRIMITIVE", "Radiative heat flux (epsilon*sigma*Twall^4)");
     AddVolumeOutput("HEAT_FLUX_CONVECTIVE", "Heat_Flux_Convective", "PRIMITIVE", "Convective heat flux (ktr*dTdn + kve*dTvedn)");
     AddVolumeOutput("HEAT_FLUX_ETC", "Heat_Flux_ETC", "PRIMITIVE", "ETC heat flux");
+    AddVolumeOutput("NO_ETC_ION_NUMBER_DENSITY", "Ion_Number_Density_No_ETC", "PRIMITIVE", "Ion number density frozen when ETC turn on");
     AddVolumeOutput("Y_PLUS", "Y_Plus", "PRIMITIVE", "Non-dim. wall distance (Y-Plus)");
     
   }
@@ -386,8 +387,9 @@ void CNEMOCompOutput::LoadVolumeData(CConfig *config, CGeometry *geometry, CSolv
 
   SetVolumeOutputValue("NON_PHYSICAL", iPoint, Node_Flow->GetNon_Physical(iPoint) ? 1.0 : 0.0);
 
-  // Added by CAMDEN WILLIAMS
   SetVolumeOutputValue("CHARGE_DENSITY", iPoint, Node_Flow->GetChargeDensity(iPoint));
+  SetVolumeOutputValue("NO_ETC_ION_NUMBER_DENSITY", iPoint, Node_Flow->GetIonNumberDensityNoETC(iPoint));
+    
 
   LoadVolumeDataScalar(config, solver, geometry, iPoint);
 

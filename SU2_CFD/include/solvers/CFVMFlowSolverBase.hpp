@@ -175,6 +175,7 @@ class CFVMFlowSolverBase : public CSolver {
   vector<vector<su2double> > HeatFluxRad;        /*!< \brief Radiative heat flux (epsilon*sigma*Twall^4) for each boundary and vertex. */
   vector<vector<su2double> > HeatFluxConv;       /*!< \brief Convective heat flux (ktr*dTdn + kve*dTvedn) for each boundary and vertex. */
   vector<vector<su2double> > HeatFluxETC;       /*!< \brief ETC heat flux for each boundary and vertex. */
+  vector<vector<su2double> > IonNumberDensityNoETC;       /*!< \brief ETC heat flux for each boundary and vertex. */
   vector<su2activematrix> CharacPrimVar;        /*!< \brief Value of the characteristic variables at each boundary. */
   vector<su2activematrix> CSkinFriction;        /*!< \brief Skin friction coefficient for each boundary and vertex. */
   vector<vector<su2double> > WallShearStress;   /*!< \brief Wall Shear Stress for each boundary and vertex. */
@@ -2413,6 +2414,10 @@ class CFVMFlowSolverBase : public CSolver {
 
   inline su2double GetHeatFluxETC(unsigned short val_marker, unsigned long val_vertex) const final {
     return HeatFluxETC[val_marker][val_vertex];
+  }
+
+  inline su2double GetIonNumberDensityNoETC(unsigned short val_marker, unsigned long val_vertex) const final {
+    return IonNumberDensityNoETC[val_marker][val_vertex];
   }
 
   /*!

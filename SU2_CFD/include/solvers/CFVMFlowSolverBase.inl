@@ -170,6 +170,7 @@ void CFVMFlowSolverBase<V, R>::Allocate(const CConfig& config) {
   AllocVectorOfVectors(nVertex, HeatFluxRad);
   AllocVectorOfVectors(nVertex, HeatFluxConv);
   AllocVectorOfVectors(nVertex, HeatFluxETC);
+  AllocVectorOfVectors(nVertex, IonNumberDensityNoETC);
 
   AllocVectorOfVectors(nVertex, MassFlow_etc);
   /*--- Y plus in all the markers ---*/
@@ -860,6 +861,19 @@ void CFVMFlowSolverBase<V, R>::LoadRestart_impl(CGeometry **geometry, CSolver **
       }
     }
 
+    /*--- Locate optional pointwise restart fields by their names. The point ID
+     *     is present in the header but is not stored in Restart_Data. ---*/
+    unsigned long ionDensityField = fields.size();
+    for (unsigned long iField = 0; iField < fields.size(); ++iField) {
+      auto fieldName = fields[iField];
+      if (fieldName.size() >= 2 && fieldName.front() == '"' && fieldName.back() == '"')
+        fieldName = fieldName.substr(1, fieldName.size() - 2);
+      if (fieldName == "Ion_Number_Density_No_ETC") {
+        ionDensityField = iField;
+        break;
+      }
+    }
+
     /*--- Load data from the restart into correct containers. ---*/
 
     unsigned long counter = 0;
@@ -886,6 +900,11 @@ void CFVMFlowSolverBase<V, R>::LoadRestart_impl(CGeometry **geometry, CSolver **
           for (auto iVar = 0u; iVar < nVar_Restart; iVar++)
             SolutionRestart[iVar] = Restart_Data[index + iVar];
           nodes->SetSolution(iPoint_Local, SolutionRestart);
+        }
+
+        if (ionDensityField < fields.size() && ionDensityField > 0) {
+          nodes->SetIonNumberDensityNoETC(
+              iPoint_Local, Restart_Data[counter * Restart_Vars[1] + ionDensityField - 1]);
         }
 
         /*--- For dynamic meshes, read in and store the
