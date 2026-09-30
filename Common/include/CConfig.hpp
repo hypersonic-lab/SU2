@@ -1267,6 +1267,7 @@ private:
   bool Mpp_Temp_Solver_Robust;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
+  su2double Temperature_Multiplier;         /*!< \brief Temperature Convergence Multiplier */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
   su2double Inlet_Temperature_ve;           /*!< \brief Specified Tve for supersonic inlet boundaries (NEMO solver). */
 
@@ -4001,6 +4002,13 @@ public:
    * \return wall catalytic efficiency value.
    */
   su2double GetCatalytic_Efficiency(void) const { return CatalyticEfficiency; }
+
+
+  /*!
+   * \brief Get temperature multiplier.
+   * \return temperature multiplier value.
+   */
+  su2double GetTemperature_Multiplier (void) const { return Temperature_Multiplier; }
 
   /*!
    * \brief Fluid model that we are using.

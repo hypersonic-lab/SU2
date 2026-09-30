@@ -1277,6 +1277,10 @@ void CConfig::SetConfig_Options() {
   addDoubleListOption("SUPERCATALYTIC_WALL_COMPOSITION", nSpecies_Cat_Wall, Supercatalytic_Wall_Composition);
   /* DESCRIPTION: Specfify catalytic efficiency of wall if using gamma model */
   addDoubleOption("CATALYTIC_EFFICIENCY", CatalyticEfficiency, 1.0);
+  /* DESCRIPTION: Specfify convergence multiplier C in CNEMONSSolver.cpp */
+  addDoubleOption("TEMPERATURE_MULTIPLIER", Temperature_Multiplier, 10.0);
+
+
   /*!\brief MARKER_MONITORING\n DESCRIPTION: Marker(s) of the surface where evaluate the non-dimensional coefficients \ingroup Config*/
 
   /*--- Options related to VAN der WAALS MODEL and PENG ROBINSON ---*/

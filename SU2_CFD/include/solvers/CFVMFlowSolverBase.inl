@@ -864,12 +864,17 @@ void CFVMFlowSolverBase<V, R>::LoadRestart_impl(CGeometry **geometry, CSolver **
     /*--- Locate optional pointwise restart fields by their names. The point ID
      *     is present in the header but is not stored in Restart_Data. ---*/
     unsigned long ionDensityField = fields.size();
+    unsigned long eDensityField = fields.size();
     for (unsigned long iField = 0; iField < fields.size(); ++iField) {
       auto fieldName = fields[iField];
       if (fieldName.size() >= 2 && fieldName.front() == '"' && fieldName.back() == '"')
         fieldName = fieldName.substr(1, fieldName.size() - 2);
       if (fieldName == "Ion_Number_Density_No_ETC") {
         ionDensityField = iField;
+        break;
+      }
+      if (fieldName == "Ion_Number_Density_No_ETC") {
+        eDensityField = iField;
         break;
       }
     }
@@ -905,6 +910,11 @@ void CFVMFlowSolverBase<V, R>::LoadRestart_impl(CGeometry **geometry, CSolver **
         if (ionDensityField < fields.size() && ionDensityField > 0) {
           nodes->SetIonNumberDensityNoETC(
               iPoint_Local, Restart_Data[counter * Restart_Vars[1] + ionDensityField - 1]);
+        }
+
+        if (eDensityField < fields.size() && eDensityField > 0) {
+          nodes->SetElectronNumberDensityNoETC(
+              iPoint_Local, Restart_Data[counter * Restart_Vars[1] + eDensityField - 1]);
         }
 
         /*--- For dynamic meshes, read in and store the

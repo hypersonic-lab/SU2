@@ -95,7 +95,7 @@ class CNEMOEulerVariable : public CFlowVariable {
   /*!< \brief Index definition for NEMO pritimive variables. */
   unsigned long RHOS_INDEX, T_INDEX, TVE_INDEX, VEL_INDEX, P_INDEX,
   RHO_INDEX, H_INDEX, A_INDEX, RHOCVTR_INDEX, RHOCVVE_INDEX,
-  LAM_VISC_INDEX, EDDY_VISC_INDEX, CHARGE_INDEX, ION_INDEX_NO_ETC, nSpecies;
+  LAM_VISC_INDEX, EDDY_VISC_INDEX, CHARGE_INDEX, ION_INDEX_NO_ETC, ENUM_INDEX_NO_ETC, nSpecies;
 
   su2double Tve_Freestream; /*!< \brief Freestream vib-el temperature. */
   const bool implicit;      /*!< \brief Implicit flag. */
@@ -311,6 +311,13 @@ class CNEMOEulerVariable : public CFlowVariable {
                                     { return Primitive(iPoint, ION_INDEX_NO_ETC); }
 
   /*!
+   * \brief A virtual member.
+   * \return Value of the electron number density before ETC.
+   */
+  inline su2double GetElectronNumberDensityNoETC(unsigned long iPoint) const final
+                                    { return Primitive(iPoint, ENUM_INDEX_NO_ETC); }                                    
+
+  /*!
    * \brief Sets the vibrational electronic temperature of the flow.
    * \return Value of the temperature of the flow.
    */
@@ -323,6 +330,14 @@ class CNEMOEulerVariable : public CFlowVariable {
    */
   inline bool SetIonNumberDensityNoETC(unsigned long iPoint, su2double val_ion) final
                                { Primitive(iPoint,ION_INDEX_NO_ETC) = val_ion; return false; }
+
+  /*!
+   * \brief Sets the ion number density before ETC.
+   * \return Value of the ion number density before ETC.
+   */
+  inline bool SetElectronNumberDensityNoETC(unsigned long iPoint, su2double val_ion) final
+                               { Primitive(iPoint,ENUM_INDEX_NO_ETC) = val_ion; return false; }
+
   /*!
    * \brief Get the mixture specific heat at constant volume (trans.-rot.).
    * \return \f$\rho C^{t-r}_{v} \f$

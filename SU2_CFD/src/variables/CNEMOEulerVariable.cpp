@@ -67,6 +67,7 @@ CNEMOEulerVariable::CNEMOEulerVariable(su2double val_pressure,
   EDDY_VISC_INDEX = nSpecies+nDim+9;
   CHARGE_INDEX    = nSpecies+nDim+10;
   ION_INDEX_NO_ETC= nSpecies+nDim+11;
+  ENUM_INDEX_NO_ETC= nSpecies+nDim+12;
 
   /*--- Set monoatomic flag ---*/
   if (config->GetMonoatomic()) {

@@ -1078,6 +1078,14 @@ public:
    */ 
   inline virtual su2double GetIonNumberDensityNoETC(unsigned long iPoint) const { return 0.0; }
 
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] iPoint - Point index.
+   * \return Value of the electron number density before ETC.
+   */ 
+  inline virtual su2double GetElectronNumberDensityNoETC(unsigned long iPoint) const { return 0.0; }  
+
   /*!
    * \brief A virtual member -- Get the mixture specific heat at constant volume (trans.-rot.).
    * \param[in] iPoint - Point index.
@@ -1449,6 +1457,13 @@ public:
    */
   inline virtual bool SetIonNumberDensityNoETC(unsigned long iPoint, su2double val_ion)
                                { return false; }
+
+  /*!
+   * \brief Sets the electron number density before ETC.
+   * \return Value of the electron number density before ETC.
+   */
+  inline virtual bool SetElectronNumberDensityNoETC(unsigned long iPoint, su2double val_ion)
+                               { return false; }                               
 
   /*!
    * \brief Sets the vibrational electronic temperature of the flow.

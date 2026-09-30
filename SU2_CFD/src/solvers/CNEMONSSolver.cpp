@@ -962,20 +962,24 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
 
     const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
     const su2double sigma = 5.67037442e-8;
-    const su2double C = 5;
+    const su2double C = config->GetTemperature_Multiplier(); // Multiplier for quicker convergence;
     const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]    
     const auto& Cs = FluidModel->GetSpeciesCharge();
     const auto& Ms = FluidModel->GetSpeciesMolarMass();
 
     su2double n_i = 0.0;
+    su2double n_e = 0.0;
     for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++){
       if (Cs[iSpecies] > 0){
         n_i += V[iSpecies] / (Ms[iSpecies]/1000) * N_A;
+      } else if (Cs[iSpecies] < 0){
+        n_e += V[iSpecies] / (Ms[iSpecies]/1000) * N_A;
       }
     }
     //cout << "n_i: " << n_i << "\n";
 
     nodes->SetIonNumberDensityNoETC(iPoint, n_i);
+    nodes->SetElectronNumberDensityNoETC(iPoint, n_e);
 
     
     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
@@ -1100,6 +1104,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       const su2double ktr = nodes->GetThermalConductivity(iPoint);
       const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+      const unsigned short RHOS_INDEX      = nodes->GetRhosIndex();
 
       //cout << "------------------------------" << "\n";
       /*--- Initialize the viscous residual to zero ---*/
@@ -1142,55 +1147,146 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       const su2double k_B = 1.380649e-23; // [J/K]
       const su2double sigma = 5.67037442e-8;
       const su2double A_R = 1.20e6;
-      const su2double C = 10; // Multiplier for quicker convergence
+      const su2double C = config->GetTemperature_Multiplier(); // Multiplier for quicker convergence
       const auto& Cs = FluidModel->GetSpeciesCharge();
       const auto& Ms = FluidModel->GetSpeciesMolarMass();
       const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]      
 
       su2double ion_mass = 0.0;
       su2double n_i =  nodes->GetIonNumberDensityNoETC(iPoint);
-      //cout << "n_i: " << n_i << "\n";
-      // su2double e_mass = Ms[0] / N_A;
-      // for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++){
-      //   if (Cs[iSpecies] > 0){
-      //     n_i += Vi[iSpecies] / (Ms[iSpecies]/1000) * N_A;
-      //   }
-      // }
+      su2double n_e = nodes->GetElectronNumberDensityNoETC(iPoint);
       su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F*e/k_B/Ti); // [A/m2]
+
+      su2double m_i = 0.0;
+      su2double rho_ion = 0.0;
+      su2double n_ion_here = 0.0;
+      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
+        if (Cs[iSpecies] > 0){
+          su2double m_s = Ms[iSpecies] / 1000 / N_A;
+          su2double rho_s = Vi[RHOS_INDEX + iSpecies];
+          rho_ion += rho_s;
+          n_ion_here += rho_s / m_s;
+        }
+      }
+
+      m_i = rho_ion/n_ion_here;
 
       su2double Je_sc_cold = Je_sat + 10;
       su2double Je_sc_cold_factor = 0;
       su2double m_e = 9.1093837e-31;
       su2double G = 0.0;
       su2double Phi_w = 0.0;
-      su2double F = 0.0;
+      su2double Phi_vc = 0.0;
       su2double beta_0 = 0.0;
       su2double beta_1 = 0.0;
       su2double beta_2 = 0.0;
+      su2double beta_3 = 0.0;
+      su2double F = 0.0;
+      su2double H = 0.0;
+      su2double gamma = 1.0;
+      su2double p = 0.0;
+      su2double q = 0.0;
+      su2double r = 0.0;
+      su2double e_pow_phi = 0.0;
+      su2double A = 0.0;
+      su2double Je_sc_warm = Je_sat + 10.0;
+      su2double G_star = 0.0;
+      su2double G_star_guess = 0.0;
+      su2double G_star_new = 0.0;
+      su2double f_cubic = 0.0;
+      su2double f_prime_cubic = 0.0;
+      su2double Gam_crit = 0.0;
+      su2double J_if = 0.0;
+      su2double Je_sc_float = 0.0;
+      su2double Cs_ion = 0.0;
+    
+      int iteration = 0.0;
 
       if (emission_model == 1){
         // Space Charge Limited Cold
-        Phi_w = e*(phi_vc)/Tvei; // phi_0 = 0
+        Phi_w = e*(phi_vc)/(k_B*Tvei); // phi_0 = 0
         F = exp(Phi_w) - 1;
         beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
         beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
-        //cout << "beta_1: " << beta_1 << "\n";
         beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
         G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
         Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
         Je_sc_cold = Je_sc_cold_factor*sqrt(Tvei); // [A/m2]
-        //cout << "e: " << e << ", n_i: " << n_i << ", G: " << G << ", sqrt(-1*Phi_w): " << sqrt(-1*Phi_w) << "\n";
-        //cout << "sqrt(2k_B/m_2): " << sqrt(2*k_B/m_e) << ", sqrt(Tvei): " << sqrt(Tvei) << "\n";
-      }
+      } else if (emission_model == 2){
+        // Space Charge Limited Hot
+        Phi_vc = e*(phi_vc)/(k_B*Tvei);
+        // Hanquist Eq. 2.60f, but slightly modified due to typos
+        A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
+        H = (A-1)/gamma;
+        F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
+        e_pow_phi = exp(Phi_vc);
+
+        beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
+        beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
+        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+        beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
+
+        G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
+        f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+
+        iteration = 0;
+        // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
+        while (abs(f_cubic) > 1e-6 && iteration < 10000){
+          iteration++;
+          f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
+          G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
+          if (G_star_new < 0){
+            G_star_guess *= 0.5;
+          } else {
+            G_star_guess = G_star_new;
+          }
+          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+        }
+        // cout << "Converged in: " << iteration << " iterations\n";
+        // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
+
+        G_star = G_star_guess; 
+        Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tvei/m_e);
+        // cout << "Line 1250 -----------------------------------------\n";
+        // cout << "e                 = " << e << endl;
+        // cout << "n_i               = " << n_i << endl;
+        // cout << "G_star            = " << G_star << endl;
+        // cout << "Phi_vc            = " << Phi_vc << endl;
+        // cout << "sqrt(-Phi_vc)     = " << sqrt(-1*Phi_vc) << endl;
+        // cout << "A                 = " << A << endl;
+        // cout << "1 + A*G_star      = " << 1 + A*G_star << endl;
+        // cout << "k_B               = " << k_B << endl;
+        // cout << "Tvei              = " << Tvei << endl;
+        // cout << "m_e               = " << m_e << endl;
+        // cout << "sqrt(2*k_B*Tvei/m_e) = " << sqrt(2*k_B*Tvei/m_e) << endl;
+        // cout << "Je_sc_warm        = " << Je_sc_warm << endl;
+      } else if (emission_model == 3) {
+        // Floating Space Charge Limited
+        Cs_ion = sqrt(k_B*Tvei/m_i);
+        J_if = e*n_i*Cs_ion;
+        Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
+        Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
+        // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
+        // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
+      } 
+
+      //cout << "Je_sat: " << Je_sat << ", Je_sc_cold: " << Je_sc_cold << ", Je_sc_warm: " << Je_sc_warm << "\n";
 
       // Je_sat [(C/s)/m2] / N_A [mol^-1] / e [C] -> [mol/s/m2]
 
       su2double Je = Je_sat;
-      bool usecold = false;
-      if (Je_sc_cold < Je){
+      if (Je_sc_cold < Je && emission_model == 1){
         Je = Je_sc_cold;
-        usecold = true;
       }
+
+      if (Je_sc_warm < Je && emission_model == 2){
+        Je = Je_sc_warm;
+      }
+
+      if (Je_sc_float < Je && emission_model == 3){
+        Je = Je_sc_float;
+      }
+      //cout << "Line 1288.   Je: " << Je << "\n";
 
       //cout << "Je_sat: " << Je_sat << ", Je_sc_cold: " << Je_sc_cold << "\n";
 
@@ -1204,7 +1300,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       /*--- Compute catalytic recombination flux ---*/
       // Ref: Campbell 2021
-      const unsigned short RHOS_INDEX        = nodes->GetRhosIndex();
 
       bool catalytic = config->GetCatalytic_Wall(val_marker);
       if (catalytic){
@@ -1217,7 +1312,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
             total_ions += Res_Visc[iSpecies];
           }
         }
-        
         electron_flux -= total_ions;
       }
 
@@ -1230,6 +1324,8 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       HeatFluxRad[val_marker][iVertex]  = q_rad;
       HeatFluxConv[val_marker][iVertex] = q_conv;
       HeatFluxETC[val_marker][iVertex] = q_ETC;
+      //cout << "------------------------------------------------\n";
+      //cout << "BEGINNING.   q_conv: " << q_conv << ", q_rad: " << q_rad << ", q_ETC: " << q_ETC << "\n";
       /*
       if (temp_model == 2) {
         // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
@@ -1301,7 +1397,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       Je = A_R*Ta*Ta*exp(-1*W_F*e/k_B/Ta); // saturated
 
       if (emission_model == 1){
-        Phi_w = e*(phi_vc)/Ta; // phi_0 = 0
+        Phi_w = e*(phi_vc)/(k_B*Ta); // phi_0 = 0
         F = exp(Phi_w) - 1;
         beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
         beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
@@ -1312,8 +1408,61 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         if (Je_sc_cold < Je){
           Je = Je_sc_cold;
         }
-      }
-      
+      } else if (emission_model == 2){
+        // Space Charge Limited Hot
+        Phi_vc = e*(phi_vc)/(k_B*Ta);
+        A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
+        H = (A-1)/gamma;
+        F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
+        e_pow_phi = exp(Phi_vc);
+
+        beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
+        beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
+        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+        beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
+
+        G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
+        f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+
+        iteration = 0;
+        // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
+        while (abs(f_cubic) > 1e-6 && iteration < 10000){
+          iteration++;
+          f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
+          G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
+          if (G_star_new < 0){
+            G_star_guess *= 0.5;
+          } else {
+            G_star_guess = G_star_new;
+          }
+          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+        }
+        // cout << "Converged in: " << iteration << " iterations\n";
+        // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
+
+        G_star = G_star_guess; 
+        Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Ta/m_e);        
+        if (Je_sc_warm < Je){
+          Je = Je_sc_warm;
+        }
+      } else if (emission_model == 3) {
+        // Floating Space Charge Limited
+        Cs_ion = sqrt(k_B*Ta/m_i);
+        J_if = e*n_i*Cs_ion;
+        Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
+        Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
+        if (Je_sc_float < Je){
+          Je = Je_sc_float;
+        }
+        // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
+        // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
+      } 
+
+
+      //cout << "Je: " << Je << "\n";
+      // cout << "Phi_w: " << Phi_w << "\n";
+      // cout << "Je_sat: " << Je_sat << ", e*n_i*sqrt(2*k_B/m_e): " << e*n_i*sqrt(2*k_B/m_e) << ", (G*sqrt(-1*Phi_w))/(1+G): " << (G*sqrt(-1*Phi_w))/(1+G) << "\n";
+    
       q_ETC = Je*(W_F + 2*k_B*Ta/e);
       su2double fa = -1*q_conv - q_rad - q_ETC;
       
@@ -1323,7 +1472,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       Je = A_R*Tb*Tb*exp(-1*W_F*e/k_B/Tb); // saturated
 
       if (emission_model == 1){
-        Phi_w = e*(phi_vc)/Tb; // phi_0 = 0
+        Phi_w = e*(phi_vc)/(Tb*k_B); // phi_0 = 0
         F = exp(Phi_w) - 1;
         beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
         beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
@@ -1334,28 +1483,153 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         if (Je_sc_cold < Je){
           Je = Je_sc_cold;
         }
-      }
+      } else if (emission_model == 2){
+        // Space Charge Limited Hot
+        Phi_vc = e*(phi_vc)/(k_B*Tb);
+        A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
+        H = (A-1)/gamma;
+        F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
+        e_pow_phi = exp(Phi_vc);
+
+        beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
+        beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
+        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+        beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
+
+        G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
+        f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+
+        iteration = 0;
+        // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
+        while (abs(f_cubic) > 1e-6 && iteration < 10000){
+          iteration++;
+          f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
+          G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
+          if (G_star_new < 0){
+            G_star_guess *= 0.5;
+          } else {
+            G_star_guess = G_star_new;
+          }
+          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+        }
+        // cout << "Converged in: " << iteration << " iterations\n";
+        // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
+
+        G_star = G_star_guess; 
+        Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tb/m_e);        
+        if (Je_sc_warm < Je){
+          Je = Je_sc_warm;
+        }
+      } else if (emission_model == 3) {
+        // Floating Space Charge Limited
+        Cs_ion = sqrt(k_B*Tb/m_i);
+        J_if = e*n_i*Cs_ion;
+        Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
+        Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
+        if (Je_sc_float < Je){
+          Je = Je_sc_float;
+        }
+        // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
+        // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
+      } 
+
     
       q_ETC = Je*(W_F + 2*k_B*Tb/e);
       su2double fb = -1*q_conv - q_rad - q_ETC;
       su2double fc = 10000;
       su2double Tc = 0.0;
 
-      while (abs(fc) > 1e-6){
-         
+    
+      iteration = 0;
+      while (abs(fc) > 1e-6 && iteration < 10000){
+        iteration++;
         Tc = (Ta*fb - fa*Tb)/(fb-fa);
-
-        // f(C)
         q_rad = epsilon*sigma*pow(Tc,4);
         q_conv = (ktr*(Tc-Tj) + kve*(Tc-Tvej))/dij;
-        Phi_w = e*(phi_vc)/Tc; // phi_0 = 0
-        F = exp(Phi_w) - 1;
-        beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
-        beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
-        beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
-        G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
-        Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
-        Je = Je_sc_cold_factor*sqrt(Tc);
+        Je = A_R*Tc*Tc*exp(-1*W_F*e/k_B/Tc); // saturated
+
+        // f(C)
+        if (emission_model == 1){
+          q_rad = epsilon*sigma*pow(Tc,4);
+          q_conv = (ktr*(Tc-Tj) + kve*(Tc-Tvej))/dij;
+          Phi_w = e*(phi_vc)/(Tc*k_B); // phi_0 = 0
+          F = exp(Phi_w) - 1;
+          beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
+          beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
+          beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
+          G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
+          Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
+          Je_sc_cold = Je_sc_cold_factor*sqrt(Tc);
+
+          if (Je_sc_cold < Je)
+            Je = Je_sc_cold;
+        } else if (emission_model == 2){
+          // Space Charge Limited Hot
+          Phi_vc = e*(phi_vc)/(k_B*Tc);
+          A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
+          H = (A-1)/gamma;
+          F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
+          e_pow_phi = exp(Phi_vc);
+
+          beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
+          beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
+          beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+          beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
+
+          G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
+          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+
+          iteration = 0;
+          // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
+          while (abs(f_cubic) > 1e-6 && iteration < 10000){
+            iteration++;
+            f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
+            G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
+            if (G_star_new < 0){
+              G_star_guess *= 0.5;
+            } else {
+              G_star_guess = G_star_new;
+            }
+            f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+          }
+          // cout << "Converged in: " << iteration << " iterations\n";
+          // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
+
+          G_star = G_star_guess; 
+          Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tc/m_e);        
+          if (Je_sc_warm < Je){
+            Je = Je_sc_warm;
+          }
+
+          // cout << "Line 1589 -----------------------------------------\n";
+          // cout << "e                 = " << e << endl;
+          // cout << "n_i               = " << n_i << endl;
+          // cout << "G_star            = " << G_star << endl;
+          // cout << "Phi_vc            = " << Phi_vc << endl;
+          // cout << "sqrt(-Phi_vc)     = " << sqrt(-1*Phi_vc) << endl;
+          // cout << "A                 = " << A << endl;
+          // cout << "1 + A*G_star      = " << 1 + A*G_star << endl;
+          // cout << "k_B               = " << k_B << endl;
+          // cout << "Tc                = " << Tc << endl;
+          // cout << "m_e               = " << m_e << endl;
+          // cout << "sqrt(2*k_B*Tc/m_e) = " << sqrt(2*k_B*Tc/m_e) << endl;
+          // cout << "Je_sc_warm        = " << Je_sc_warm << endl;
+          // cout << "Line 1587.   Je: " << Je << "\n";
+        } else if (emission_model == 3) {
+          // Floating Space Charge Limited
+          Cs_ion = sqrt(k_B*Tc/m_i);
+          J_if = e*n_i*Cs_ion;
+          Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
+          Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
+          // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
+          // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
+          //cout << "Je_sc_float: " << Je_sc_float << ", Je: " << Je << "\n";
+          if (Je_sc_float < Je){
+            Je = Je_sc_float;
+          }
+        }
+
+        
         q_ETC = Je*(W_F + 2*k_B*Tc/e);
         
         fc = -1*q_conv - q_rad - q_ETC;
@@ -1369,19 +1643,15 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
           Ta = Tc;
           fa = fc;
         }
-
       }
 
       Twall = Tc;
       if (Twall < 0)
 	      Twall = 200;
-      //  cout << "iPoint: " << iPoint << "\n";
-      //  cout << "Twall: " << Twall << "\n";
-      //  cout << "Ti: " << Ti << "\n";
-      //  cout << "Tj: " << Tj << "\n";
-      //  cout << "q_conv: " << q_conv << "\n";
-      //  cout << "-------------------" << "\n";
-      //HeatFluxRad[val_marker][iVertex]  = q_rad;
+
+      
+      // cout << "End.   q_conv: " << q_conv << ", q_rad: " << q_rad << ", q_ETC: " << q_ETC << "\n";
+      // cout << "Ti: " << Ti << ", Twall: " << Twall << ", Je [A/cm2]: " << Je/10000.0 << "\n";
        
       Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
                                  (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
@@ -1398,7 +1668,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       }
       //Res_Visc[nSpecies+nDim]   -= (electron_flux*hs[0]);
       //Res_Visc[nSpecies+nDim+1] -= (electron_flux*eves[0]);
-
 
       /*--- Viscous contribution to the residual at the wall ---*/
       LinSysRes.SubtractBlock(iPoint, Res_Visc);
