@@ -1127,7 +1127,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       // ETC implementation
       // MARKER_ETC = ( wall, work function, temperature model, temperature param)
-      
+      // addETCOption("MARKER_ETC", nMarker_ETC, Marker_ETC, Wall_Work_Function, ETC_Temperature_Model, ETC_Temperature_Param, ETC_Emission_Model, ETC_Emission_Model_Param);
       su2double epsilon = 0;
       su2double Twall = 0;
       const su2double temp_model = config->GetETCTempModel(Marker_Tag);
@@ -1142,7 +1142,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         Twall = temp_param;	
       }
       const su2double phi_vc = emission_model_param;
-      const su2double e = 1.6021716634e-19; // [C]
+      const su2double e = 1.602176634e-19; // [C]
       const su2double W_F = config->GetWork_Function(Marker_Tag); // [eV] 
       const su2double k_B = 1.380649e-23; // [J/K]
       const su2double sigma = 5.67037442e-8;
@@ -1223,7 +1223,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
         beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
         beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
         beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
 
         G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
@@ -1291,7 +1291,8 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       //cout << "Je_sat: " << Je_sat << ", Je_sc_cold: " << Je_sc_cold << "\n";
 
       const su2double Mole_Flux = Je / (e*N_A);
-      const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
+      const su2double M_electron = 5.485799e-7; // Electron molar mass [kg/mol]
+      const su2double mdot_electrons_per_area = Mole_Flux * M_electron; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
       su2double electron_flux = mdot_electrons_per_area*Area; // [kg/s/m2] * [m2] -> [kg/s]
 
       su2double total_ions = 0.0;
@@ -1300,22 +1301,28 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       /*--- Compute catalytic recombination flux ---*/
       // Ref: Campbell 2021
-
+      su2double total_ions_molar = 0.0; // Total ion recombination flux [mol/s]
+      su2double ion_molar_flux = 0.0;
       bool catalytic = config->GetCatalytic_Wall(val_marker);
       if (catalytic){
         for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
           if (Cs[iSpecies] > 0){
-            // [kg/m3]/[kg/mol]*sqrt([g m2/s2/K/mol] * [K] / [g]*[mol]) * [kg/mol] * [m2]
-            // [mol/m3]*[m/s]*[kg/mol]*[m2]
-            // [kg/s]
-            Res_Visc[iSpecies] = Vi[RHOS_INDEX+iSpecies]/(Ms[iSpecies] / 1000) * sqrt(Ru*Twall/(2*PI_NUMBER*Ms[iSpecies])) * (Ms[iSpecies] / 1000) * Area;
-            total_ions += Res_Visc[iSpecies];
+            // Ion molar flux (Hanquist Eq. 2.16):
+            // [kg/m3]/[kg/mol] * sqrt([J/kmol/K]*[K]/[kg/kmol]) * [m2]
+            // [mol/m3]*[m/s]*[m2] -> [mol/s]
+            ion_molar_flux = Vi[RHOS_INDEX+iSpecies]/(Ms[iSpecies] / 1000) * sqrt(Ru*Ti/(2*PI_NUMBER*Ms[iSpecies])) * Area;
+            Res_Visc[iSpecies] = -ion_molar_flux * (Ms[iSpecies] / 1000);
+            total_ions_molar += ion_molar_flux; // [mol/s]
           }
         }
-        electron_flux -= total_ions;
+        electron_flux -= total_ions_molar * M_electron;;
       }
 
-    
+      if (electron_flux < 0){
+        electron_flux = 0;
+        cout << "0 electron flux\n";
+      }
+      electron_flux = 0;
       Res_Visc[0] += electron_flux;
 
       su2double q_rad = epsilon*sigma*pow(Ti,4); // Positive (+)
@@ -1418,7 +1425,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
         beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
         beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
         beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
 
         G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
@@ -1493,7 +1500,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
         beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
         beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
         beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
 
         G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
@@ -1540,9 +1547,9 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       su2double Tc = 0.0;
 
     
-      iteration = 0;
-      while (abs(fc) > 1e-6 && iteration < 10000){
-        iteration++;
+      int iteration_T = 0;
+      while (abs(fc) > 1e-6 && iteration_T < 10000){
+        iteration_T++;
         Tc = (Ta*fb - fa*Tb)/(fb-fa);
         q_rad = epsilon*sigma*pow(Tc,4);
         q_conv = (ktr*(Tc-Tj) + kve*(Tc-Tvej))/dij;
@@ -1573,7 +1580,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
           beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
           beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-          beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) + 4*A*F + 6*Phi_vc*A*A;
+          beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
           beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
 
           G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
