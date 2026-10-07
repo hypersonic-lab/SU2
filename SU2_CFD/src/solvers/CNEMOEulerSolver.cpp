@@ -282,7 +282,7 @@ void CNEMOEulerSolver::CommonPreprocessing(CGeometry *geometry, CSolver **solver
     //     cout << efield_iter << "\n";
     // }
     ComputeElectricPotential_SOR(geometry, config);
-    cout << "Computing Electric Potential\n";
+    //cout << "Computing Electric Potential\n";
   } else {
     //cout << "Poisson False\n";
   }
@@ -2402,116 +2402,149 @@ void CNEMOEulerSolver::SetPressureDiffusionSensor(CGeometry *geometry, CConfig *
 }
 
 void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig *config){
-  
-  const su2double omega = 1.3; // SOR relaxation parameter
+
+  const su2double omega_inner = 1.4;  // SOR factor for points whose neighbours are all local
+  const su2double omega_itf   = 1.0;  // plain Gauss-Seidel at partition interfaces (halo neighbours)
   const su2double epsilon_0 = 8.8541878188e-12; // [F/m]
+  const unsigned long min_iter = 100, max_iter = 50000;
+  const su2double abs_tol = 1e-9;   // [V]
+  const su2double rel_tol = 1e-10;  // relative to max|phi|, keeps the target above the roundoff floor
+  const unsigned long print_freq = 1000;
 
   const auto nPtDomain = geometry->GetnPointDomain();
   const auto nDim = geometry->GetnDim();
-  const bool ignore_sheath = config->GetSheath_Thickness() != 1234.0;
-  cout << "Sheath Thickness: " << config->GetSheath_Thickness() << "\n";
+  const su2double sheath_thickness = config->GetSheath_Thickness();
+  const bool ignore_sheath = sheath_thickness != 1234.0;
 
-  su2double max_change = 100;
-  int iteration = 0;
-  while (max_change > 0.0001){
-    iteration++;
-    if (rank == 0 && iteration % 10 == 0)
-      cout << "Electric potential max change: " << max_change << "\n" << flush;
-    InitiateComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
-    CompleteComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
-    //cout << "Electric potential max change: " << max_change << "\n";
-    max_change = 0.0;
-    std::vector<su2double> diag(nPtDomain, 0.0);
-    std::vector<bool> is_dirichlet(nPtDomain, false);
-    std::vector<bool> is_neumann(nPtDomain, false);
+  /*--- DIAGNOSTIC: call counter and timer. ---*/
+  static unsigned long sor_calls = 0;
+  sor_calls++;
+  const passivedouble t_start = SU2_MPI::Wtime();
 
-    for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++){
-      const string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
-      su2double Vwall = config->GetCharge(Marker_Tag);
-      if (Vwall == -123456789.0) continue; // not Dirichlet or Neumann
+  /*--- Flags do not change between sweeps, build them once and set the
+   *    Dirichlet values before the first halo exchange. ---*/
+  std::vector<bool> is_dirichlet(nPtDomain, false);
+  std::vector<bool> on_interface(nPtDomain, false);
 
-      for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++){
-        auto iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-        if (iPoint < nPtDomain){
-          if (Vwall != 1234.0){
-            nodes->SetElectricPotential(iPoint, Vwall);
-            is_dirichlet[iPoint] = true;
-          } else {
-            // Set farfield, inlet, outlet as 0 gradient TEMPORARY: charged at 1234.0 = this condition
-            auto Normal = geometry->vertex[iMarker][iVertex]->GetNormal_Neighbor();
-            su2double normal_phi = nodes->GetElectricPotential(Normal);
-            nodes->SetElectricPotential(iPoint, normal_phi);
-            is_neumann[iPoint] = true;
-          }
-        }
+  for (unsigned short iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+    const su2double Vwall = config->GetCharge(config->GetMarker_All_TagBound(iMarker));
+    if (Vwall == -123456789.0 || Vwall == 1234.0) continue;
+    for (auto iVertex = 0ul; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+      const auto iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+      if (iPoint < nPtDomain) {
+        nodes->SetElectricPotential(iPoint, Vwall);
+        is_dirichlet[iPoint] = true;
       }
     }
-
-    /*--- Loop over interior points ---*/
-    for (auto iPoint = 0ul; iPoint < nPtDomain; iPoint++) {
-      if (is_dirichlet[iPoint] || is_neumann[iPoint]){
-        continue;
-      }
-      su2double flux_sum = 0.0;
-      su2double diagonal = 0.0;
-      su2double Volume = geometry->nodes->GetVolume(iPoint);
-      
-      /*--- Loop over edges connected to the point ---*/
-      for (auto iEdge : geometry->nodes->GetEdges(iPoint)) {
-        const auto iPoint_temp = geometry->edges->GetNode(iEdge, 0);
-        const auto jPoint = geometry->edges->GetNode(iEdge,1);
-
-        const auto neighbor = (iPoint == iPoint_temp) ? jPoint : iPoint_temp;
-        const auto phi_j = nodes->GetElectricPotential(neighbor);
-
-        auto Normal = geometry->edges->GetNormal(iEdge);
-        su2double Area = GeometryToolbox::Norm(nDim, Normal);
-
-        const auto Coord_i = geometry->nodes->GetCoord(iPoint);
-        const auto Coord_j = geometry->nodes->GetCoord(neighbor);
-        
-        su2double distance = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
-        su2double phi_i = nodes->GetElectricPotential(iPoint);
-        
-        su2double flux = (phi_j - phi_i) / distance * Area;
-
-        flux_sum += flux;
-        diagonal += Area / distance;
-      }
-      /*--- Add a source term for Poisson ---*/
-      su2double rho_charge = nodes->GetChargeDensity(iPoint);
-      su2double source = rho_charge / epsilon_0 * Volume;
-
-      // Ignore within the sheath by setting the source term to zero there.
-      su2double wall_distance = geometry->nodes->GetWall_Distance(iPoint); 
-      //cout << "Wall Distance: " << wall_distance << "\n";
-      su2double sheath_thickness = config->GetSheath_Thickness();
-
-      if (wall_distance <= sheath_thickness && ignore_sheath){
-        source = 0;
-      }
-
-      const auto Coord_point = geometry->nodes->GetCoord(iPoint);
-      /*--- SOR update: phi_new = phi_old + omega * (residual / diagonal) ---*/
-      su2double residual = flux_sum + source;
-      //if (Coord_point[0] > -0.0007)
-      //  cout << "iPoint: " << iPoint << ", x: "<< Coord_point[0] << ", y: " << Coord_point[1] << ", flux_sum: " << flux_sum << ", source: " << source << "\n";
-      if (diagonal > 1e-12) {
-        su2double correction = omega * residual / diagonal;
-        if (abs(correction) > max_change){
-          max_change = abs(correction);
-        }
-        //if (wall_distance <= sheath_thickness && ignore_sheath){
-         // nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint));
-        //} else {
-          nodes->SetElectricPotential(iPoint, nodes->GetElectricPotential(iPoint) + correction);
-       // }
-      }
-    }
-    su2double global_max_change = 0.0;
-    SU2_MPI::Allreduce(&max_change, &global_max_change, 1, MPI_DOUBLE, MPI_MAX, SU2_MPI::GetComm());
-    max_change = global_max_change;
-    
   }
 
+  for (auto iPoint = 0ul; iPoint < nPtDomain; iPoint++) {
+    for (auto jPoint : geometry->nodes->GetPoints(iPoint)) {
+      if (!geometry->nodes->GetDomain(jPoint)) {
+        on_interface[iPoint] = true;
+        break;
+      }
+    }
+  }
+
+  su2double max_change = 0.0, phi_max = 0.0, tol = abs_tol;
+  int max_rank = 0;
+  unsigned long iteration = 0;
+  bool converged = false;
+
+  while (!converged && iteration < max_iter) {
+    iteration++;
+    InitiateComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
+    CompleteComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
+
+    su2double local_change = 0.0, local_phi = 0.0;
+    unsigned long max_point = 0;
+    bool non_finite = false;
+
+    for (auto iPoint = 0ul; iPoint < nPtDomain; iPoint++) {
+      const su2double phi_i = nodes->GetElectricPotential(iPoint);
+      local_phi = max(local_phi, fabs(phi_i));
+      if (is_dirichlet[iPoint]) continue;
+
+      su2double flux_sum = 0.0;
+      su2double diagonal = 0.0;
+      const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+
+      /*--- Loop over edges connected to the point ---*/
+      for (auto iEdge : geometry->nodes->GetEdges(iPoint)) {
+        const auto iNode = geometry->edges->GetNode(iEdge, 0);
+        const auto jNode = geometry->edges->GetNode(iEdge, 1);
+        const auto neighbor = (iPoint == iNode) ? jNode : iNode;
+
+        const su2double Area = GeometryToolbox::Norm(nDim, geometry->edges->GetNormal(iEdge));
+        const su2double distance = GeometryToolbox::Distance(nDim, Coord_i, geometry->nodes->GetCoord(neighbor));
+
+        flux_sum += (nodes->GetElectricPotential(neighbor) - phi_i) / distance * Area;
+        diagonal += Area / distance;
+      }
+
+      /*--- Source term for Poisson, ignored within the sheath. ---*/
+      su2double source = nodes->GetChargeDensity(iPoint) / epsilon_0 * geometry->nodes->GetVolume(iPoint);
+      if (ignore_sheath && geometry->nodes->GetWall_Distance(iPoint) <= sheath_thickness) source = 0.0;
+
+      /*--- SOR update: phi_new = phi_old + omega * (residual / diagonal) ---*/
+      if (diagonal > 1e-12) {
+        const su2double omega = on_interface[iPoint] ? omega_itf : omega_inner;
+        const su2double correction = omega * (flux_sum + source) / diagonal;
+        if (!std::isfinite(correction)) {
+          non_finite = true;
+        } else if (fabs(correction) > local_change) {
+          local_change = fabs(correction);
+          max_point = iPoint;
+        }
+        nodes->SetElectricPotential(iPoint, phi_i + correction);
+      }
+    }
+
+    /*--- Global reductions: all ranks take the same exit decision. ---*/
+    struct { double val; int rank; } loc_in = {local_change, rank}, loc_out;
+    SU2_MPI::Allreduce(&loc_in, &loc_out, 1, MPI_DOUBLE_INT, MPI_MAXLOC, SU2_MPI::GetComm());
+    max_change = loc_out.val;
+    max_rank = loc_out.rank;
+
+    su2double local_aux[2] = {local_phi, non_finite ? 1.0 : 0.0}, global_aux[2] = {0.0, 0.0};
+    SU2_MPI::Allreduce(local_aux, global_aux, 2, MPI_DOUBLE, MPI_MAX, SU2_MPI::GetComm());
+    phi_max = global_aux[0];
+
+    if (global_aux[1] > 0.0)
+      SU2_MPI::Error("Non-finite correction in electric potential SOR.", CURRENT_FUNCTION);
+
+    tol = max(abs_tol, rel_tol * phi_max);
+    converged = (iteration >= min_iter) && (max_change < tol);
+
+    /*--- DIAGNOSTIC: report the worst point periodically. ---*/
+    if (iteration % print_freq == 0) {
+      if (rank == MASTER_NODE)
+        cout << "[SOR] call " << sor_calls << " MG " << MGLevel << " it " << iteration
+             << " max_change " << max_change << " tol " << tol << " on rank " << max_rank
+             << " max|phi| " << phi_max << " t " << SU2_MPI::Wtime() - t_start << "s" << endl;
+      if (rank == max_rank) {
+        const auto c = geometry->nodes->GetCoord(max_point);
+        cout << "[SOR]   rank " << rank << " pt " << max_point << " x " << c[0] << " y " << c[1]
+             << " interface " << on_interface[max_point] << " phi " << nodes->GetElectricPotential(max_point)
+             << " rho_c " << nodes->GetChargeDensity(max_point)
+             << " wall_dist " << geometry->nodes->GetWall_Distance(max_point) << endl;
+      }
+    }
+      
+  }
+
+  /*--- Bring halos in line with the final sweep, the gradient computation reads them. ---*/
+  InitiateComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
+  CompleteComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
+
+  /*--- DIAGNOSTIC: summary of this call. ---*/
+  
+  if (rank == MASTER_NODE) {
+    if (!converged) cout << "[SOR] WARNING: not converged. ";
+    cout << "[SOR] call " << sor_calls << " MG " << MGLevel << " done, " << iteration << " sweeps, max_change "
+         << max_change << " tol " << tol << " max|phi| " << phi_max << " t " << SU2_MPI::Wtime() - t_start
+         << "s" << endl;
+  }
+  
 }

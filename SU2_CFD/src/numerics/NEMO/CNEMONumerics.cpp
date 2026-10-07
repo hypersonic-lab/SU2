@@ -261,6 +261,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const auto& Ps = fluidmodel->GetSpeciesPolarizability();
   const su2double e = 1.6021716634e-19;
   const su2double kB = 1.380649e-23;
+  const su2double multiplier = 1.0;
 
   /*--- Pre-compute mixture quantities ---*/  //TODO CW: Why does this say TODO?
   su2double Vector[MAXNDIM] = {0.0};
@@ -288,19 +289,11 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     //}
   }
 
-  su2double EField_mag = pow(pow(Vector_EField[0],2) + pow(Vector_EField[1],2) + pow(Vector_EField[2],2),0.5);
-  if (EField_mag > 5000){
-    // Damp anythin above 5000 V/m
-    su2double EField_mag_new = 5000 + (EField_mag - 5000)*0.01;
-    su2double damp_factor = EField_mag_new / EField_mag;
-    for (auto iDim = 0ul; iDim < nDim; iDim++){
-      Vector_EField[iDim] = Vector_EField[iDim] * damp_factor;
-    }
-  }
 
   /*--- Compute the ion mobilities - Hanquist Eqns. (2.32a, 2.32b) which comes from Eiceman, Karpas, Hill Jr. 3rd Edition Eq. (10.19) ---*/
   su2double Ksj[nSpecies][nSpecies] = {0.0};
   for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
+    //cout << "iSpecies: " << iSpecies << " Ms[iSpecies]: " << Ms[iSpecies]; Confirmed this is g/mol
     for (auto jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
       su2double mu_sj = Ms[iSpecies]*Ms[jSpecies]/(Ms[iSpecies]+Ms[jSpecies]); // Reduced mass in g/mol (Dalton)
       Ksj[iSpecies][jSpecies] = 13.853e-4*pow(Ps[jSpecies]*mu_sj,-0.5); // ion mobilities
@@ -327,7 +320,8 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
   /*--- Populate entries in the viscous flux vector ---*/
   for (auto iDim = 0ul; iDim < nDim; iDim++) {
-
+    //cout << "------------------------------ Drift ------------------------------\n";
+    //cout << "------------------------------ iDim: " << iDim << " ------------------------------\n";
     /*--- Species diffusion velocity ---*/
     for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
       Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
@@ -336,11 +330,12 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
       // Electric Field Effects - Hanquist Thesis Eqns. (2.30b, 2.31)
       if (config->Get_Poisson_Solver()){
         su2double temp_sum2 = 0.0;
-        for (auto jSpecies = nEl; jSpecies < nSpecies; jSpecies++){
+        for (auto jSpecies = 0; jSpecies < nSpecies; jSpecies++){
           temp_sum2 += Cs[jSpecies] * Ks[jSpecies] * V[jSpecies];
         }
         u_d = (Cs[iSpecies]*Ks[iSpecies]-temp_sum2)*Vector_EField[iDim];
-        Flux_Tensor[iSpecies][iDim] -= debug_1*rho*u_d*V[iSpecies]*Cs[iSpecies];
+        Flux_Tensor[iSpecies][iDim] -= rho*u_d*V[iSpecies]*Cs[iSpecies];
+       // cout << "iSpecies: " << iSpecies << ", Cs: " << Cs[iSpecies] << ", u_d: " << u_d << ", Ds: "<< Ds[iSpecies]<<"\n";
       }
     }
 
@@ -355,9 +350,15 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     if (config->Get_Poisson_Solver()){
       // Electric Field Effects
       Flux_Tensor[0][iDim] = rho*Ds[0]*GV[RHOS_INDEX][iDim]- V[RHOS_INDEX]*Vector[iDim];
-      Flux_Tensor[0][iDim] -= debug_1 * 1.0 * rho*V[0] * Ke * Vector_EField[iDim];
+      Flux_Tensor[0][iDim] += 1.0 * rho*V[0] * Ke * Vector_EField[iDim];
     }
 
+
+    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+      Flux_Tensor[iSpecies][iDim] *= multiplier;
+    }
+
+    //cout << "iSpecies: " << 0 << ", Cs: " << Cs[0] << ", u_d: " << Ke*Vector_EField[iDim] << ", Ds: "<< Ds[0]<< "\n";
     /*--- Shear-stress/momentum related terms ---*/
     Flux_Tensor[nSpecies+nDim][iDim] = 0.0;
     for (auto jDim = 0ul; jDim < nDim; jDim++) {
@@ -374,6 +375,12 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     /*--- Heat transfer terms ---*/
     Flux_Tensor[nSpecies+nDim][iDim] += ktr*GV[T_INDEX][iDim] + kve*GV[TVE_INDEX][iDim];
     Flux_Tensor[nSpecies+nDim+1][iDim] += kve*GV[TVE_INDEX][iDim];
+
+    //cout << "------------------------------ Total ------------------------------\n";
+    //cout << "------------------------------ iDim: " << iDim << " ------------------------------\n";
+    //for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+     // cout << "iSpecies: " <<  iSpecies << ", Total u: " << Flux_Tensor[iSpecies][iDim]/V[iSpecies]/rho << "\n";
+    //}
   }
 
   for (auto iVar = 0ul; iVar < nVar; iVar++) {

@@ -114,6 +114,7 @@ CNumerics::ResidualType<> CAvgGrad_NEMO::ComputeResidual(const CConfig *config) 
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
     Mean_Diffusion_Coeff[iSpecies] = 0.5*(Diffusion_Coeff_i[iSpecies] +
                                           Diffusion_Coeff_j[iSpecies]);
+
   Mean_Laminar_Viscosity           = 0.5*(Laminar_Viscosity_i +
                                           Laminar_Viscosity_j);
   Mean_Eddy_Viscosity              = 0.5*(Eddy_Viscosity_i +

@@ -222,7 +222,7 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
       momentum_source_iDim += Ns[iSpecies] * Cs[iSpecies] * e * Vector_EField[iDim]; // Eq. (22) from 10.2514/1.J059307
     }
-    residual[nSpecies+iDim] = momentum_source_iDim;
+    residual[nSpecies+iDim] = momentum_source_iDim*Volume;
   }
 
   if (implicit) {
@@ -265,8 +265,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeEFieldSources(const CConfig *conf
   // }
     
 
-  residual[nSpecies+nDim] = energy_source;
-  residual[nSpecies+nDim+1] = energy_source;
+  residual[nSpecies+nDim] = 0.5*energy_source*Volume;
+  residual[nSpecies+nDim+1] = 0.5*energy_source*Volume;
   
   return ResidualType<>(residual, jacobian, nullptr);
 }
