@@ -3590,7 +3590,10 @@ void CConfig::SetPostprocessing(SU2_COMPONENT val_software, unsigned short val_i
     /*--- Check if problem is 2D and LM2015 has been selected ---*/
     if (lmParsedOptions.LM2015 && val_nDim == 2) {
       SU2_MPI::Error("LM2015 is available only for 3D problems", CURRENT_FUNCTION);
-    }
+    } 
+  } else if (Kind_Trans_Model == TURB_TRANS_MODEL::MENTER2022 && Kind_Turb_Model != TURB_MODEL::SST) {
+    /*--- Check if correct KIND_TURB_MODEL is used ---*/
+    SU2_MPI::Error("MENTER2022 is available only for SST turbulence model", CURRENT_FUNCTION);
   }
 
   /*--- Set the boolean Wall_Functions equal to true if there is a
@@ -6423,6 +6426,10 @@ void CConfig::SetOutput(SU2_COMPONENT val_software, unsigned short val_izone) {
             } else {
               cout << " (2009)" << endl;
             }
+            break;
+          }
+          case TURB_TRANS_MODEL::MENTER2022: {
+            cout << "Transition model: Menter's 2022 Algebraic model" << endl;
             break;
           }
         }
