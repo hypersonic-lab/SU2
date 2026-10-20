@@ -1322,7 +1322,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         electron_flux = 0;
         cout << "0 electron flux\n";
       }
-      electron_flux = 0;
       Res_Visc[0] += electron_flux;
 
       su2double q_rad = epsilon*sigma*pow(Ti,4); // Positive (+)
