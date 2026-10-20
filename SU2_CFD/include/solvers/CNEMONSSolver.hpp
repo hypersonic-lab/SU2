@@ -214,6 +214,11 @@ public:
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
 
   /*!
+   * \brief Perform calculations for ETC
+   */
+  su2double Calculate_ETC_Emission(su2double WF, su2double Tve, su2double phi_vc, int model, su2double n_i, su2double n_e, su2double m_i);
+
+  /*!
    * \brief Impose an Electron Transpiration Cooling Wall.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.

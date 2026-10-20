@@ -1110,6 +1110,107 @@ void CNEMONSSolver::BC_ETC_Wall(CGeometry *geometry,
                                           sour_numerics, config, val_marker);
   }                            
 }
+
+su2double CNEMONSSolver::Calculate_ETC_Emission(su2double WF, su2double Tve, su2double phi_vc, int model, su2double n_i, su2double n_e, su2double m_i){
+
+  // WF - Work Function
+  // Tve - Temperature_ve
+  // phi_vc - Inputted bias
+  // model - 0:saturated, 1:cold, 2:warm, 3:floating
+  
+  const su2double e = 1.602176634e-19; // [C]
+  const su2double k_B = 1.380649e-23; // [J/K]
+  const su2double sigma = 5.67037442e-8;
+  const su2double A_R = 1.20e6;
+  const auto& Cs = FluidModel->GetSpeciesCharge();
+  const auto& Ms = FluidModel->GetSpeciesMolarMass();
+  const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]      
+  if (model == 0){
+
+      // Saturated, Temperature Limited
+      su2double Je_sat = A_R*Tve*Tve*exp(-1*WF*e/k_B/Tve); // [A/m2]
+      return Je_sat;
+
+  }
+
+  su2double m_e = 9.1093837e-31; su2double G = 0.0; su2double Phi_w = 0.0; su2double Phi_vc = 0.0;
+  su2double beta_0 = 0.0; su2double beta_1 = 0.0; su2double beta_2 = 0.0;  su2double beta_3 = 0.0;
+  su2double F = 0.0; su2double H = 0.0; su2double gamma = 1.0; su2double p = 0.0;
+  su2double q = 0.0; su2double r = 0.0; su2double e_pow_phi = 0.0; su2double A = 0.0;
+  su2double G_star = 0.0; su2double G_star_guess = 0.0; su2double G_star_new = 0.0;
+  su2double f_cubic = 0.0; su2double f_prime_cubic = 0.0; su2double Gam_crit = 0.0;
+  su2double J_if = 0.0; su2double Je_sc_float = 0.0; su2double Cs_ion = 0.0;
+
+  int iteration = 0.0;
+  if (model == 1){
+    // Space-Charge Limited, Cold (Electrons leave with no excess energy)
+    
+      su2double Je_sc_cold_factor = 0.0;
+      su2double Je_sc_cold = 0.0;
+
+      Phi_w = e*(phi_vc)/(k_B*Tve); // phi_0 = 0
+      F = exp(Phi_w) - 1;
+      beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
+      beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
+      beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
+      G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
+      Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
+      Je_sc_cold = Je_sc_cold_factor*sqrt(Tve); // [A/m2]
+      
+      return Je_sc_cold;
+  }
+
+  su2double Je_sc_warm = 0.0;
+
+  if (model == 2){
+    // Space Charge Limited Warm
+    Phi_vc = e*(phi_vc)/(k_B*Tve);
+    A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
+    H = (A-1)/gamma;
+    F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
+    e_pow_phi = exp(Phi_vc);
+
+    beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
+    beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
+    beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
+    beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
+
+    G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
+    f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+
+    iteration = 0;
+    while (abs(f_cubic) > 1e-6 && iteration < 10000){
+      iteration++;
+      f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
+      G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
+      if (G_star_new < 0){
+        G_star_guess *= 0.5;
+      } else {
+        G_star_guess = G_star_new;
+      }
+      f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
+    }
+
+    G_star = G_star_guess; 
+    Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tve/m_e);        
+
+    return Je_sc_warm;
+  }
+
+  if (model == 3){
+    // Electrically Floating
+    Cs_ion = sqrt(k_B*Tve/m_i);
+    J_if = e*n_i*Cs_ion;
+    Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
+    Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
+
+    return Je_sc_float;
+  }
+
+  return 0.0;
+
+}
+
 void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
                                                 CSolver **solver_container,
                                                 CNumerics *conv_numerics,
@@ -1227,6 +1328,9 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       }
 
       m_i = rho_ion/n_ion_here;
+      cout << "Original Sat: " << Je_sat << "\n";
+      Je_sat = Calculate_ETC_Emission(W_F, Ti, phi_vc, 0,  n_i, n_e, m_i);
+      cout << "New Sat: " << Je_sat << "\n";
 
       su2double Je_sc_cold = Je_sat + 10;
       su2double Je_sc_cold_factor = 0;
@@ -1269,6 +1373,9 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
         Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
         Je_sc_cold = Je_sc_cold_factor*sqrt(Tvei); // [A/m2]
+        cout << "Original Cold: " << Je_sc_cold << "\n";
+        Je_sc_cold = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 1,  n_i, n_e, m_i);
+        cout << "New Cold: " << Je_sc_cold << "\n";
       } else if (emission_model == 2){
         // Space Charge Limited Hot
         Phi_vc = e*(phi_vc)/(k_B*Tvei);
@@ -1299,37 +1406,22 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
           }
           f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
         }
-        // cout << "Converged in: " << iteration << " iterations\n";
-        // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
-
         G_star = G_star_guess; 
         Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tvei/m_e);
-        // cout << "Line 1250 -----------------------------------------\n";
-        // cout << "e                 = " << e << endl;
-        // cout << "n_i               = " << n_i << endl;
-        // cout << "G_star            = " << G_star << endl;
-        // cout << "Phi_vc            = " << Phi_vc << endl;
-        // cout << "sqrt(-Phi_vc)     = " << sqrt(-1*Phi_vc) << endl;
-        // cout << "A                 = " << A << endl;
-        // cout << "1 + A*G_star      = " << 1 + A*G_star << endl;
-        // cout << "k_B               = " << k_B << endl;
-        // cout << "Tvei              = " << Tvei << endl;
-        // cout << "m_e               = " << m_e << endl;
-        // cout << "sqrt(2*k_B*Tvei/m_e) = " << sqrt(2*k_B*Tvei/m_e) << endl;
-        // cout << "Je_sc_warm        = " << Je_sc_warm << endl;
+        cout << "Original Warm: " << Je_sc_warm << "\n";
+        Je_sc_warm = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 2,  n_i, n_e, m_i);
+        cout << "New Warm: " << Je_sc_warm << "\n";
       } else if (emission_model == 3) {
         // Floating Space Charge Limited
         Cs_ion = sqrt(k_B*Tvei/m_i);
         J_if = e*n_i*Cs_ion;
         Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
         Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
-        // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
-        // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
+        cout << "Original Floating: " << Je_sc_float << "\n";
+        Je_sc_float = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 3,  n_i, n_e, m_i);
+        cout << "New Floating: " << Je_sc_float << "\n";
       } 
 
-      //cout << "Je_sat: " << Je_sat << ", Je_sc_cold: " << Je_sc_cold << ", Je_sc_warm: " << Je_sc_warm << "\n";
-
-      // Je_sat [(C/s)/m2] / N_A [mol^-1] / e [C] -> [mol/s/m2]
 
       su2double Je = Je_sat;
       if (Je_sc_cold < Je && emission_model == 1){
@@ -1343,9 +1435,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       if (Je_sc_float < Je && emission_model == 3){
         Je = Je_sc_float;
       }
-      //cout << "Line 1288.   Je: " << Je << "\n";
-
-      //cout << "Je_sat: " << Je_sat << ", Je_sc_cold: " << Je_sc_cold << "\n";
 
       const su2double Mole_Flux = Je / (e*N_A);
       const su2double M_electron = 5.485799e-7; // Electron molar mass [kg/mol]
@@ -1387,68 +1476,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       HeatFluxRad[val_marker][iVertex]  = q_rad;
       HeatFluxConv[val_marker][iVertex] = q_conv;
       HeatFluxETC[val_marker][iVertex] = q_ETC;
-      //cout << "------------------------------------------------\n";
-      //cout << "BEGINNING.   q_conv: " << q_conv << ", q_rad: " << q_rad << ", q_ETC: " << q_ETC << "\n";
-      /*
-      if (temp_model == 2) {
-        // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer and ETC away from wall
-        su2double f = -1*q_conv - q_rad - q_ETC;
-        su2double q_conv_prime = (ktr+kve)/dij;
-        su2double q_rad_prime = 4*epsilon*sigma*pow(Ti,3);
-        su2double Je_sat_prime = 2*A_R*Ti*exp(-1*W_F*e/k_B/Ti) + A_R*Ti*Ti*exp(-1*W_F*e/k_B/Ti)*(e/k_B/Ti/Ti);
-        su2double Je_sc_cold_prime = Je_sc_cold_factor*0.5*pow(Twall,-0.5);
-        su2double Je_prime;
-        if (usecold){
-          Je_prime = Je_sc_cold_prime;
-        } else {
-          Je_prime = Je_sat_prime;
-        }
-        su2double q_ETC_prime = Je*(2*k_B/e) + (W_F + 2*k_B*Ti/e)*Je_prime;
-        su2double f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
-
-        while (abs(f/f_prime) > 1e-6) {
-          Twall -= f/f_prime;
-          q_rad = epsilon*sigma*pow(Twall,4); // Positive (+)
-          q_conv =  (ktr*(Twall-Tj) + kve*(Twall-Tvej))/dij; // Negative (-) if Tj > Ti (heat transfer to wall)
-          Je_sat = A_R*Twall*Twall*exp(-1*W_F*e/k_B/Twall);
-          q_ETC = Je*(W_F + 2*k_B*Twall/e); // Positive (+)
-          f = -1*q_conv - q_rad - q_ETC;
-                
-          q_conv_prime = (ktr+kve)/dij;
-          q_rad_prime = 4*epsilon*sigma*pow(Twall,3);
-          Je_sat_prime = 2*A_R*Twall*exp(-1*W_F*e/k_B/Twall) + A_R*Twall*Twall*exp(-1*W_F*e/k_B/Twall)*(e/k_B/Twall/Twall);
-          Je_sc_cold_prime = Je_sc_cold_factor*0.5*pow(Twall,-0.5);
-          if (usecold){
-            Je_prime = Je_sc_cold_prime;
-          } else {
-            Je_prime = Je_sat_prime;
-          }
-          q_ETC_prime = Je*(2*k_B/e) + (W_F + 2*k_B*Twall/e)*Je_prime;
-          f_prime = -1*q_conv_prime - q_rad_prime - q_ETC_prime;
-      
-        }
-        
-      } else if (temp_model == 1){
-	      // Radiative
-        su2double f = -1*q_conv - q_rad;
-        su2double q_conv_prime = (ktr+kve)/dij;
-        su2double q_rad_prime = 4*epsilon*sigma*pow(Ti,3);
-        su2double f_prime = -1*q_conv_prime - q_rad_prime;
-
-	      while (abs(f/f_prime) > 1e-6){
-          Twall -= f/f_prime;
-          q_rad = epsilon*sigma*pow(Twall,4); // Positive (+)
-          q_conv =  (ktr*(Twall-Tj) + kve*(Twall-Tvej))/dij; // Negative (-) if Tj > Ti (heat transfer to wall)
-          f = -1*q_conv - q_rad;
-           	  
-          q_conv_prime = (ktr+kve)/dij;
-          q_rad_prime = 4*epsilon*sigma*pow(Twall,3);
-          f_prime = -1*q_conv_prime - q_rad_prime;
-        }
-      } else if (temp_model == 0){
-        Twall = temp_param;
-      }
-      */
 
       // Bisection method
       su2double Ta = 200;
@@ -1744,107 +1771,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
     delete [] dVdU[iVar];
   delete [] dVdU;
 }
-// void CNEMONSSolver::BC_ETC_WallOld(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, 
-//                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker){
-//   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
-//   su2double UnitNormal[MAXNDIM] = {0.0};
-
-//   /*--- Extract required indicies ---*/
-//   // later
-
-//   /*--- Identify the boundary ---*/
-//   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
-  
-//   if (implicit){
-//     SU2_MPI::Error("ETC is not yet implemented for implicit", CURRENT_FUNCTION);
-//   }
-
-//   /*--- Loop over boundary points ---*/
-//   // TODO Add parallelization here
-//   for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++){
-
-//     // Get index of point on boundary
-//     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-
-//     if (!geometry->nodes->GetDomain(iPoint)) continue;
-
-//     // Get normal
-//     const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
-    
-//     // Get area
-//     const su2double Area = GeometryToolbox::Norm(nDim, Normal);
-
-//     for (auto iDim = 0uL; iDim < nDim; iDim++)
-//       UnitNormal[iDim] = Normal[iDim]/Area;
-    
-//       /*--- Store the corrected velocity at the wall which will
-//      be zero (v = 0), unless there is grid motion (v = u_wall)---*/
-//     su2double zero[MAXNDIM] = {0.0};
-//     nodes->SetVelocity_Old(iPoint, zero);
-
-//     /*--- Initialize viscous residual to zero ---*/
-//     for (auto iVar = 0ul; iVar < nVar; iVar ++) {Res_Visc[iVar] = 0.0;}
-
-//     for (auto iDim = 0ul; iDim < nDim; iDim++)
-//       LinSysRes(iPoint, nSpecies+iDim) = 0.0;
-//     nodes->SetVel_ResTruncError_Zero(iPoint);
-
-//     /*--- Compute closest normal neighbor and wall-to-neighbor distance ---*/
-//     const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-//     const auto Coord_i = geometry->nodes->GetCoord(iPoint);
-//     const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
-//     const su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
-
-//     /*--- Temperature at wall (i) and interior neighbor (j) ---*/
-//     const su2double Ti   = nodes->GetTemperature(iPoint);
-//     const su2double Tj   = nodes->GetTemperature(Point_Normal);
-//     const su2double Tvei = nodes->GetTemperature_ve(iPoint);
-//     const su2double Tvej = nodes->GetTemperature_ve(Point_Normal);
-
-//     const su2double ktr = nodes->GetThermalConductivity(iPoint);
-//     const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
-
-//     const su2double epsilon = config->GetWall_Emissivity(Marker_Tag);
-//     const su2double e = 1.602176634e-19; // [J]
-//     const su2double W_F = config->GetWork_Function(Marker_Tag) * e; // [eV] -> [J]
-//     const su2double k_B = 1.380649e-23 // [J/K]
-//     const su2double sigma = 5.67037442e-8; 
-//     const su2double A_R = 1.20e6; // [A/m2/K2]
-//     const su2double C = 20; // Multiplier for quicker convergence
-    
-//     // Goal: contribute mass momentum energy to residual
-//     // First add mass flow of electrons
-//     // Equation (2.4) Hanquist -> Je_sat = A_R*T_w^2*exp(-e*W_F/(k_B*T_w)) [A/m2]
-//     const su2double Je_sat = A_R*Ti*Ti*exp(-1*W_F/k_B/T_w); // W_F is already in J, no need to multiply by e
-//     //const su2double w_dot_e = Je_sat / e / 6.022141e23 // [(C/s)/m2] / [C]
-//     const su2double Mole_Flux = Je_sat / 96485; // Je_sat [(C/s)/m2] / 96485 [C/mol] -> [mol/s/m2]
-//     const su2double mdot_electrons_per_area = Mole_Flux * 5.485799e-7; // [mol/s/m2] * [kg/mol] -> [kg/s/m2]
-//     const su2double electron_flux = mdot_electrons * Area; // [kg/s/m2] * [m2] -> [kg/s]
-//     // Mass
-//     Res_Conv[0] = electron_flux;
-//     // Assume an electron velocity of 6.24e6 m/s (From Gemini)
-//     const su2double electron_velocity = 6.24e6; // m/s
-//     const su2double Pi = nodes->GetPressure(iPoint);
-//     // Momentum
-//     for (auto iDim = 0uL; iDim < nDim; iDim++){
-//       Res_Conv[nSpecies + iDim] = mdot_electrons * electron_velocity * Area * UnitNormal[iDim] + Pi * Area * UnitNormal[iDim];
-//     }
-//     // Energy
-//     // Assume from previous assumptions energy flux is 5.02e6 W/m2
-//     Res_Conv[nSpecies+nDim] = 5.02e6 * Area; // E
-//     Res_Conv[nSpecies+nDim+1] = 5.02e6 * Area; // Vib E
-
-//     HeatFluxRad[val_marker][iVertex]  = epsilon*sigma*pow(Ti,4);
-//     HeatFluxConv[val_marker][iVertex] = -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij;
-//     HeatFluxETC[val_marker][iVertex]  = 5.02e6;
-//     // Balance convective (toward the wall) heat transfer with radiative (away from the wall) heat transfer
-//     Res_Visc[nSpecies+nDim]   += C*(-1*(ktr*(Ti-Tj) + kve*(Tvei-Tvej))*Area/dist_ij - epsilon*sigma*pow(Ti,4)*Area);
-//     Res_Visc[nSpecies+nDim+1] += (kve*(Tvei-Tvej)*Area/dist_ij);
-    
-//     LinSysRes.SubtractBlock(iPoint, Res_Conv);  
-
-//   }
-// }
 
 void CNEMONSSolver::BC_Smoluchowski_Maxwell(CGeometry *geometry,
                                             CSolver **solver_container,
