@@ -1125,10 +1125,10 @@ su2double CNEMONSSolver::Calculate_ETC_Emission(su2double WF, su2double Tve, su2
   const auto& Cs = FluidModel->GetSpeciesCharge();
   const auto& Ms = FluidModel->GetSpeciesMolarMass();
   const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]      
+  su2double Je_sat = A_R*Tve*Tve*exp(-1*WF*e/k_B/Tve); // [A/m2]
   if (model == 0){
 
       // Saturated, Temperature Limited
-      su2double Je_sat = A_R*Tve*Tve*exp(-1*WF*e/k_B/Tve); // [A/m2]
       return Je_sat;
 
   }
@@ -1157,7 +1157,7 @@ su2double CNEMONSSolver::Calculate_ETC_Emission(su2double WF, su2double Tve, su2
       Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
       Je_sc_cold = Je_sc_cold_factor*sqrt(Tve); // [A/m2]
       
-      return Je_sc_cold;
+      return min(Je_sc_cold, Je_sat);
   }
 
   su2double Je_sc_warm = 0.0;
@@ -1194,7 +1194,7 @@ su2double CNEMONSSolver::Calculate_ETC_Emission(su2double WF, su2double Tve, su2
     G_star = G_star_guess; 
     Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tve/m_e);        
 
-    return Je_sc_warm;
+    return min(Je_sc_warm, Je_sat);
   }
 
   if (model == 3){
@@ -1204,7 +1204,7 @@ su2double CNEMONSSolver::Calculate_ETC_Emission(su2double WF, su2double Tve, su2
     Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
     Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
 
-    return Je_sc_float;
+    return min(Je_sc_float, Je_sat);
   }
 
   return 0.0;
@@ -1364,62 +1364,13 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       int iteration = 0.0;
 
       if (emission_model == 1){
-        // Space Charge Limited Cold
-        Phi_w = e*(phi_vc)/(k_B*Tvei); // phi_0 = 0
-        F = exp(Phi_w) - 1;
-        beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
-        beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
-        beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
-        G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
-        Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
-        Je_sc_cold = Je_sc_cold_factor*sqrt(Tvei); // [A/m2]
-        cout << "Original Cold: " << Je_sc_cold << "\n";
         Je_sc_cold = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 1,  n_i, n_e, m_i);
-        cout << "New Cold: " << Je_sc_cold << "\n";
       } else if (emission_model == 2){
         // Space Charge Limited Hot
-        Phi_vc = e*(phi_vc)/(k_B*Tvei);
-        // Hanquist Eq. 2.60f, but slightly modified due to typos
-        A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
-        H = (A-1)/gamma;
-        F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
-        e_pow_phi = exp(Phi_vc);
-
-        beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
-        beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
-        beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
-
-        G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
-        f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-
-        iteration = 0;
-        // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
-        while (abs(f_cubic) > 1e-6 && iteration < 10000){
-          iteration++;
-          f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
-          G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
-          if (G_star_new < 0){
-            G_star_guess *= 0.5;
-          } else {
-            G_star_guess = G_star_new;
-          }
-          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-        }
-        G_star = G_star_guess; 
-        Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tvei/m_e);
-        cout << "Original Warm: " << Je_sc_warm << "\n";
         Je_sc_warm = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 2,  n_i, n_e, m_i);
-        cout << "New Warm: " << Je_sc_warm << "\n";
       } else if (emission_model == 3) {
         // Floating Space Charge Limited
-        Cs_ion = sqrt(k_B*Tvei/m_i);
-        J_if = e*n_i*Cs_ion;
-        Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
-        Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
-        cout << "Original Floating: " << Je_sc_float << "\n";
         Je_sc_float = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 3,  n_i, n_e, m_i);
-        cout << "New Floating: " << Je_sc_float << "\n";
       } 
 
 
@@ -1447,7 +1398,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       /*--- Compute catalytic recombination flux ---*/
       // Ref: Campbell 2021
-      su2double total_ions_molar = 0.0; // Total ion recombination flux [mol/s]
+      su2double total_ions_molar = 0.0; // Total ion recombination flux [mol/s] su2double ion_molar_flux = 0.0;
       su2double ion_molar_flux = 0.0;
       bool catalytic = config->GetCatalytic_Wall(val_marker);
       if (catalytic){
@@ -1484,148 +1435,35 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       // f(A)
       q_rad = epsilon*sigma*pow(Ta,4);
       q_conv = (ktr*(Ta-Tj) + kve*(Ta-Tvej))/dij;
-      Je = A_R*Ta*Ta*exp(-1*W_F*e/k_B/Ta); // saturated
+      Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 0, n_i, n_e, m_i); // saturated
 
       if (emission_model == 1){
-        Phi_w = e*(phi_vc)/(k_B*Ta); // phi_0 = 0
-        F = exp(Phi_w) - 1;
-        beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
-        beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
-        beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
-        G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
-        Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
-        Je_sc_cold = Je_sc_cold_factor*sqrt(Ta);
-        if (Je_sc_cold < Je){
-          Je = Je_sc_cold;
-        }
+        Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 1, n_i, n_e, m_i);
       } else if (emission_model == 2){
-        // Space Charge Limited Hot
-        Phi_vc = e*(phi_vc)/(k_B*Ta);
-        A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
-        H = (A-1)/gamma;
-        F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
-        e_pow_phi = exp(Phi_vc);
-
-        beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
-        beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
-        beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
-
-        G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
-        f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-
-        iteration = 0;
-        // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
-        while (abs(f_cubic) > 1e-6 && iteration < 10000){
-          iteration++;
-          f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
-          G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
-          if (G_star_new < 0){
-            G_star_guess *= 0.5;
-          } else {
-            G_star_guess = G_star_new;
-          }
-          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-        }
-        // cout << "Converged in: " << iteration << " iterations\n";
-        // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
-
-        G_star = G_star_guess; 
-        Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Ta/m_e);        
-        if (Je_sc_warm < Je){
-          Je = Je_sc_warm;
-        }
+        Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 2, n_i, n_e, m_i);
       } else if (emission_model == 3) {
-        // Floating Space Charge Limited
-        Cs_ion = sqrt(k_B*Ta/m_i);
-        J_if = e*n_i*Cs_ion;
-        Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
-        Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
-        if (Je_sc_float < Je){
-          Je = Je_sc_float;
-        }
-        // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
-        // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
+        Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 3, n_i, n_e, m_i);
       } 
 
-
-      //cout << "Je: " << Je << "\n";
-      // cout << "Phi_w: " << Phi_w << "\n";
-      // cout << "Je_sat: " << Je_sat << ", e*n_i*sqrt(2*k_B/m_e): " << e*n_i*sqrt(2*k_B/m_e) << ", (G*sqrt(-1*Phi_w))/(1+G): " << (G*sqrt(-1*Phi_w))/(1+G) << "\n";
-    
       q_ETC = Je*(W_F + 2*k_B*Ta/e);
       su2double fa = -1*q_conv - q_rad - q_ETC;
       
       // f(B)
       q_rad = epsilon*sigma*pow(Tb,4);
       q_conv = (ktr*(Tb-Tj) + kve*(Tb-Tvej))/dij;
-      Je = A_R*Tb*Tb*exp(-1*W_F*e/k_B/Tb); // saturated
+      Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 0, n_i, n_e, m_i); // saturated
 
       if (emission_model == 1){
-        Phi_w = e*(phi_vc)/(Tb*k_B); // phi_0 = 0
-        F = exp(Phi_w) - 1;
-        beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
-        beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
-        beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
-        G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
-        Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
-        Je_sc_cold = Je_sc_cold_factor*sqrt(Tb);
-        if (Je_sc_cold < Je){
-          Je = Je_sc_cold;
-        }
+        Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 1, n_i, n_e, m_i);
       } else if (emission_model == 2){
-        // Space Charge Limited Hot
-        Phi_vc = e*(phi_vc)/(k_B*Tb);
-        A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
-        H = (A-1)/gamma;
-        F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
-        e_pow_phi = exp(Phi_vc);
-
-        beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
-        beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-        beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
-        beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
-
-        G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
-        f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-
-        iteration = 0;
-        // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
-        while (abs(f_cubic) > 1e-6 && iteration < 10000){
-          iteration++;
-          f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
-          G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
-          if (G_star_new < 0){
-            G_star_guess *= 0.5;
-          } else {
-            G_star_guess = G_star_new;
-          }
-          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-        }
-        // cout << "Converged in: " << iteration << " iterations\n";
-        // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
-
-        G_star = G_star_guess; 
-        Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tb/m_e);        
-        if (Je_sc_warm < Je){
-          Je = Je_sc_warm;
-        }
+        Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 2, n_i, n_e, m_i);
       } else if (emission_model == 3) {
-        // Floating Space Charge Limited
-        Cs_ion = sqrt(k_B*Tb/m_i);
-        J_if = e*n_i*Cs_ion;
-        Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
-        Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
-        if (Je_sc_float < Je){
-          Je = Je_sc_float;
-        }
-        // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
-        // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
+        Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 3, n_i, n_e, m_i);
       } 
 
-    
       q_ETC = Je*(W_F + 2*k_B*Tb/e);
       su2double fb = -1*q_conv - q_rad - q_ETC;
+
       su2double fc = 10000;
       su2double Tc = 0.0;
 
@@ -1634,98 +1472,22 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       while (abs(fc) > 1e-6 && iteration_T < 10000){
         iteration_T++;
         Tc = (Ta*fb - fa*Tb)/(fb-fa);
-        q_rad = epsilon*sigma*pow(Tc,4);
-        q_conv = (ktr*(Tc-Tj) + kve*(Tc-Tvej))/dij;
-        Je = A_R*Tc*Tc*exp(-1*W_F*e/k_B/Tc); // saturated
 
         // f(C)
+        q_rad = epsilon*sigma*pow(Tc,4);
+        q_conv = (ktr*(Tc-Tj) + kve*(Tc-Tvej))/dij;
+        Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 0, n_i, n_e, m_i); // saturated
+
         if (emission_model == 1){
-          q_rad = epsilon*sigma*pow(Tc,4);
-          q_conv = (ktr*(Tc-Tj) + kve*(Tc-Tvej))/dij;
-          Phi_w = e*(phi_vc)/(Tc*k_B); // phi_0 = 0
-          F = exp(Phi_w) - 1;
-          beta_0 = -4*Phi_w*Phi_w - 2*Phi_w *(F*F - 2*F);
-          beta_1 = 4*(-2*F-1)*Phi_w*Phi_w + 8*F*Phi_w - F*F;
-          beta_2 = 4*Phi_w*Phi_w - 8*pow(Phi_w,3);
-          G = (-beta_1 + sqrt(beta_1*beta_1 - 4*beta_0*beta_2))/(2*beta_2);
-          Je_sc_cold_factor = e*n_i*(G*sqrt(-1*Phi_w))/(1+G) * sqrt(2*k_B/m_e);
-          Je_sc_cold = Je_sc_cold_factor*sqrt(Tc);
-
-          if (Je_sc_cold < Je)
-            Je = Je_sc_cold;
+          Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 1, n_i, n_e, m_i);
         } else if (emission_model == 2){
-          // Space Charge Limited Hot
-          Phi_vc = e*(phi_vc)/(k_B*Tc);
-          A = sqrt((-PI_NUMBER*Phi_vc)/gamma)*erfc(sqrt(-Phi_vc/gamma))*exp(-Phi_vc/gamma);
-          H = (A-1)/gamma;
-          F = -1*gamma*A + 2*Phi_vc + sqrt(-PI_NUMBER*gamma*Phi_vc);
-          e_pow_phi = exp(Phi_vc);
-
-          beta_0 = pow(e_pow_phi-1,2) - 2*(e_pow_phi-1) + 2*Phi_vc;
-          beta_1 = 2*(F-2*A)*(e_pow_phi-1) + H*pow(e_pow_phi-1,2) - 2*F + 6*Phi_vc*A;
-          beta_2 = F*F + 2*H*F*(e_pow_phi-1) - 2*A*A*(e_pow_phi -1) - 4*A*F + 6*Phi_vc*A*A;
-          beta_3 = H*F*F - 2*A*A*F + 2*Phi_vc*A*A*A;
-
-          G_star_guess = 1+max(abs(beta_2/beta_3), max(abs(beta_1/beta_3), abs(beta_0/beta_3)));
-          f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-
-          iteration = 0;
-          // cout << "Abs(f_cubic): " << abs(f_cubic) << "\n";
-          while (abs(f_cubic) > 1e-6 && iteration < 10000){
-            iteration++;
-            f_prime_cubic = 3*beta_3*pow(G_star_guess,2) + 2*beta_2*G_star_guess + beta_1;
-            G_star_new = G_star_guess - (f_cubic)/(f_prime_cubic);
-            if (G_star_new < 0){
-              G_star_guess *= 0.5;
-            } else {
-              G_star_guess = G_star_new;
-            }
-            f_cubic = beta_3*pow(G_star_guess, 3) + beta_2*pow(G_star_guess, 2) + beta_1 * G_star_guess + beta_0;
-          }
-          // cout << "Converged in: " << iteration << " iterations\n";
-          // cout << "abs(f_cubic): " << abs(f_cubic) << "\n";
-
-          G_star = G_star_guess; 
-          Je_sc_warm = e*n_i*(G_star*sqrt(-1*Phi_vc))/(1+A*G_star) * sqrt(2*k_B*Tc/m_e);        
-          if (Je_sc_warm < Je){
-            Je = Je_sc_warm;
-          }
-
-          // cout << "Line 1589 -----------------------------------------\n";
-          // cout << "e                 = " << e << endl;
-          // cout << "n_i               = " << n_i << endl;
-          // cout << "G_star            = " << G_star << endl;
-          // cout << "Phi_vc            = " << Phi_vc << endl;
-          // cout << "sqrt(-Phi_vc)     = " << sqrt(-1*Phi_vc) << endl;
-          // cout << "A                 = " << A << endl;
-          // cout << "1 + A*G_star      = " << 1 + A*G_star << endl;
-          // cout << "k_B               = " << k_B << endl;
-          // cout << "Tc                = " << Tc << endl;
-          // cout << "m_e               = " << m_e << endl;
-          // cout << "sqrt(2*k_B*Tc/m_e) = " << sqrt(2*k_B*Tc/m_e) << endl;
-          // cout << "Je_sc_warm        = " << Je_sc_warm << endl;
-          // cout << "Line 1587.   Je: " << Je << "\n";
+          Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 2, n_i, n_e, m_i);
         } else if (emission_model == 3) {
-          // Floating Space Charge Limited
-          Cs_ion = sqrt(k_B*Tc/m_i);
-          J_if = e*n_i*Cs_ion;
-          Gam_crit = 1.0 - 8.3*sqrt(m_e/m_i);
-          Je_sc_float = J_if*Gam_crit/(1.0-Gam_crit);
-          // phi_w_f = -k_B*Tvei/e * log10((1-Gamma)/(sqrt(2*PI_NUMBER *m_e/m_i)));
-          // Je_floating = e*n_e*sqrt(k_B*T_vei/(2*PI_NUMBER*m_e)) * exp(e*phi_w_f/(k_B*Tvei));
-          //cout << "Je_sc_float: " << Je_sc_float << ", Je: " << Je << "\n";
-          if (Je_sc_float < Je){
-            Je = Je_sc_float;
-          }
-        }
+          Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 3, n_i, n_e, m_i);
+        } 
 
-        
         q_ETC = Je*(W_F + 2*k_B*Tc/e);
-        
         fc = -1*q_conv - q_rad - q_ETC;
-        // cout << "Ta: " << Ta << " Tb: " << Tb << " Tc: " << Tc << "\n"; 
-        // cout << "fa: " << fa << " fb: " << fb << " fc: " << fc << "\n"; 
-
         if (fa*fc < 0){
           Tb = Tc;
           fb = fc;
@@ -1738,10 +1500,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       Twall = Tc;
       if (Twall < 0)
 	      Twall = 200;
-
-      
-      // cout << "End.   q_conv: " << q_conv << ", q_rad: " << q_rad << ", q_ETC: " << q_ETC << "\n";
-      // cout << "Ti: " << Ti << ", Twall: " << Twall << ", Je [A/cm2]: " << Je/10000.0 << "\n";
        
       Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
                                  (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
