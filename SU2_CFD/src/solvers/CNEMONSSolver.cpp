@@ -935,6 +935,8 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
 
     if (!geometry->nodes->GetDomain(iPoint)) continue;
 
+    su2double zero[MAXNDIM] = {0.0};
+    nodes->SetVelocity_Old(iPoint, zero);
     // Get normal
     const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
     
@@ -989,53 +991,108 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
    
     su2double q_conv = (ktr*(Ti-Tj)    + kve*(Tvei-Tvej))*Area/dist_ij;
     su2double q_rad = -epsilon*sigma*pow(Ti,4)*Area;
-    
-    Res_Visc[nSpecies+nDim]   = q_conv - (q_conv-q_rad)*C;
-    
-    Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej))*Area/dist_ij;
-  
-    su2double zero[MAXNDIM] = {0.0};
-    nodes->SetVelocity_Old(iPoint, zero);
 
-    for (auto iDim = 0u; iDim < nDim; iDim++){
-      LinSysRes(iPoint, nSpecies+iDim) = 0.0;
-    }
-    nodes->SetVel_ResTruncError_Zero(iPoint);
+    // Solve for wall temperature
+    su2double Ta = 200;
+    su2double Tb = 5000;
 
-    LinSysRes.SubtractBlock(iPoint, Res_Visc);
+    su2double fa = (ktr*(Ta-Tj) + kve*(Ta-Tvej))*Area/dist_ij + epsilon*sigma*pow(Ta,4)*Area;
+    su2double fb = (ktr*(Tb-Tj) + kve*(Tb-Tvej))*Area/dist_ij + epsilon*sigma*pow(Tb,4)*Area;
 
-    /*--- Calculate Jacobian for implicit time stepping ---*/
-    if (implicit) {
+    su2double Tc = (Ta*fb - fa*Tb)/(fb-fa);
+    su2double fc = (ktr*(Tc-Tj) + kve*(Tc-Tvej))*Area/dist_ij + epsilon*sigma*pow(Tc,4)*Area;
 
-      /*--- Initialize Jacobian to zero ---*/
-      for (auto iVar = 0ul; iVar < nVar; iVar++)
-        for (auto jVar = 0ul; jVar < nVar; jVar++)
-          Jacobian_i[iVar][jVar] = 0.0;
-
-      /*--- Add contributions to the Jacobian from the weak enforcement of the energy equations. ---*/
-      const auto dTdU   = nodes->GetdTdU(iPoint);
-      const auto dTvedU = nodes->GetdTvedU(iPoint);
-      const su2double theta = GeometryToolbox::SquaredNorm(nDim, UnitNormal);
-
-      for (auto iVar = 0ul; iVar < nVar; iVar++) {
-        Jacobian_i[nSpecies+nDim][iVar]   = -(ktr*theta/dist_ij*dTdU[iVar] +
-                                              kve*theta/dist_ij*dTvedU[iVar])*Area;
-        Jacobian_i[nSpecies+nDim+1][iVar] = - kve*theta/dist_ij*dTvedU[iVar]*Area;
+    int iter_c = 0;
+    while (fc > 1e-6 && iter_c < 1e4){
+      if (fa*fc < 0){
+        Tb = Tc;
+        fb = fc;
+      } else {
+        Ta = Tc;
+        fa = fc;
       }
-    } // implicit
 
-    /*--- Enforce the no-slip boundary condition in a strong way by
-     modifying the velocity-rows of the Jacobian (1 on the diagonal).
-     And add the contributions to the Jacobian due to energy. ---*/
-    if (implicit) {
-      Jacobian.SubtractBlock2Diag(iPoint, Jacobian_i);
+      Tc = (Ta*fb - fa*Tb)/(fb-fa);
+      fc = (ktr*(Tc-Tj) + kve*(Tc-Tvej))*Area/dist_ij + epsilon*sigma*pow(Tc,4)*Area;
 
-      for (auto iVar = 1u; iVar <= nDim; iVar++) {
-        auto total_index = iPoint*nVar+iVar;
-        Jacobian.DeleteValsRowi(total_index);
-      }
+      iter_c++;
     }
 
+    if (iter_c == 1e4){
+      cout << "Radiative equilibrium wall did not solve temperature\n";
+    }
+    
+    bool strong_bc = 1;
+
+    if (strong_bc){
+      Twall = Tc;
+      // Strong BC
+      su2double rho = 0.0;
+      vector<su2double> rhos(nSpecies);
+      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
+        rhos[iSpecies] = max(nodes->GetSolution_Old(iPoint, iSpecies), su2double(0.0));
+        rho += rhos[iSpecies];
+      }
+
+      FluidModel->SetTDStateRhosTTv(rhos, Twall, Twall);
+      const auto& energies = FluidModel->ComputeMixtureEnergies(); // per unit mass: [e_total(no KE), e_ve]
+
+      nodes->SetSolution_Old(iPoint, nSpecies+nDim,   rho*energies[0]);
+      nodes->SetSolution_Old(iPoint, nSpecies+nDim+1, rho*energies[1]);
+      for (auto iVar = nSpecies; iVar < nVar; iVar++)
+        LinSysRes(iPoint, iVar) = 0.0;
+      nodes->SetVel_ResTruncError_Zero(iPoint);
+
+      if (implicit){
+        SU2_MPI::Error("Implicit not implemented for radiative wall", CURRENT_FUNCTION);
+      }
+    } else {
+      // Weak BC
+      Res_Visc[nSpecies+nDim]   = q_conv - (q_conv-q_rad)*C;
+      
+      Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej))*Area/dist_ij;
+    
+
+      for (auto iDim = 0u; iDim < nDim; iDim++){
+        LinSysRes(iPoint, nSpecies+iDim) = 0.0;
+      }
+      nodes->SetVel_ResTruncError_Zero(iPoint);
+
+      LinSysRes.SubtractBlock(iPoint, Res_Visc);
+
+      /*--- Calculate Jacobian for implicit time stepping ---*/
+      if (implicit) {
+
+        /*--- Initialize Jacobian to zero ---*/
+        for (auto iVar = 0ul; iVar < nVar; iVar++)
+          for (auto jVar = 0ul; jVar < nVar; jVar++)
+            Jacobian_i[iVar][jVar] = 0.0;
+
+        /*--- Add contributions to the Jacobian from the weak enforcement of the energy equations. ---*/
+        const auto dTdU   = nodes->GetdTdU(iPoint);
+        const auto dTvedU = nodes->GetdTvedU(iPoint);
+        const su2double theta = GeometryToolbox::SquaredNorm(nDim, UnitNormal);
+
+        for (auto iVar = 0ul; iVar < nVar; iVar++) {
+          Jacobian_i[nSpecies+nDim][iVar]   = -(ktr*theta/dist_ij*dTdU[iVar] +
+                                                kve*theta/dist_ij*dTvedU[iVar])*Area;
+          Jacobian_i[nSpecies+nDim+1][iVar] = - kve*theta/dist_ij*dTvedU[iVar]*Area;
+        }
+      } // implicit
+
+      /*--- Enforce the no-slip boundary condition in a strong way by
+       modifying the velocity-rows of the Jacobian (1 on the diagonal).
+       And add the contributions to the Jacobian due to energy. ---*/
+      if (implicit) {
+        Jacobian.SubtractBlock2Diag(iPoint, Jacobian_i);
+
+        for (auto iVar = 1u; iVar <= nDim; iVar++) {
+          auto total_index = iPoint*nVar+iVar;
+          Jacobian.DeleteValsRowi(total_index);
+        }
+      }
+
+    }
   }
   END_SU2_OMP_FOR
 }
