@@ -1258,6 +1258,7 @@ private:
   string NoneqStateModel;                   /*!< \brief Nonequilibrium State Model. */
   bool Mpp_Temp_Solver_Robust;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
+  ISOTHERMAL_BC_KIND Kind_IsothermalWallBC; /*!< \brief Kind of isothermal wall temperature BC for NEMO. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
   su2double *Inlet_MassFrac;                /*!< \brief Specified Mass fraction vectors for NEMO inlet boundaries. */
   su2double Inlet_Temperature_ve;           /*!< \brief Specified Tve for supersonic inlet boundaries (NEMO solver). */
@@ -5616,6 +5617,11 @@ public:
    * \brief Indicates whether supercatalytic wall is used.
    */
   bool GetSupercatalytic_Wall(void) const { return Supercatalytic_Wall; }
+
+  /*!
+   * \brief Get the kind of isothermal wall temperature BC (NEMO).
+   */
+  ISOTHERMAL_BC_KIND GetKind_IsothermalWallBC(void) const { return Kind_IsothermalWallBC; }
 
   /*!
    * \brief Information about computing and plotting the equivalent area distribution.

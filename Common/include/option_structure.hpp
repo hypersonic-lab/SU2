@@ -624,6 +624,18 @@ MakePair("CHAPMANN-ENSKOG", TRANSCOEFFMODEL::CHAPMANN_ENSKOG)
 };
 
 /*!
+ * \brief Types of isothermal wall BC enforcements (NEMO)
+ */
+enum class ISOTHERMAL_BC_KIND {
+  WEAK,  /*!< \brief Proportional-control (penalty) heat flux. */
+  STRONG /*!< \brief Dirichlet T = Tve = Twall at the wall node. */
+};
+static const MapType<std::string, ISOTHERMAL_BC_KIND> IsothermalBCKind_Map = {
+MakePair("WEAK", ISOTHERMAL_BC_KIND::WEAK)
+MakePair("STRONG", ISOTHERMAL_BC_KIND::STRONG)
+};
+
+/*!
  * \brief Types of density models
  */
 enum class INC_DENSITYMODEL {
