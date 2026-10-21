@@ -250,7 +250,18 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const su2double Tve = val_primvar[TVE_INDEX];
   const auto& V   = val_primvar;
   const auto& GV  = val_gradprimvar;
+
+  /*--- Construct mean edge partial densities ---*/
+  vector<su2double> rhos_mean(nSpecies, 0.0);
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+    rhos_mean[iSpecies] = rho * V[iSpecies];
+
+  /*--- Explicitly set thermodynamic state to mean edge state ---*/
+  fluidmodel->SetTDStateRhosTTv(rhos_mean, T, Tve);
+
+  /*--- Species enthalpies at the mean edge state ---*/
   const auto& hs = fluidmodel->ComputeSpeciesEnthalpy(T, Tve, val_eve);
+
   const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& Cs = fluidmodel->GetSpeciesCharge();
 
