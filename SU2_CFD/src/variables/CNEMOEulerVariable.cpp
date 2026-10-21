@@ -143,6 +143,10 @@ bool CNEMOEulerVariable::SetPrimVar(unsigned long iPoint, CFluidModel *FluidMode
 
   fluidmodel = static_cast<CNEMOGas*>(FluidModel);
 
+  /*--- Save temperatures (Newton initial guess) before attempting the update ---*/
+  const su2double T_save   = Primitive(iPoint, nSpecies);    // T_INDEX
+  const su2double Tve_save = Primitive(iPoint, nSpecies+1);  // TVE_INDEX
+
   /*--- Convert conserved to primitive variables ---*/
   bool nonPhys = Cons2PrimVar(Solution[iPoint], Primitive[iPoint],
                               dPdU[iPoint], dTdU[iPoint], dTvedU[iPoint], eves[iPoint], Cvves[iPoint]);
@@ -151,6 +155,10 @@ bool CNEMOEulerVariable::SetPrimVar(unsigned long iPoint, CFluidModel *FluidMode
   if (nonPhys) {
     for (iVar = 0; iVar < nVar; iVar++)
       Solution(iPoint,iVar) = Solution_Old(iPoint,iVar);
+
+    /*--- Restore the good temperatures so the retry starts from a valid guess ---*/
+    Primitive(iPoint, nSpecies)   = T_save;
+    Primitive(iPoint, nSpecies+1) = Tve_save;
 
     /*--- Recompute Primitive from previous solution ---*/
     Cons2PrimVar(Solution[iPoint], Primitive[iPoint],
