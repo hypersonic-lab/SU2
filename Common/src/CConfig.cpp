@@ -1250,6 +1250,8 @@ void CConfig::SetConfig_Options() {
   addStringListOption("CATALYTIC_WALL", nWall_Catalytic, Wall_Catalytic);
   /* DESCRIPTION: Specfify super-catalytic wall */
   addBoolOption("SUPERCATALYTIC_WALL", Supercatalytic_Wall, false);
+  /* DESCRIPTION: Kind of isothermal wall temperature implementation for NEMO (WEAK, STRONG) */
+  addEnumOption("ISOTHERMAL_BC_KIND", Kind_IsothermalWallBC, IsothermalBCKind_Map, ISOTHERMAL_BC_KIND::WEAK);
   /* DESCRIPTION: Wall mass fractions for supercatalytic case */
   addDoubleListOption("SUPERCATALYTIC_WALL_COMPOSITION", nSpecies_Cat_Wall, Supercatalytic_Wall_Composition);
   /* DESCRIPTION: Specfify catalytic efficiency of wall if using gamma model */
