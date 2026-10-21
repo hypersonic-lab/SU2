@@ -301,7 +301,11 @@ vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rh
   energies[0] = rhoE - rhoEvel;
   energies[1] = rhoEve;
 
-  mix->setState(rhos.data(), energies.data(), 0, NEWTON);
+
+  if (NoneqStateModel == "2T")
+    mix->setState(rhos.data(), energies.data(), 0, NEWTON, T_old, Tve_old);
+  else
+    mix->setState(rhos.data(), energies.data(), 0, NEWTON);
 
   mix->getTemperatures(temperatures.data());
 
