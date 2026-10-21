@@ -333,13 +333,22 @@ vector<su2double>& CMutationTCLib::GetRefTemperature() {
 
 vector<su2double>& CMutationTCLib::GetSpeciesFormationEnthalpy() {
 
-   vector<su2double> hf_RT; hf_RT.resize(nSpecies,0.0);
+   /*--- CNEMOGas (ComputedPdU, ComputedTdU) uses e_tr,s = Cvtr_s*(T-Tref) + hf_s - R_s*Tref,
+    so hf_s must be the tr-pool species enthalpy at Tref: h_tr,s(Tref) = hF + hT(Tref) + hR(Tref)
+    = h_form - [hV + hE](Tref). The Mutation++ formation term hF is the 0 K offset, so the
+    translational and rotational enthalpies at Tref are added. Vib.-el. energy is excluded
+    since it is carried by e_ve, measured from 0 K. Electron translational energy belongs to
+    e_ve, so electrons are only shifted by R_e*Tref, giving ef = hF_e in ComputedPdU. ---*/
+   vector<su2double> hf_RT(nSpecies,0.0), ht_RT(nSpecies,0.0), hr_RT(nSpecies,0.0);
 
    Tref = mix->standardStateT();
 
-   mix->speciesHOverRT(Tref, Tref, Tref, Tref, Tref, NULL, NULL, NULL, NULL, NULL, hf_RT.data());
+   mix->speciesHOverRT(Tref, Tref, Tref, Tref, Tref, NULL, ht_RT.data(), hr_RT.data(), NULL, NULL, hf_RT.data());
 
-   for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) Enthalpy_Formation[iSpecies] = hf_RT[iSpecies]*(RuSI*Tref*1000.0)/MolarMass[iSpecies];
+   for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+     const su2double hshift = (iSpecies < nEl) ? 1.0 : ht_RT[iSpecies] + hr_RT[iSpecies];
+     Enthalpy_Formation[iSpecies] = (hf_RT[iSpecies] + hshift)*(RuSI*Tref*1000.0)/MolarMass[iSpecies];
+   }
 
    return Enthalpy_Formation;
 }
