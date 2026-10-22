@@ -978,7 +978,6 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
         n_e += V[iSpecies] / (Ms[iSpecies]/1000) * N_A;
       }
     }
-    //cout << "n_i: " << n_i << "\n";
 
     nodes->SetIonNumberDensityNoETC(iPoint, n_i);
     nodes->SetElectronNumberDensityNoETC(iPoint, n_e);
@@ -999,11 +998,18 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
     su2double fa = (ktr*(Ta-Tj) + kve*(Ta-Tvej))*Area/dist_ij + epsilon*sigma*pow(Ta,4)*Area;
     su2double fb = (ktr*(Tb-Tj) + kve*(Tb-Tvej))*Area/dist_ij + epsilon*sigma*pow(Tb,4)*Area;
 
-    su2double Tc = (Ta*fb - fa*Tb)/(fb-fa);
+    su2double Tc = 0.5*(Ta + Tb); 
     su2double fc = (ktr*(Tc-Tj) + kve*(Tc-Tvej))*Area/dist_ij + epsilon*sigma*pow(Tc,4)*Area;
+    su2double fi = (ktr*(Tc-Tj) + kve*(Tc-Tvej))*Area/dist_ij + epsilon*sigma*pow(Ti,4)*Area;
 
     int iter_c = 0;
-    while (fc > 1e-6 && iter_c < 1e4){
+    // Better to only adjust the radiative part and not the convective part
+    //cout << "BEGIN\n";
+    //cout << "Heat_Flux_Conv: " << -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij << ", Rad: " << epsilon*sigma*pow(Ti,4) << "\n";
+    while (abs(fc) > 1e-6 && iter_c < 1e4){
+     // cout << "Ti: " << Ti << ", Tc in loop: " << Tc << "\n";
+     // cout << "Ta: " << Ta << ", Tb: " << Tb << "\n";
+     // cout << "fa: " << fa << ", fb: " << fb << ", fc: " << fc << ", fi: " << fi << "\n";
       if (fa*fc < 0){
         Tb = Tc;
         fb = fc;
@@ -1012,11 +1018,17 @@ void CNEMONSSolver::BC_RadiativeEquilibrium_Wall(CGeometry *geometry, CSolver **
         fa = fc;
       }
 
-      Tc = (Ta*fb - fa*Tb)/(fb-fa);
+      Tc = 0.5*(Ta + Tb);
       fc = (ktr*(Tc-Tj) + kve*(Tc-Tvej))*Area/dist_ij + epsilon*sigma*pow(Tc,4)*Area;
 
       iter_c++;
     }
+
+    //cout << "--------------------------------------------\n";
+    //cout << "fc: " << fc << ", Heat_Flux_Conv: " << -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij << ", Rad: " << epsilon*sigma*pow(Ti,4) << "\n";
+    //cout << "Tc: " << Tc << ", Heat_Flux_Conv(c): " << -1*((ktr*(Ti-Tj) + kve*(Tvei-Tvej))) / dist_ij << ", Rad(c): " << epsilon*sigma*pow(Tc,4) << "\n";
+    //cout << "Ti: " << Ti << ", Tc: " << Tc << "iter_c" << iter_c << "\n";
+    //cout << "--------------------------------------------\n";
 
     if (iter_c == 1e4){
       cout << "Radiative equilibrium wall did not solve temperature\n";
@@ -1328,64 +1340,10 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       }
 
       m_i = rho_ion/n_ion_here;
-      cout << "Original Sat: " << Je_sat << "\n";
-      Je_sat = Calculate_ETC_Emission(W_F, Ti, phi_vc, 0,  n_i, n_e, m_i);
-      cout << "New Sat: " << Je_sat << "\n";
-
-      su2double Je_sc_cold = Je_sat + 10;
-      su2double Je_sc_cold_factor = 0;
-      su2double m_e = 9.1093837e-31;
-      su2double G = 0.0;
-      su2double Phi_w = 0.0;
-      su2double Phi_vc = 0.0;
-      su2double beta_0 = 0.0;
-      su2double beta_1 = 0.0;
-      su2double beta_2 = 0.0;
-      su2double beta_3 = 0.0;
-      su2double F = 0.0;
-      su2double H = 0.0;
-      su2double gamma = 1.0;
-      su2double p = 0.0;
-      su2double q = 0.0;
-      su2double r = 0.0;
-      su2double e_pow_phi = 0.0;
-      su2double A = 0.0;
-      su2double Je_sc_warm = Je_sat + 10.0;
-      su2double G_star = 0.0;
-      su2double G_star_guess = 0.0;
-      su2double G_star_new = 0.0;
-      su2double f_cubic = 0.0;
-      su2double f_prime_cubic = 0.0;
-      su2double Gam_crit = 0.0;
-      su2double J_if = 0.0;
-      su2double Je_sc_float = 0.0;
-      su2double Cs_ion = 0.0;
     
       int iteration = 0.0;
 
-      if (emission_model == 1){
-        Je_sc_cold = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 1,  n_i, n_e, m_i);
-      } else if (emission_model == 2){
-        // Space Charge Limited Hot
-        Je_sc_warm = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 2,  n_i, n_e, m_i);
-      } else if (emission_model == 3) {
-        // Floating Space Charge Limited
-        Je_sc_float = Calculate_ETC_Emission(W_F, Tvei, phi_vc, 3,  n_i, n_e, m_i);
-      } 
-
-
-      su2double Je = Je_sat;
-      if (Je_sc_cold < Je && emission_model == 1){
-        Je = Je_sc_cold;
-      }
-
-      if (Je_sc_warm < Je && emission_model == 2){
-        Je = Je_sc_warm;
-      }
-
-      if (Je_sc_float < Je && emission_model == 3){
-        Je = Je_sc_float;
-      }
+      su2double Je = Calculate_ETC_Emission(W_F, Tvei, phi_vc, emission_model, n_i, n_e, m_i);
 
       const su2double Mole_Flux = Je / (e*N_A);
       const su2double M_electron = 5.485799e-7; // Electron molar mass [kg/mol]
@@ -1417,7 +1375,6 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       if (electron_flux < 0){
         electron_flux = 0;
-        cout << "0 electron flux\n";
       }
       Res_Visc[0] += electron_flux;
 
@@ -1435,32 +1392,14 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       // f(A)
       q_rad = epsilon*sigma*pow(Ta,4);
       q_conv = (ktr*(Ta-Tj) + kve*(Ta-Tvej))/dij;
-      Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 0, n_i, n_e, m_i); // saturated
-
-      if (emission_model == 1){
-        Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 1, n_i, n_e, m_i);
-      } else if (emission_model == 2){
-        Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 2, n_i, n_e, m_i);
-      } else if (emission_model == 3) {
-        Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, 3, n_i, n_e, m_i);
-      } 
-
+      Je = Calculate_ETC_Emission(W_F, Ta, phi_vc, emission_model, n_i, n_e, m_i);
       q_ETC = Je*(W_F + 2*k_B*Ta/e);
       su2double fa = -1*q_conv - q_rad - q_ETC;
       
       // f(B)
       q_rad = epsilon*sigma*pow(Tb,4);
       q_conv = (ktr*(Tb-Tj) + kve*(Tb-Tvej))/dij;
-      Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 0, n_i, n_e, m_i); // saturated
-
-      if (emission_model == 1){
-        Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 1, n_i, n_e, m_i);
-      } else if (emission_model == 2){
-        Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 2, n_i, n_e, m_i);
-      } else if (emission_model == 3) {
-        Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, 3, n_i, n_e, m_i);
-      } 
-
+      Je = Calculate_ETC_Emission(W_F, Tb, phi_vc, emission_model, n_i, n_e, m_i); // saturated
       q_ETC = Je*(W_F + 2*k_B*Tb/e);
       su2double fb = -1*q_conv - q_rad - q_ETC;
 
@@ -1471,21 +1410,12 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
       int iteration_T = 0;
       while (abs(fc) > 1e-6 && iteration_T < 10000){
         iteration_T++;
-        Tc = (Ta*fb - fa*Tb)/(fb-fa);
+        Tc = 0.5*(Ta+Tb);
 
         // f(C)
         q_rad = epsilon*sigma*pow(Tc,4);
         q_conv = (ktr*(Tc-Tj) + kve*(Tc-Tvej))/dij;
-        Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 0, n_i, n_e, m_i); // saturated
-
-        if (emission_model == 1){
-          Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 1, n_i, n_e, m_i);
-        } else if (emission_model == 2){
-          Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 2, n_i, n_e, m_i);
-        } else if (emission_model == 3) {
-          Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, 3, n_i, n_e, m_i);
-        } 
-
+        Je = Calculate_ETC_Emission(W_F, Tc, phi_vc, emission_model, n_i, n_e, m_i); // saturated
         q_ETC = Je*(W_F + 2*k_B*Tc/e);
         fc = -1*q_conv - q_rad - q_ETC;
         if (fa*fc < 0){
@@ -1497,28 +1427,58 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         }
       }
 
+      if (iteration_T == 10000)
+        cout << "ETC Temperature Not Converged\n";
+
       Twall = Tc;
       if (Twall < 0)
 	      Twall = 200;
-       
-      Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
-                                 (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
-                                 
-      Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej) + kve*(Twall-Tvei) *C)*Area/dij;
-      const unsigned short T_INDEX        = nodes->GetTIndex();
-      const unsigned short TVE_INDEX      = nodes->GetTveIndex();
-      const unsigned short RHO_INDEX      = nodes->GetRhoIndex();
-      const unsigned short RHOCVTR__INDEX = nodes->GetTIndex();
-      const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
-      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
-        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
-        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
-      }
-      //Res_Visc[nSpecies+nDim]   -= (electron_flux*hs[0]);
-      //Res_Visc[nSpecies+nDim+1] -= (electron_flux*eves[0]);
 
-      /*--- Viscous contribution to the residual at the wall ---*/
-      LinSysRes.SubtractBlock(iPoint, Res_Visc);
+      bool strong_bc = 1;
+       
+      if (strong_bc){
+        Twall = Tc;
+        // Strong BC
+        su2double rho = 0.0;
+        vector<su2double> rhos(nSpecies);
+        for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
+          rhos[iSpecies] = max(nodes->GetSolution_Old(iPoint, iSpecies), su2double(0.0));
+          rho += rhos[iSpecies];
+        }
+
+        FluidModel->SetTDStateRhosTTv(rhos, Twall, Twall);
+        const auto& energies = FluidModel->ComputeMixtureEnergies(); // per unit mass: [e_total(no KE), e_ve]
+
+        nodes->SetSolution_Old(iPoint, nSpecies+nDim,   rho*energies[0]);
+        nodes->SetSolution_Old(iPoint, nSpecies+nDim+1, rho*energies[1]);
+        for (auto iVar = nSpecies; iVar < nVar; iVar++)
+          LinSysRes(iPoint, iVar) = 0.0;
+        nodes->SetVel_ResTruncError_Zero(iPoint);
+
+        if (implicit){
+          SU2_MPI::Error("Implicit not implemented for ETC", CURRENT_FUNCTION);
+        }
+      } else {
+
+        Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) +
+                                   (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
+                                   
+        Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej) + kve*(Twall-Tvei) *C)*Area/dij;
+        const unsigned short T_INDEX        = nodes->GetTIndex();
+        const unsigned short TVE_INDEX      = nodes->GetTveIndex();
+        const unsigned short RHO_INDEX      = nodes->GetRhoIndex();
+        const unsigned short RHOCVTR__INDEX = nodes->GetTIndex();
+        const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
+        for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+          Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
+          Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
+        }
+        //Res_Visc[nSpecies+nDim]   -= (electron_flux*hs[0]);
+        //Res_Visc[nSpecies+nDim+1] -= (electron_flux*eves[0]);
+
+        /*--- Viscous contribution to the residual at the wall ---*/
+        LinSysRes.SubtractBlock(iPoint, Res_Visc);
+      }  
     }
   }
 
