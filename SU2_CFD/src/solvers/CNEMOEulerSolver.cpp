@@ -959,13 +959,24 @@ void CNEMOEulerSolver::ComputeUnderRelaxationFactor(const CConfig *config) {
             localUnderRelaxation = min(allowableRatio / ratio, localUnderRelaxation);
           }
         }
+      }
 
-        /*--- Energy ---*/
-        if (iVar == (nVar-2)){
-          su2double ratio = fabs(LinSysSol[index]) / (fabs(nodes->GetSolution(iPoint, iVar)) + EPS);
-          if (ratio > allowableRatio) {
-            localUnderRelaxation = min(allowableRatio / ratio, localUnderRelaxation);
-          }
+      /*--- Energy ---*/
+      if (iVar == (nVar-2)){
+        su2double ratio = fabs(LinSysSol[index]) / (fabs(nodes->GetSolution(iPoint, iVar)) + EPS);
+        if (ratio > allowableRatio) {
+          localUnderRelaxation = min(allowableRatio / ratio, localUnderRelaxation);
+        }
+      }
+
+      /*--- Vibrational Energy limit decreases, but not increases (so shock still functions)---*/
+      if (iVar == (nVar-1)){
+        const su2double rhoEve = nodes->GetSolution(iPoint, iVar);
+        const su2double dRhoEve = LinSysSol[index];
+        if (dRhoEve < 0.0) {
+          if (rhoEve <= 0.0) localUnderRelaxation = 0.0;
+          else if (-dRhoEve > allowableRatio*rhoEve)
+            localUnderRelaxation = min(allowableRatio*rhoEve / (-dRhoEve), localUnderRelaxation);
         }
       }
     }

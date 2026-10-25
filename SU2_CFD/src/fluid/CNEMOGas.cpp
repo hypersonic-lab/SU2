@@ -156,7 +156,6 @@ su2double CNEMOGas::ComputerhoCvve() {
 
 void CNEMOGas::ComputedPdU(const su2double *V, const vector<su2double>& val_eves, su2double *val_dPdU){
 
-  // Note: Electron energy not included properly.
 
   if (val_dPdU == nullptr) {
     SU2_MPI::Error("Array dPdU not allocated!", CURRENT_FUNCTION);
@@ -221,7 +220,7 @@ void CNEMOGas::ComputedPdU(const su2double *V, const vector<su2double>& val_eves
     }
     ef = Enthalpy_Formation[0] - Ru/MolarMass[0]*Ref_Temperature[0];
     val_dPdU[0] = Ru*conc/rhoCvtr * (-ef + 0.5*sqvel) + Ru/MolarMass[0]*Tve
-                - rho_el*Ru/MolarMass[0] * (-3.0/2.0*Ru/MolarMass[0]*Tve)/rhoCvve;
+                - rho_el*Ru/MolarMass[0] * (3.0/2.0*Ru/MolarMass[0]*Tve)/rhoCvve;
   }
 
   /*--- Momentum derivatives ---*/
@@ -254,11 +253,17 @@ void CNEMOGas::ComputedTdU(const su2double *V, su2double *val_dTdU){
 
   /*--- Calculate supporting quantities ---*/
   const su2double v2 = GeometryToolbox::SquaredNorm(nDim, &V[VEL_INDEX]);
-
+  su2double ef = 0.0;
   /*--- Species density derivatives ---*/
   for (iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
-    su2double ef    = Enthalpy_Formation[iSpecies] - Ru/MolarMass[iSpecies]*Ref_Temperature[iSpecies];
+    ef    = Enthalpy_Formation[iSpecies] - Ru/MolarMass[iSpecies]*Ref_Temperature[iSpecies];
     val_dTdU[iSpecies]   = (-ef + 0.5*v2 + Cvtrs[iSpecies]*(Ref_Temperature[iSpecies]-T)) / rhoCvtr;
+  }
+
+  // Electrons
+  if (ionization){
+    ef = Enthalpy_Formation[0] - Ru/MolarMass[0]*Ref_Temperature[0];
+    val_dTdU[0] = (-ef + 0.5*v2)/rhoCvtr;
   }
 
   /*--- Momentum derivatives ---*/

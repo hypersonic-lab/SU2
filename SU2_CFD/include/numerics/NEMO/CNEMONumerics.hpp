@@ -226,6 +226,7 @@ public:
     const auto& hs = fluidmodel->ComputeSpeciesEnthalpy(T, Tve, val_Mean_Eve);
     const auto& Cvtr = fluidmodel->GetSpeciesCvTraRot();
     const auto& Ms = fluidmodel->GetSpeciesMolarMass();
+    const auto& Cs = fluidmodel->GetSpeciesCharge();
 
     /*--- Calculate useful diffusion parameters ---*/
     // Mass fraction and summation of diffusion fluxes
@@ -237,6 +238,9 @@ public:
       Ys_i[iSpecies] = V_i[RHOS_INDEX+iSpecies]/V_i[RHO_INDEX];
       Ys_j[iSpecies] = V_j[RHOS_INDEX+iSpecies]/V_j[RHO_INDEX];
 
+
+      // exclude electrons from the sums (ambipolar)
+      if (iSpecies < nEl) continue;
       sumY_i += Ds[iSpecies]*theta/dij*Ys_i[iSpecies];
       sumY_j += Ds[iSpecies]*theta/dij*Ys_j[iSpecies];
       sumY   += Ds[iSpecies]*theta/dij*(Ys_j[iSpecies]-Ys_i[iSpecies]);
@@ -249,6 +253,9 @@ public:
     for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
       for (auto jSpecies  = 0; jSpecies < nSpecies; jSpecies++) {
 
+        // do not include electrons for ambipolar
+        const su2double Ds_j = (jSpecies < nEl) ? 0.0 : Ds[jSpecies];
+
         // first term
         dJdr_j[iSpecies][jSpecies] +=  0.5*(Ds[iSpecies]*theta/dij *
                                            (Ys_j[iSpecies]*rho_i/rho_j +
@@ -260,12 +267,12 @@ public:
         // second term
         dJdr_j[iSpecies][jSpecies] +=
               0.25*(Ys_i[iSpecies] - rho_i/rho_j*Ys_j[iSpecies])*sumY
-            + 0.25*(Ys_i[iSpecies]+Ys_j[iSpecies])*(rho_i+rho_j)*Ds[jSpecies]*theta/(dij*rho_j)
+            + 0.25*(Ys_i[iSpecies]+Ys_j[iSpecies])*(rho_i+rho_j)*Ds_j*theta/(dij*rho_j)
             - 0.25*(Ys_i[iSpecies]+Ys_j[iSpecies])*(rho_i+rho_j)*sumY_j/rho_j;
 
         dJdr_i[iSpecies][jSpecies] +=
               0.25*(-rho_j/rho_i*Ys_i[iSpecies]+Ys_j[iSpecies])*sumY
-            - 0.25*(Ys_i[iSpecies]+Ys_j[iSpecies])*(rho_i+rho_j)*Ds[jSpecies]*theta/(dij*rho_i)
+            - 0.25*(Ys_i[iSpecies]+Ys_j[iSpecies])*(rho_i+rho_j)*Ds_j*theta/(dij*rho_i)
             + 0.25*(Ys_i[iSpecies]+Ys_j[iSpecies])*(rho_i+rho_j)*sumY_i/rho_i;
       }
 
@@ -276,6 +283,18 @@ public:
       // second term
       dJdr_j[iSpecies][iSpecies] += 0.25*(1.0+rho_i/rho_j)*sumY;
       dJdr_i[iSpecies][iSpecies] += 0.25*(1.0+rho_j/rho_i)*sumY;
+    }
+
+    // Handle electrons with ambipolar diffusion
+    if (nEl == 1){
+      for (auto jSpecies = 0; jSpecies < nSpecies; jSpecies++){
+        dJdr_i[0][jSpecies] = 0.0;
+        dJdr_j[0][jSpecies] = 0.0;
+        for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++){
+          dJdr_i[0][jSpecies] += Ms[0]*Cs[iSpecies]/Ms[iSpecies]*dJdr_i[iSpecies][jSpecies];
+          dJdr_j[0][jSpecies] += Ms[0]*Cs[iSpecies]/Ms[iSpecies]*dJdr_j[iSpecies][jSpecies];
+        }
+      }
     }
 
     /*--- Calculate transformation matrix ---*/
