@@ -113,6 +113,8 @@ CSolver::CSolver(LINEAR_SOLVER_MODE linear_solver_mode) : System(linear_solver_m
   Old_Func = 0;
   New_Func = 0;
   NonLinRes_Counter = 0;
+  CFL_Auto_Counter = 0; // Added by RSCD
+  CFL_Auto_Base = -1.0; // Added by RSCD
 
   nPrimVarGrad = 0;
   nPrimVar     = 0;
@@ -1977,12 +1979,23 @@ void CSolver::AutoCFLNumber(CGeometry **geometry, CSolver ***solver_container, C
   const bool stable_residuals = (rhoE_Res < config->GetCFL_Auto_RhoE_Threshold()) &&
       (rhoEve_Res < config->GetCFL_Auto_RhoEve_Threshold());
 
-  if (stable_residuals) {
+/*  if (stable_residuals) {
     CFL_Auto_Counter++;
   } else {
     CFL_Auto_Counter = 0;
   }
+*/
 
+  if (!stable_residuals) {
+	  CFL_Auto_Counter = 0;
+	  return;
+  }
+
+  CFL_Auto_Counter++;
+
+  if (CFL_Auto_Counter < config->GetCFL_AutoWaitIter()) {
+    return;
+  }
   /*--- Debug print for CFL_AUTO behavior ---*/
 
   /*if (rank == MASTER_NODE) {
@@ -2006,14 +2019,11 @@ void CSolver::AutoCFLNumber(CGeometry **geometry, CSolver ***solver_container, C
 
     if (stable_residuals &&
         (CFL_Auto_Counter >= config->GetCFL_AutoWaitIter())) {
-
       newCFL = min(currentCFL*CFLFactor, CFLMax);
-
-    } else if (!stable_residuals) {
-
-      newCFL = max(CFL_Auto_Base, currentCFL/CFLFactor);
-
-    }
+    } 
+ //   else if (!stable_residuals) {
+ //     newCFL = max(CFL_Auto_Base, currentCFL/CFLFactor);
+ //   }
 
     config->SetCFL(iMesh, newCFL);
 
