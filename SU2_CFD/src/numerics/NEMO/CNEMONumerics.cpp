@@ -262,6 +262,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const su2double e = 1.6021716634e-19;
   const su2double kB = 1.380649e-23;
   const su2double multiplier = 1.0;
+  bool poisson_freeze = config->Get_Poisson_Freeze();
 
   /*--- Pre-compute mixture quantities ---*/  //TODO CW: Why does this say TODO?
   su2double Vector[MAXNDIM] = {0.0};
@@ -279,14 +280,6 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const su2double epsilon_0 = 8.8541878188e-12; // [F/m]
   for (auto iDim = 0ul; iDim < nDim; iDim++){
     Vector_EField[iDim] = -1*GV[EPOT_INDEX][iDim];
-    // if (Vector_EField[iDim] > 3000){
-    //   Vector_EField[iDim] = 3000;
-    // } else if (Vector_EField[iDim] < -3000){
-    //   Vector_EField[iDim] = -3000;
-    // }
-    //if (abs(-1*GV[EPOT_INDEX][iDim]) > 5){
-    //  cout << "break\n";
-    //}
   }
 
 
@@ -356,6 +349,15 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
     for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
       Flux_Tensor[iSpecies][iDim] *= multiplier;
+    }
+
+    // If poisson solver is frozen, don't allow charged species to diffuse
+    if (poisson_freeze){
+      for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+        if (Cs[iSpecies] != 0){
+          Flux_Tensor[iSpecies][iDim] = 0.0;
+        }
+      }
     }
 
     //cout << "iSpecies: " << 0 << ", Cs: " << Cs[0] << ", u_d: " << Ke*Vector_EField[iDim] << ", Ds: "<< Ds[0]<< "\n";

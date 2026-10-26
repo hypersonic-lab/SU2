@@ -1246,6 +1246,8 @@ void CConfig::SetConfig_Options() {
   addBoolOption("MPP_TEMP_SOLVER_ROBUST", Mpp_Temp_Solver_Robust, false);
   /* DESCRIPTION: If true, use electric field modeling, if false, use ambipolar diffusion */
   addBoolOption("POISSON_SOLVER", Poisson_Solver, false);
+  /* DESCRIPTION: If true, freeze electric potential, electron/ion diffusion*/
+  addBoolOption("POISSON_FREEZE", Poisson_Freeze, false);
   /* DESCRIPTION: Specify transport coefficient model for multi-species simulations */
   addEnumOption("TRANSPORT_COEFF_MODEL", Kind_TransCoeffModel, TransCoeffModel_Map, TRANSCOEFFMODEL::WILKE);
   /* DESCRIPTION: Specify mass fraction of each species */

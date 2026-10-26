@@ -3004,6 +3004,14 @@ public:
                                         unsigned long val_vertex,
                                         su2double val_heat) { }
 
+  /* \brief A virtual member.
+   * \param[in] val_marker - Electric potential.
+   * \param[in] val_vertex - Electric potential.
+   * \return Value of the electric potential.
+   */
+  inline virtual su2double GetElectricPotential(unsigned short val_marker,
+                                        unsigned long val_vertex) const { return 0; }
+
   /*!
    * \brief A virtual member.
    * \param[in] val_marker - Surface marker where the coefficient is computed.

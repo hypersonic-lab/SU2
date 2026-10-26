@@ -169,6 +169,7 @@ void CFVMFlowSolverBase<V, R>::Allocate(const CConfig& config) {
   AllocVectorOfVectors(nVertex, HeatFluxTarget);
   AllocVectorOfVectors(nVertex, HeatFluxRadiative);
   AllocVectorOfVectors(nVertex, HeatFluxConvective);
+  AllocVectorOfVectors(nVertex, Electric_Potential);
 
   /*--- Y plus in all the markers ---*/
 
@@ -858,6 +859,18 @@ void CFVMFlowSolverBase<V, R>::LoadRestart_impl(CGeometry **geometry, CSolver **
       }
     }
 
+    // For including electric potential in restart file
+    unsigned long ePotentialField = fields.size();
+    for (unsigned long iField = 0; iField < fields.size(); ++iField){
+      auto fieldName = fields[iField];
+      if (fieldName.size() >= 2 && fieldName.front() == '"' && fieldName.back() == '"')
+        fieldName = fieldName.substr(1, fieldName.size() - 2);
+      if (fieldName == "Electric_Potential") {
+        ePotentialField = iField;
+        break;
+      }
+    }
+
     /*--- Load data from the restart into correct containers. ---*/
 
     unsigned long counter = 0;
@@ -884,6 +897,10 @@ void CFVMFlowSolverBase<V, R>::LoadRestart_impl(CGeometry **geometry, CSolver **
           for (auto iVar = 0u; iVar < nVar_Restart; iVar++)
             SolutionRestart[iVar] = Restart_Data[index + iVar];
           nodes->SetSolution(iPoint_Local, SolutionRestart);
+        }
+
+        if (ePotentialField < fields.size() && ePotentialField > 0){
+          nodes->SetElectricPotential(iPoint_Local, Restart_Data[counter*Restart_Vars[1] + ePotentialField - 1]);
         }
 
         /*--- For dynamic meshes, read in and store the

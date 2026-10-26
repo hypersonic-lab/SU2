@@ -1268,6 +1268,7 @@ private:
   string NoneqStateModel;                   /*!< \brief Nonequilibrium State Model. */
   bool Mpp_Temp_Solver_Robust;                           /*!< \brief M++ derivative vs. Perturbation Method for Newton's Method. */
   bool Poisson_Solver;                           /*!< \brief Poisson's equation vs Ambipolar diffusion */
+  bool Poisson_Freeze;                           /*!< \brief Freeze electron and ion diffusion, also freeze electric potential */
   TRANSCOEFFMODEL   Kind_TransCoeffModel;   /*!< \brief Transport coefficient Model for NEMO solver. */
   su2double CatalyticEfficiency;            /*!< \brief Wall catalytic efficiency. */
   su2double SheathThickness;                /*!< \brief Sheath thickness at wall */
@@ -3980,6 +3981,12 @@ public:
    * \return Bool to use Poisson's equation vs ambipolar diffusion
    */
   bool Get_Poisson_Solver(void) const {return Poisson_Solver;}
+
+  /*!
+   * \brief Return Poisson_Freeze
+   * \return Bool to use Poisson_Freeze
+   */
+  bool Get_Poisson_Freeze(void) const {return Poisson_Freeze;}
 
   /*!
    * \brief Get Debug Variable 1

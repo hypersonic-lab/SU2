@@ -935,17 +935,38 @@ void CNEMOEulerSolver::ExplicitRK_Iteration(CGeometry *geometry, CSolver **solve
                                             CConfig *config, unsigned short iRKStep) {
 
   Explicit_Iteration<RUNGE_KUTTA_EXPLICIT>(geometry, solver_container, config, iRKStep);
+  RestoreChargedSpecies(config);
 }
 
 void CNEMOEulerSolver::ClassicalRK4_Iteration(CGeometry *geometry, CSolver **solver_container,
                                               CConfig *config, unsigned short iRKStep) {
 
   Explicit_Iteration<CLASSICAL_RK4_EXPLICIT>(geometry, solver_container, config, iRKStep);
+  RestoreChargedSpecies(config);
 }
 
 void CNEMOEulerSolver::ExplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_container, CConfig *config) {
 
   Explicit_Iteration<EULER_EXPLICIT>(geometry, solver_container, config, 0);
+  RestoreChargedSpecies(config);
+}
+
+void CNEMOEulerSolver::RestoreChargedSpecies(const CConfig *config) {
+
+  if (!config->Get_Poisson_Freeze()) return;
+
+  const auto& Cs = FluidModel->GetSpeciesCharge();
+
+  /*--- Solution_Old holds the start-of-iteration state (set at iRKStep 0). Loop over
+   *    all points, halos included, since the solution has already been communicated. ---*/
+  SU2_OMP_FOR_STAT(omp_chunk_size)
+  for (auto iPoint = 0ul; iPoint < nPoint; iPoint++) {
+    for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+      if (Cs[iSpecies] != 0)
+        nodes->SetSolution(iPoint, iSpecies, nodes->GetSolution_Old(iPoint, iSpecies));
+    }
+  }
+  END_SU2_OMP_FOR
 }
 
 void CNEMOEulerSolver::PrepareImplicitIteration(CGeometry *geometry, CSolver**, CConfig *config) {
@@ -2402,7 +2423,9 @@ void CNEMOEulerSolver::SetPressureDiffusionSensor(CGeometry *geometry, CConfig *
 }
 
 void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig *config){
-
+  bool poisson_freeze = config->Get_Poisson_Freeze();
+  if (poisson_freeze)
+    return;
   const su2double omega_inner = 1.4;  // SOR factor for points whose neighbours are all local
   const su2double omega_itf   = 1.0;  // plain Gauss-Seidel at partition interfaces (halo neighbours)
   const su2double epsilon_0 = 8.8541878188e-12; // [F/m]
@@ -2517,7 +2540,7 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
     tol = max(abs_tol, rel_tol * phi_max);
     converged = (iteration >= min_iter) && (max_change < tol);
 
-    /*--- DIAGNOSTIC: report the worst point periodically. ---*/
+    /*
     if (iteration % print_freq == 0) {
       if (rank == MASTER_NODE)
         cout << "[SOR] call " << sor_calls << " MG " << MGLevel << " it " << iteration
@@ -2531,7 +2554,7 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
              << " wall_dist " << geometry->nodes->GetWall_Distance(max_point) << endl;
       }
     }
-      
+     */ 
   }
 
   /*--- Bring halos in line with the final sweep, the gradient computation reads them. ---*/
@@ -2539,12 +2562,12 @@ void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig
   CompleteComms(geometry, config, MPI_QUANTITIES::ELECTRIC_POTENTIAL);
 
   /*--- DIAGNOSTIC: summary of this call. ---*/
-  
+/*  
   if (rank == MASTER_NODE) {
     if (!converged) cout << "[SOR] WARNING: not converged. ";
     cout << "[SOR] call " << sor_calls << " MG " << MGLevel << " done, " << iteration << " sweeps, max_change "
          << max_change << " tol " << tol << " max|phi| " << phi_max << " t " << SU2_MPI::Wtime() - t_start
          << "s" << endl;
   }
-  
+ */ 
 }

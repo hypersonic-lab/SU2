@@ -358,4 +358,10 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void ComputeElectricPotential_SOR(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief Reset the charged species densities to their values at the start of the iteration (POISSON_FREEZE).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void RestoreChargedSpecies(const CConfig *config);
 };

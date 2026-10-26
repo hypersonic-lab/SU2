@@ -176,6 +176,7 @@ class CFVMFlowSolverBase : public CSolver {
   vector<vector<su2double> > HeatFluxTarget;    /*!< \brief Heat transfer coefficient for each boundary and vertex. */
   vector<su2activematrix> CharacPrimVar;        /*!< \brief Value of the characteristic variables at each boundary. */
   vector<su2activematrix> CSkinFriction;        /*!< \brief Skin friction coefficient for each boundary and vertex. */
+  vector<vector<su2double> > Electric_Potential; /*!< \brief Electric potential. */
   vector<vector<su2double> > WallShearStress;   /*!< \brief Wall Shear Stress for each boundary and vertex. */
   vector<su2activematrix> HeatConjugateVar;     /*!< \brief CHT variables for each boundary and vertex. */
   vector<vector<su2double> > CPressure;         /*!< \brief Pressure coefficient for each boundary and vertex. */
@@ -2398,6 +2399,10 @@ class CFVMFlowSolverBase : public CSolver {
 
   inline su2double GetHeatFluxConvective(unsigned short val_marker, unsigned long val_vertex) const final {
     return HeatFluxConvective[val_marker][val_vertex];
+  }
+
+  inline su2double GetElectricPotential(unsigned short val_marker, unsigned long val_vertex) const final {
+    return Electric_Potential[val_marker][val_vertex];
   }
 
   /*!
