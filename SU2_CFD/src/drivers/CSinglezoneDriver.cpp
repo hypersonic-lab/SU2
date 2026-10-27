@@ -65,6 +65,20 @@ void CSinglezoneDriver::StartSolver() {
   if (config_container[ZONE_0]->GetRestart() && driver_config->GetTime_Domain())
     TimeIter = config_container[ZONE_0]->GetRestart_Iter();
 
+  /*--- Identify a transient direct heat-conduction calculation. ---*/
+  const bool transient_heat =
+      (config_container[ZONE_0]->GetKind_Solver() == MAIN_SOLVER::HEAT_EQUATION) &&
+      (config_container[ZONE_0]->GetTime_Marching() != TIME_MARCHING::STEADY);
+
+  /*--- For a fresh transient heat calculation, write the initialized
+   *     solution as time iteration zero.
+   *---*/
+  if (transient_heat && !config_container[ZONE_0]->GetRestart()) {
+    config_container[ZONE_0]->SetTimeIter(0);
+    config_container[ZONE_0]->SetPhysicalTime(0.0);
+    Output(0);
+  }
+
   /*--- Run the problem until the number of time iterations required is reached. ---*/
   /*--- or until a SIGTERM signal stops the loop. We catch SIGTERM and exit gracefully ---*/
   while ( TimeIter < config_container[ZONE_0]->GetnTime_Iter()) {
@@ -90,7 +104,21 @@ void CSinglezoneDriver::StartSolver() {
 
     /*--- Output the solution in files. ---*/
 
-    Output(TimeIter);
+    if (transient_heat) {
+
+      const unsigned long OutputTimeIter = TimeIter + 1;
+
+      config_container[ZONE_0]->SetTimeIter(OutputTimeIter);
+      config_container[ZONE_0]->SetPhysicalTime(static_cast<su2double>(OutputTimeIter) * config_container[ZONE_0]->GetDelta_UnstTimeND());
+
+      Output(OutputTimeIter);
+
+    } else {
+
+      Output(TimeIter);
+    }
+
+//    Output(TimeIter);
 
     /*--- If the convergence criteria has been met, terminate the simulation. ---*/
 
@@ -186,6 +214,15 @@ void CSinglezoneDriver::Update() {
 }
 
 void CSinglezoneDriver::Output(unsigned long TimeIter) {
+
+  /*--- Synchronize the configuration with the requested output index. ---*/
+  config_container[ZONE_0]->SetTimeIter(TimeIter);
+
+  if (config_container[ZONE_0]->GetTime_Marching() != TIME_MARCHING::STEADY) {
+    config_container[ZONE_0]->SetPhysicalTime(
+        static_cast<su2double>(TimeIter) *
+        config_container[ZONE_0]->GetDelta_UnstTimeND());
+  }
 
   /*--- Time the output for performance benchmarking. ---*/
 
