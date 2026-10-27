@@ -2728,6 +2728,13 @@ void CConfig::SetConfig_Options() {
   /*!\par CONFIG_CATEGORY: Heat solver \ingroup Config*/
   /*--- options related to the heat solver ---*/
 
+  /*\brief RERADIATION
+   * DESCRIPTION: Enabling surface reradiation at the heat-flux boundaries
+   * DEFAULT: false
+   * \ingroup Config
+   */
+  addBoolOption("RERADIATION", Reradiation, false);
+
   /* DESCRIPTION: CHT interface coupling methods */
   /*  Options: NO, YES \ingroup Config */
   addEnumOption("CHT_COUPLING_METHOD", Kind_CHT_Coupling, CHT_Coupling_Map, CHT_COUPLING::DIRECT_TEMPERATURE_ROBIN_HEATFLUX);

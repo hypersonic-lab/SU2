@@ -420,6 +420,10 @@ void CHeatSolver::BC_HeatFlux_Wall(CGeometry* geometry, CSolver** solver_contain
 
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
   const bool IsPyCustom = config->GetMarker_All_PyCustom(val_marker);
+  const bool implicit = config->GetKind_TimeIntScheme() == EULER_IMPLICIT;
+
+  const bool Reradiation = config->GetReradiation();
+  const su2double Wall_Emissivity = config->GetWall_Emissivity(Marker_Tag);
 
   su2double ConfiguredHeatFlux = config->GetWall_HeatFlux(Marker_Tag);
 
@@ -433,16 +437,35 @@ void CHeatSolver::BC_HeatFlux_Wall(CGeometry* geometry, CSolver** solver_contain
     if (!geometry->nodes->GetDomain(iPoint)) continue;
 
     const su2double DimensionalHeatFlux = IsPyCustom ? geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex) : ConfiguredHeatFlux;
-    const su2double Wall_HeatFlux = DimensionalHeatFlux / config->GetHeat_Flux_Ref();
+    su2double NetDimensionalHeatFlux = DimensionalHeatFlux;
+
+    su2double HeatFlux_Rerad = 0.0;
+    su2double Jacobian_Rerad = 0.0;
+
+    if (Reradiation && Wall_Emissivity > 0.0) {
+      const su2double Temperature_Wall = nodes->GetTemperature(iPoint);
+      const su2double Temperature_FreeStream = config->GetTemperature_FreeStream();
+      HeatFlux_Rerad = Wall_Emissivity * STEFAN_BOLTZMANN * (pow(Temperature_Wall, 4.0) - pow(Temperature_FreeStream, 4.0));
+
+      NetDimensionalHeatFlux -= HeatFlux_Rerad;
+
+      Jacobian_Rerad = 4.0 * Wall_Emissivity * STEFAN_BOLTZMANN * pow(Temperature_Wall, 3.0) / config->GetHeat_Flux_Ref();
+    }
+
+    const su2double Wall_HeatFlux = NetDimensionalHeatFlux / config->GetHeat_Flux_Ref();
 
     if (IsPyCustom && iVertex == 0) {
-      std::cout << std::setprecision(16) << "[BC_HeatFlux_Wall] " << "Stored dimensional q = " << DimensionalHeatFlux << ", q_ref = " << config->GetHeat_Flux_Ref() << ", Used nondimensional q = " << Wall_HeatFlux << std::endl;
+      std::cout << std::setprecision(16) << "[BC_HeatFlux_Wall] " << "Stored dimensional q = " << DimensionalHeatFlux << ", Radiation q = " << HeatFlux_Rerad << ", Net dimensional q = "<< NetDimensionalHeatFlux << ", q_ref = " << config->GetHeat_Flux_Ref() << ", Used nondimensional q = " << Wall_HeatFlux << std::endl;
     }
 
     const auto* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
     const su2double Area = GeometryToolbox::Norm(nDim, Normal);
     const su2double flux = Wall_HeatFlux * Area;
     LinSysRes(iPoint, 0) -= flux;
+    if (implicit && Reradiation && Wall_Emissivity > 0.0) {
+      su2double Jacobian_i[] = {-Jacobian_Rerad * Area};
+      Jacobian.SubtractBlock2Diag(iPoint, &Jacobian_i);
+    }
   }
   END_SU2_OMP_FOR
 }
