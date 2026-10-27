@@ -65,7 +65,7 @@ def init_submodules(
     github_repo_meson = "https://github.com/mesonbuild/meson"
     sha_version_ninja = "b4d51f6ed5bed09dd2b70324df0d9cb4ecad2638"
     github_repo_ninja = "https://github.com/ninja-build/ninja"
-    sha_version_mpp = "20973d04445f9878cfb612111223f504d610c265"
+    sha_version_mpp = "d752fb5f6052f43beadb1dd748cc7cd54624c641"
     github_repo_mpp = "https://github.com/hypersonic-lab/Mutationpp"
     sha_version_coolprop = "bafdea1f39ee873a6bb9833e3a21fe41f90b85e8"
     github_repo_coolprop = "https://github.com/CoolProp/CoolProp"
