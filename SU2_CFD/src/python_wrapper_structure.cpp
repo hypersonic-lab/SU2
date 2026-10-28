@@ -28,6 +28,23 @@
 #include "../../Common/include/toolboxes/geometry_toolbox.hpp"
 #include "../include/drivers/CDriver.hpp"
 #include "../include/drivers/CSinglezoneDriver.hpp"
+#include "../include/variables/CNEMOEulerVariable.hpp"
+
+namespace {
+/*--- NEMO conductive heat flux vector, q = -(ktr*grad(T) + kve*grad(Tve)), using the same
+ * two-temperature form as the NEMO surface output. Species diffusion enthalpy flux is not included.- RSCD ---*/
+void ComputeNEMOHeatFlux(const CConfig* config, CVariable* nodes, unsigned long iPoint, unsigned short nDim,
+                         su2double* HeatFlux) {
+  const CNEMOEulerVariable::CIndices<unsigned short> prim_idx(nDim, config->GetnSpecies());
+  const su2double ktr = nodes->GetThermalConductivity(iPoint);
+  const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    HeatFlux[iDim] = -(ktr * nodes->GetGradient_Primitive(iPoint, prim_idx.Temperature(), iDim) +
+                       kve * nodes->GetGradient_Primitive(iPoint, prim_idx.Temperature_ve(), iDim));
+  }
+}
+}  // namespace
 
 void CDriver::PreprocessPythonInterface(CConfig** config, CGeometry**** geometry, CSolver***** solver) {
   int rank = MASTER_NODE;
@@ -871,7 +888,13 @@ vector<passivedouble> CDriver::GetVertexHeatFluxes(unsigned short iMarker, unsig
 
   iPoint = geometry_container[ZONE_0][INST_0][MESH_0]->vertex[iMarker][iVertex]->GetNode();
 
-    if (geometry_container[ZONE_0][INST_0][MESH_0]->nodes->GetDomain(iPoint) && compressible) {
+  if (config_container[ZONE_0]->GetNEMOProblem()) {
+    if (geometry_container[ZONE_0][INST_0][MESH_0]->nodes->GetDomain(iPoint)) {
+      ComputeNEMOHeatFlux(config_container[ZONE_0], solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->GetNodes(),
+                          iPoint, nDim, HeatFlux.data());
+    }
+  }
+  else if (geometry_container[ZONE_0][INST_0][MESH_0]->nodes->GetDomain(iPoint) && compressible) {
     laminar_viscosity    = solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->GetNodes()->GetLaminarViscosity(iPoint);
     thermal_conductivity = Cp * (laminar_viscosity/Prandtl_Lam);
     for(iDim=0; iDim < nDim; iDim++){
@@ -909,13 +932,24 @@ passivedouble CDriver::GetVertexNormalHeatFlux(unsigned short iMarker, unsigned 
 
   iPoint = geometry_container[ZONE_0][INST_0][MESH_0]->vertex[iMarker][iVertex]->GetNode();
 
-  if(geometry_container[ZONE_0][INST_0][MESH_0]->nodes->GetDomain(iPoint) && compressible){
+  const bool nemo = config_container[ZONE_0]->GetNEMOProblem();
+
+  if(geometry_container[ZONE_0][INST_0][MESH_0]->nodes->GetDomain(iPoint) && (compressible || nemo)){
     Normal = geometry_container[ZONE_0][INST_0][MESH_0]->vertex[iMarker][iVertex]->GetNormal();
 
     Area = GeometryToolbox::Norm(nDim, Normal);
 
     for (iDim = 0; iDim < nDim; iDim++)
       UnitNormal[iDim] = Normal[iDim]/Area;
+
+    if (nemo) {
+      /*--- Two-temperature model: project q = -(ktr*grad(T) + kve*grad(Tve)) on the normal ---*/
+      su2double HeatFlux[3] = {0.0,0.0,0.0};
+      ComputeNEMOHeatFlux(config_container[ZONE_0], solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->GetNodes(),
+                          iPoint, nDim, HeatFlux);
+      vertexWallHeatFlux = GeometryToolbox::DotProduct(nDim, HeatFlux, UnitNormal);
+      return SU2_TYPE::GetValue(vertexWallHeatFlux * config_container[ZONE_0]->GetHeat_Flux_Ref());
+    }
 
     laminar_viscosity    = solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->GetNodes()->GetLaminarViscosity(iPoint);
     thermal_conductivity = Cp * (laminar_viscosity/Prandtl_Lam);
@@ -956,6 +990,13 @@ passivedouble CDriver::GetThermalConductivity(unsigned short iMarker, unsigned l
   su2double laminar_viscosity, thermal_conductivity;
 
   iPoint = geometry_container[ZONE_0][INST_0][MESH_0]->vertex[iMarker][iVertex]->GetNode();
+
+  if (config_container[ZONE_0]->GetNEMOProblem()) {
+    /*--- Two-temperature model: effective conductivity ktr + kve ---*/
+    const auto* nodes = solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->GetNodes();
+    return SU2_TYPE::GetValue(nodes->GetThermalConductivity(iPoint) + nodes->GetThermalConductivity_ve(iPoint));
+  }
+
   laminar_viscosity    = solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->GetNodes()->GetLaminarViscosity(iPoint);
   thermal_conductivity = Cp * (laminar_viscosity/Prandtl_Lam);
 

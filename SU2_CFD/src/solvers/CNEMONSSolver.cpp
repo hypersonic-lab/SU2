@@ -248,9 +248,9 @@ void CNEMONSSolver::BC_HeatFluxNonCatalytic_Wall(CGeometry *geometry,
 
   /*--- Local variables ---*/
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
-  su2double Wall_HeatFlux = config->GetWall_HeatFlux(Marker_Tag) / config->GetHeat_Flux_Ref();
+  su2double Wall_HeatFlux_Cfg = config->GetWall_HeatFlux(Marker_Tag) / config->GetHeat_Flux_Ref();
   if (config->GetIntegrated_HeatFlux()) {
-    Wall_HeatFlux /= geometry->GetSurfaceArea(config, val_marker);
+    Wall_HeatFlux_Cfg /= geometry->GetSurfaceArea(config, val_marker);
   }
   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
 
@@ -269,6 +269,11 @@ void CNEMONSSolver::BC_HeatFluxNonCatalytic_Wall(CGeometry *geometry,
 
     /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
     if (!geometry->nodes->GetDomain(iPoint)) continue;
+
+    /*--- Python customizable patch (e.g. preCICE coupling): per-vertex wall heat flux. ---*/
+    const su2double Wall_HeatFlux = config->GetMarker_All_PyCustom(val_marker) ?
+                                    geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex) / config->GetHeat_Flux_Ref() :
+                                    Wall_HeatFlux_Cfg;
 
     /*--- Compute dual-grid area and boundary normal ---*/
     const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
@@ -366,9 +371,9 @@ void CNEMONSSolver::BC_HeatFluxCatalytic_Wall(CGeometry *geometry,
   string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
   /*--- Get the specified wall heat flux from config ---*/
-  su2double Wall_HeatFlux = config->GetWall_HeatFlux(Marker_Tag) / config->GetHeat_Flux_Ref();
+  su2double Wall_HeatFlux_Cfg = config->GetWall_HeatFlux(Marker_Tag) / config->GetHeat_Flux_Ref();
   if (config->GetIntegrated_HeatFlux()) {
-    Wall_HeatFlux /= geometry->GetSurfaceArea(config, val_marker);
+    Wall_HeatFlux_Cfg /= geometry->GetSurfaceArea(config, val_marker);
   }
 
   /*--- Get the locations of the primitive variables ---*/
@@ -389,6 +394,11 @@ void CNEMONSSolver::BC_HeatFluxCatalytic_Wall(CGeometry *geometry,
 
     /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
     if (geometry->nodes->GetDomain(iPoint)) {
+
+      /*--- Python customizable patch (e.g. preCICE coupling): per-vertex wall heat flux. ---*/
+      const su2double Wall_HeatFlux = config->GetMarker_All_PyCustom(val_marker) ?
+                                      geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex) / config->GetHeat_Flux_Ref() :
+                                      Wall_HeatFlux_Cfg;
 
       /*--- Compute dual-grid area and boundary normal ---*/
       Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
@@ -544,7 +554,7 @@ void CNEMONSSolver::BC_IsothermalNonCatalytic_Wall(CGeometry *geometry,
   const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
   /*--- Retrieve the specified wall temperature ---*/
-  const su2double Twall = config->GetIsothermal_Temperature(Marker_Tag);
+  const su2double Twall_Cfg = config->GetIsothermal_Temperature(Marker_Tag);
 
   su2double **Jacobian_i = nullptr;
   if (implicit) {
@@ -561,6 +571,10 @@ if (!strongBC) {
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
 
     if (!geometry->nodes->GetDomain(iPoint)) continue;
+
+    /*--- Python customizable patch (e.g. preCICE coupling): per-vertex wall temperature. ---*/
+    const su2double Twall = config->GetMarker_All_PyCustom(val_marker) ?
+                            geometry->GetCustomBoundaryTemperature(val_marker, iVertex) : Twall_Cfg;
 
     /*--- Compute dual-grid area and boundary normal ---*/
     const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
@@ -647,6 +661,10 @@ if (!strongBC) {
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
 
     if (!geometry->nodes->GetDomain(iPoint)) continue;
+
+    /*--- Python customizable patch (e.g. preCICE coupling): per-vertex wall temperature. ---*/
+    const su2double Twall = config->GetMarker_All_PyCustom(val_marker) ?
+                            geometry->GetCustomBoundaryTemperature(val_marker, iVertex) : Twall_Cfg;
 
     vector<su2double> rhos(nSpecies);
 
@@ -869,7 +887,9 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
         string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
         /*--- Get isothermal wall temp ----*/
-        const su2double Tw = config->GetIsothermal_Temperature(Marker_Tag);
+        const su2double Tw = config->GetMarker_All_PyCustom(val_marker) ?
+                             geometry->GetCustomBoundaryTemperature(val_marker, iVertex) :
+                             config->GetIsothermal_Temperature(Marker_Tag);
 
         /*--- Get wall catalytic efficiency ----*/
         const su2double gam = config->GetCatalytic_Efficiency();
