@@ -2420,7 +2420,7 @@ void CNEMOEulerSolver::SetPressureDiffusionSensor(CGeometry *geometry, CConfig *
   InitiateComms(geometry, config, MPI_QUANTITIES::SENSOR);
   CompleteComms(geometry, config, MPI_QUANTITIES::SENSOR);
 
-}
+}œ
 
 void CNEMOEulerSolver::ComputeElectricPotential_SOR(CGeometry *geometry, CConfig *config){
   bool poisson_freeze = config->Get_Poisson_Freeze();
