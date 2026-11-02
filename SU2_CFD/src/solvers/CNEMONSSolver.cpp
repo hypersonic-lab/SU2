@@ -1139,10 +1139,8 @@ su2double CNEMONSSolver::Calculate_ETC_Emission(su2double WF, su2double Tve, su2
   const su2double N_A = 6.0221408e23; // Avagadro's number, [mol^-1]      
   su2double Je_sat = A_R*Tve*Tve*exp(-1*WF*e/k_B/Tve); // [A/m2]
   if (model == 0){
-
       // Saturated, Temperature Limited
       return Je_sat;
-
   }
 
   su2double m_e = 9.1093837e-31; su2double G = 0.0; su2double Phi_w = 0.0; su2double Phi_vc = 0.0;
@@ -1155,7 +1153,7 @@ su2double CNEMONSSolver::Calculate_ETC_Emission(su2double WF, su2double Tve, su2
 
   int iteration = 0.0;
   if (model == 1){
-    // Space-Charge Limited, Cold (Electrons leave with no excess energy)
+      // Space-Charge Limited, Cold (Electrons leave with no excess energy)
     
       su2double Je_sc_cold_factor = 0.0;
       su2double Je_sc_cold = 0.0;
@@ -1341,7 +1339,7 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
 
       m_i = rho_ion/n_ion_here;
     
-      int iteration = 0.0;
+      int iteration = 0;
 
       su2double Je = Calculate_ETC_Emission(W_F, Tvei, phi_vc, emission_model, n_i, n_e, m_i);
 
@@ -1367,10 +1365,12 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
             // [mol/m3]*[m/s]*[m2] -> [mol/s]
             ion_molar_flux = Vi[RHOS_INDEX+iSpecies]/(Ms[iSpecies] / 1000) * sqrt(Ru*Ti/(2*PI_NUMBER*Ms[iSpecies])) * Area;
             Res_Visc[iSpecies] = -ion_molar_flux * (Ms[iSpecies] / 1000);
+            // Recombined neutral
+            Res_Visc[iSpecies+(nSpecies-1)/2] = ion_molar_flux * (Ms[iSpecies+(nSpecies-1)/2] / 1000);
             total_ions_molar += ion_molar_flux; // [mol/s]
           }
         }
-        electron_flux -= total_ions_molar * M_electron;;
+        electron_flux -= total_ions_molar * M_electron;
       }
 
       if (electron_flux < 0){
@@ -1476,9 +1476,10 @@ void CNEMONSSolver::BC_ETCNonCatalytic_Wall(CGeometry *geometry,
         //Res_Visc[nSpecies+nDim]   -= (electron_flux*hs[0]);
         //Res_Visc[nSpecies+nDim+1] -= (electron_flux*eves[0]);
 
-        /*--- Viscous contribution to the residual at the wall ---*/
-        LinSysRes.SubtractBlock(iPoint, Res_Visc);
+        
       }  
+      /*--- Viscous contribution to the residual at the wall ---*/
+      LinSysRes.SubtractBlock(iPoint, Res_Visc);
     }
   }
 

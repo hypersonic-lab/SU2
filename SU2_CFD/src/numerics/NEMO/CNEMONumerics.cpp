@@ -269,36 +269,14 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   for (auto iDim = 0ul; iDim < nDim; iDim++) {
 
     // /*--- Species diffusion velocity ---*/
-    // if (nEl == 1) Flux_Tensor[0][iDim] = 0.0; // Ambipolar diffusion for electron is handled differently than heavy species below
-    // for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
-    //   Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
-    //       - V[RHOS_INDEX+iSpecies]*Vector[iDim];
-    //   if (nEl == 1){                   
-    //     Flux_Tensor[0][iDim] += Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
-    //   }
-    // }
-
-    /*--- Species diffusion velocity ---*/
-    // Assume Ds[0] = 2*mean(Ds[ions])
-    
-    su2double ion_num_total = 0.0;
-    su2double ion_Ds_total = 0.0;
-    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++){
-      if (Cs[iSpecies] > 0){
-        ion_num_total++;
-        ion_Ds_total += Ds[iSpecies];
-      }
-    }
-    su2double Ds_e = ion_Ds_total/ion_num_total * 2.0;
-    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
-      if (Cs[iSpecies] < 0){
-        Flux_Tensor[iSpecies][iDim] = rho*Ds_e*GV[RHOS_INDEX+iSpecies][iDim]
-          - V[RHOS_INDEX+iSpecies]*Vector[iDim];
-      } else {
-        Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
-          - V[RHOS_INDEX+iSpecies]*Vector[iDim];
-      }
-    }
+     if (nEl == 1) Flux_Tensor[0][iDim] = 0.0; // Ambipolar diffusion for electron is handled differently than heavy species below
+     for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
+       Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
+           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
+       if (nEl == 1){                   
+         Flux_Tensor[0][iDim] += Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];
+       }
+     }
 
     /*--- Shear-stress/momentum related terms ---*/
     Flux_Tensor[nSpecies+nDim][iDim] = 0.0;
