@@ -210,6 +210,7 @@ private:
   nMarker_Smoluchowski_Maxwell,   /*!< \brief Number of smoluchowski/maxwell wall boundaries. */
   nMarker_Isothermal,             /*!< \brief Number of isothermal wall boundaries. */
   nMarker_HeatFlux,               /*!< \brief Number of constant heat flux wall boundaries. */
+  nMarker_SolidFuel,              /*!< \brief Number of solid fuel wall boundaries. */
   nMarker_HeatTransfer,           /*!< \brief Number of heat-transfer/convection wall boundaries. */
   nMarker_EngineExhaust,          /*!< \brief Number of nacelle exhaust flow markers. */
   nMarker_EngineInflow,           /*!< \brief Number of nacelle inflow flow markers. */
@@ -265,6 +266,7 @@ private:
   *Marker_Smoluchowski_Maxwell,   /*!< \brief Smoluchowski/Maxwell wall markers. */
   *Marker_Isothermal,             /*!< \brief Isothermal wall markers. */
   *Marker_HeatFlux,               /*!< \brief Constant heat flux wall markers. */
+  *Marker_SolidFuel,              /*!< \brief Solid fuel wall markers. */
   *Marker_HeatTransfer,           /*!< \brief Heat-transfer/convection markers. */
   *Marker_RoughWall,              /*!< \brief Constant heat flux wall markers. */
   *Marker_EngineInflow,           /*!< \brief Engine Inflow flow markers. */
@@ -321,6 +323,7 @@ private:
   su2double *Engine_Area;                    /*!< \brief Specified engine area for nacelle boundaries. */
   su2double *Outlet_Pressure;                /*!< \brief Specified back pressures (static) for outlet boundaries. */
   su2double *Isothermal_Temperature;         /*!< \brief Specified isothermal wall temperatures (static). */
+  su2double *SolidFuel_Temperature;          /*!< \brief Specified solid fuel wall temperatures (static). */
   su2double *HeatTransfer_Coeff;             /*!< \brief Specified heat transfer coefficients. */
   su2double *HeatTransfer_WallTemp;          /*!< \brief Specified temperatures at infinity alongside heat transfer coefficients. */
   su2double *Heat_Flux;                      /*!< \brief Specified wall heat fluxes. */
@@ -1241,11 +1244,13 @@ private:
 
   /* other NEMO configure options*/
   unsigned short nSpecies_Cat_Wall,         /*!< \brief No. of species for a catalytic wall. */
+  nSpecies_SolidFuel_Wall,                  /*!< \brief No. of species for a solid fuel wall. */
   nSpecies_inlet,                           /*!< \brief No. of species for NEMO inlet. */
   iWall_Catalytic,                          /*!< \brief Iterator over catalytic walls. */
   nWall_Catalytic;                          /*!< \brief No. of catalytic walls. */
   su2double *Gas_Composition,               /*!< \brief Initial mass fractions of flow [dimensionless]. */
   *Supercatalytic_Wall_Composition,         /*!< \brief Supercatalytic wall mass fractions [dimensionless]. */
+  *SolidFuel_Wall_Composition,              /*!< \brief Solid Fuel wall mass fractions [dimensionless]. */
   pnorm_heat;                               /*!< \brief pnorm for heat-flux. */
   bool frozen,                              /*!< \brief Flag for determining if mixture is frozen. */
   ionization,                               /*!< \brief Flag for determining if free electron gas is in the mixture. */
@@ -3207,6 +3212,12 @@ public:
    * \return Total number of heat flux markers.
    */
   unsigned short GetnMarker_HeatFlux(void) const { return nMarker_HeatFlux; }
+
+  /*!
+   * \brief Get the total (local) number of solid fuel markers.
+   * \return Total number of solid fuel markers.
+   */
+  unsigned short GetnMarker_SolidFuel(void) const { return nMarker_SolidFuel; }
 
   /*!
    * \brief Get the total number of rough markers.
@@ -5524,6 +5535,12 @@ public:
   const su2double *GetSupercatalytic_Wall_Composition(void) const { return Supercatalytic_Wall_Composition; }
 
   /*!
+   * \brief Provides the gas mass fractions at the wall for solid fuel wall.
+   * \return Solid fuel wall gas mass fractions.
+   */
+  const su2double *GetSolidFuel_Wall_Composition(void) const { return SolidFuel_Wall_Composition; }
+
+  /*!
    * \brief Provides the restart information.
    * \return Restart information, if <code>TRUE</code> then the code will use the solution as restart.
    */
@@ -7364,6 +7381,13 @@ public:
    * \return The wall temperature.
    */
   su2double GetIsothermal_Temperature(const string& val_index) const;
+
+  /*!
+   * \brief Get the solid fuel temperature (static) at a fuel wall.
+   * \param[in] val_index - Index corresponding to the solid fuel boundary.
+   * \return The prescribed solid fuel temperature.
+   */
+  su2double GetSolidFuel_Temperature(const string& val_index) const;
 
   /*!
    * \brief Get the wall heat flux on a constant heat flux boundary.

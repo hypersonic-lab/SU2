@@ -238,6 +238,9 @@ map<string, string> CDriverBase::GetMarkerTypes() const {
       case HEAT_FLUX:
         type = "HEAT_FLUX";
         break;
+      case SOLID_FUEL:
+        type = "SOLD_FUEL";
+        break;
       case HEAT_TRANSFER:
         type = "HEAT_TRANSFER";
         break;

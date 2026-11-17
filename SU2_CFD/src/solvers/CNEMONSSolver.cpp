@@ -901,6 +901,241 @@ void CNEMONSSolver::BC_IsothermalCatalytic_Wall(CGeometry *geometry,
   delete [] dVdU;
 }
 
+
+void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
+                                                CSolver **solver_container,
+                                                CNumerics *conv_numerics,
+                                                CNumerics *sour_numerics,
+                                                CConfig *config,
+                                                unsigned short val_marker) {
+
+  /*--- Simplest Implementation: Essentially Isothermal Blowing Wall: Impose Isoethermal Conditions ---*/
+  
+  //BC_IsothermalNonCatalytic_Wall(geometry, solver_container, conv_numerics,
+  //                               sour_numerics, config, val_marker);
+
+
+  /*--- Local variables ---*/
+  su2double **GradY, **dVdU;
+
+  /*--- Assign booleans ---*/
+  const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  //const bool Supercatalytic_Wall = config->GetSupercatalytic_Wall();
+  const bool IsothermalFuel = true; //config->GetIsothermalFuel();
+  const bool NoFuelSurfaceDiffusion = true; //config->GetSupercatalytic_Wall();
+
+  /*--- Get universal information ---*/
+  const su2double RuSI = UNIVERSAL_GAS_CONSTANT;
+  const su2double Ru = 1000.0*RuSI;
+  const auto& Ms = FluidModel->GetSpeciesMolarMass();
+
+  /*--- Get the locations of the primitive variables ---*/
+  const unsigned short RHOS_INDEX  = nodes->GetRhosIndex();
+  const unsigned short RHO_INDEX   = nodes->GetRhoIndex();
+  const unsigned short T_INDEX     = nodes->GetTIndex();
+  const unsigned short TVE_INDEX   = nodes->GetTveIndex();
+  const unsigned short RHOCVTR_INDEX = nodes->GetRhoCvtrIndex();
+
+  /*--- Identify the boundary ---*/
+  const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
+
+  /*--- Retrieve the specified wall temperature ---*/
+  //if (IsothermalFuel){
+    const su2double Twall = config->GetSolidFuel_Temperature(Marker_Tag); // only way to make the BC explicit
+  //}
+
+  /*--- Allocate arrays ---*/
+  GradY = new su2double*[nSpecies];
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+    GradY[iSpecies] = new su2double[nDim];
+  dVdU = new su2double*[nVar];
+  for (auto iVar = 0ul; iVar < nVar; iVar++)
+    dVdU[iVar] = new su2double[nVar];
+
+  /*--- Loop over all of the vertices on this boundary marker ---*/
+  for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
+    if (geometry->nodes->GetDomain(iPoint)) {
+
+      /*--- Compute closest normal neighbor ---*/
+      const auto jPoint = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+
+      /*--- Compute distance between wall & normal neighbor ---*/
+      const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+      const auto Coord_j = geometry->nodes->GetCoord(jPoint);
+      const su2double dij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+
+      /*--- Compute dual-grid area and boundary normal ---*/
+      const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+      const su2double Area = GeometryToolbox::Norm(nDim, Normal);
+      su2double UnitNormal[MAXNDIM] = {0.0};
+      for (auto iDim = 0ul; iDim < nDim; iDim++)
+      UnitNormal[iDim] = Normal[iDim]/Area;
+
+      /*--- Initialize the viscous residual to zero ---*/
+      for (auto iVar = 0ul; iVar < nVar; iVar++) Res_Visc[iVar] = 0.0;
+
+      /*--- Get primitive information ---*/
+      const auto& Vi = nodes->GetPrimitive(iPoint);
+      const auto& Vj = nodes->GetPrimitive(jPoint);
+      const auto& Di = nodes->GetDiffusionCoeff(iPoint);
+      const auto& eves = nodes->GetEve(iPoint);
+      const auto& hs = FluidModel->ComputeSpeciesEnthalpy(Vi[T_INDEX], Vi[TVE_INDEX], eves);
+      const su2double rho = Vi[RHO_INDEX];
+      const auto& dTdU = nodes->GetdTdU(iPoint);
+      const auto& dTvedU = nodes->GetdTvedU(iPoint);
+      /*--- Get additional primitive information ---*/
+
+      /*--- Obtain temperatures at wall node (i) and nearest normal neighbor (j) ---*/
+      const su2double Ti   = nodes->GetTemperature(iPoint); // could replace this with appropriate indices in primitives?
+      const su2double Tj   = nodes->GetTemperature(jPoint);
+      const su2double Tvei = nodes->GetTemperature_ve(iPoint);
+      const su2double Tvej = nodes->GetTemperature_ve(jPoint);
+      /*--- Obtaining Thermal Conductivities ---*/
+      const su2double ktr = nodes->GetThermalConductivity(iPoint); // at wall nodes
+      const su2double kve = nodes->GetThermalConductivity_ve(iPoint);
+
+      /*--- Calculate the gradient of temperature ---*/
+      su2double dTdn = (Twall - Tj)/dij;
+      su2double dTvedn = (Twall - Tvej)/dij;
+      /*--- Impose the Temperature at the Wall by applying to linear system ---*/
+      Res_Visc[nSpecies+nDim]   = (ktr*dTdn + kve*dTvedn)*Area;
+      Res_Visc[nSpecies+nDim+1] = (kve*dTvedn)*Area;
+      //Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) + 
+      //                             (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
+      //Res_Visc[nSpecies+nDim+1] = (kve*(Tvei-Tvej) + kve*(Twall-Tvei) *C)*Area/dist_ij;
+
+      /*--- Calculating the mass flux of solid into the gas ---*/
+      const auto& Lv = 1460.0*1000.0; // J/kg // config->GetLatent_Heat_Vaporization(); // need to add this to parameters file // Lv = 1460 kJ/kg in simplest case
+      su2double mdot_s = std::max((-(ktr*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
+      /*--- Store the Blowing Velocity at the wall ---*/
+      for (auto iDim = 0ul; iDim < nDim; iDim++){
+        Vector[iDim] = mdot_s/rho * UnitNormal[iDim]; // change this rho to the imposed one?
+        //std::cout << mdot_s/rho * UnitNormal[iDim] << std::endl;
+      }
+      
+      nodes->SetVelocity_Old(iPoint,Vector);
+
+      for (auto iDim = 0ul; iDim < nDim; iDim++) LinSysRes(iPoint, nSpecies+iDim) = 0.0;
+      nodes->SetVel_ResTruncError_Zero(iPoint);
+
+      /*--- Enforce the no-slip boundary condition in a strong way by
+      modifying the velocity-rows of the Jacobian (1 on the diagonal).
+      And add the contributions to the Jacobian due to energy. ---*/
+      //if (implicit) {
+      //  Jacobian.SubtractBlock2Diag(iPoint, Jacobian_i);
+
+      //  for (auto iVar = nSpecies; iVar <= nDim; iVar++) {
+      //    auto total_index = iPoint*nVar+iVar;
+      //    Jacobian.DeleteValsRowi(total_index);
+      //  }
+      // }
+
+      if (NoFuelSurfaceDiffusion) {
+
+        //const auto& Yst = config->GetSupercatalytic_Wall_Composition();
+        const auto& Yst = config->GetSolidFuel_Wall_Composition();
+
+        /*--- Calculate supplementary quantities ---*/
+        su2double dYdn = 0.0, SdYdn = 0.0;
+        for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+          dYdn = (Yst[iSpecies]-Vj[RHOS_INDEX+iSpecies]/Vj[RHO_INDEX])/dij;
+          SdYdn += rho*Di[iSpecies]*dYdn;
+        }
+
+        /*--- Calculate species residual at wall ---*/
+        for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+          dYdn = (Yst[iSpecies]-Vj[RHOS_INDEX+iSpecies]/Vj[RHO_INDEX])/dij;
+          Res_Visc[iSpecies]  = -(-rho*Di[iSpecies]*dYdn+Yst[iSpecies]*SdYdn)*Area;
+        }
+
+        if (implicit) {
+          /*--- Initialize the transformation matrix ---*/
+          for (auto iVar = 0ul; iVar < nVar; iVar++)
+            for (auto jVar = 0ul; jVar < nVar; jVar++) {
+              dVdU[iVar][jVar] = 0.0;
+              Jacobian_j[iVar][jVar] = 0.0;
+              Jacobian_i[iVar][jVar] = 0.0;
+            }
+
+          /*--- Populate transformation matrix ---*/
+          // dYsdrk
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++)
+              dVdU[iSpecies][jSpecies] += -1.0/rho*Yst[iSpecies];
+            dVdU[iSpecies][iSpecies] += 1.0/rho;
+          }
+          for (auto iVar = 0ul; iVar < nVar; iVar++) {
+            dVdU[nSpecies+nDim][iVar]   = dTdU[iVar];
+            dVdU[nSpecies+nDim+1][iVar] = dTvedU[iVar];
+          }
+
+          /*--- Calculate supplementary quantities ---*/
+          const auto& Cvtrs = FluidModel->GetSpeciesCvTraRot();
+          const auto& Cvve = nodes->GetCvve(iPoint);
+
+          /*--- Take the primitive var. Jacobian & store in Jac. jj ---*/
+          // Species mass fraction
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++)
+              Jacobian_j[iSpecies][jSpecies] += -Yst[iSpecies]*rho*Di[jSpecies]/dij;
+            Jacobian_j[iSpecies][iSpecies] += rho*Di[iSpecies]/dij - SdYdn;
+          }
+
+          // Temperature
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++) {
+              Jacobian_j[nSpecies+nDim][iSpecies] += Jacobian_j[jSpecies][iSpecies]*hs[jSpecies];
+            }
+            Jacobian_j[nSpecies+nDim][nSpecies+nDim] += Res_Visc[iSpecies]/Area*(Ru/Ms[iSpecies] +
+                                                                                 Cvtrs[iSpecies]  );
+            Jacobian_j[nSpecies+nDim][nSpecies+nDim+1] += Res_Visc[iSpecies]/Area*Cvve[iSpecies];
+          }
+
+          // Vib.-El. Temperature
+          for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+            for (auto jSpecies = 0ul; jSpecies < nSpecies; jSpecies++)
+              Jacobian_j[nSpecies+nDim+1][iSpecies] += Jacobian_j[jSpecies][iSpecies]*eves[jSpecies];
+            Jacobian_j[nSpecies+nDim+1][nSpecies+nDim+1] += Res_Visc[iSpecies]/Area*Cvve[iSpecies];
+          }
+
+          /*--- Multiply by the transformation matrix and store in Jac. ii ---*/
+          for (auto iVar = 0ul; iVar < nVar; iVar++)
+            for (auto jVar = 0ul; jVar < nVar; jVar++)
+              for (auto kVar = 0ul; kVar < nVar; kVar++)
+                Jacobian_i[iVar][jVar] += Jacobian_j[iVar][kVar]*dVdU[kVar][jVar]*Area;
+
+          /*--- Apply to the linear system ---*/
+          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+        }
+
+      } else {
+        SU2_MPI::Error("BC SolidFuel w/ diffusion to solid surface: Not operational yet in NEMO.", CURRENT_FUNCTION);
+      }
+
+      for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
+        Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
+        Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
+      }
+
+      /*--- Viscous contribution to the residual at the wall ---*/
+      LinSysRes.SubtractBlock(iPoint, Res_Visc);
+      /*--- Convective contribution to the residual at the wall (due to blowing) ---*/
+      //LinSysRes(iPoint, nDim+1) += Res_Conv - Res_Visc;
+    }
+  }
+
+  for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)
+    delete [] GradY[iSpecies];
+  delete [] GradY;
+  for (auto iVar = 0ul; iVar < nVar; iVar++)
+    delete [] dVdU[iVar];
+  delete [] dVdU;
+}
+
 void CNEMONSSolver::BC_Smoluchowski_Maxwell(CGeometry *geometry,
                                             CSolver **solver_container,
                                             CNumerics *conv_numerics,

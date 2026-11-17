@@ -878,7 +878,8 @@ void CConfig::SetPointersNull() {
   Marker_CfgFile_KindBC       = nullptr;    Marker_All_SendRecv         = nullptr;    Marker_All_PerBound        = nullptr;
   Marker_ZoneInterface        = nullptr;    Marker_All_ZoneInterface    = nullptr;    Marker_Riemann             = nullptr;
   Marker_Fluid_InterfaceBound = nullptr;    Marker_CHTInterface         = nullptr;    Marker_Damper              = nullptr;
-  Marker_Emissivity           = nullptr;    Marker_HeatTransfer         = nullptr;
+  Marker_Emissivity           = nullptr;    Marker_HeatTransfer         = nullptr;    
+  Marker_SolidFuel            = nullptr;
 
     /*--- Boundary Condition settings ---*/
 
@@ -1264,6 +1265,8 @@ void CConfig::SetConfig_Options() {
   addBoolOption("SUPERCATALYTIC_WALL", Supercatalytic_Wall, false);
   /* DESCRIPTION: Wall mass fractions for supercatalytic case */
   addDoubleListOption("SUPERCATALYTIC_WALL_COMPOSITION", nSpecies_Cat_Wall, Supercatalytic_Wall_Composition);
+  /* DESCRIPTION: Wall mass fractions for solid fuel case */
+  addDoubleListOption("SOLIDFUEL_WALL_COMPOSITION", nSpecies_Cat_Wall, SolidFuel_Wall_Composition);
   /* DESCRIPTION: Specfify catalytic efficiency of wall if using gamma model */
   addDoubleOption("CATALYTIC_EFFICIENCY", CatalyticEfficiency, 1.0);
   /*!\brief MARKER_MONITORING\n DESCRIPTION: Marker(s) of the surface where evaluate the non-dimensional coefficients \ingroup Config*/
@@ -1692,6 +1695,9 @@ void CConfig::SetConfig_Options() {
   /*!\brief MARKER_ISOTHERMAL DESCRIPTION: Isothermal wall boundary marker(s)\n
    * Format: ( isothermal marker, wall temperature (static), ... ) \ingroup Config  */
   addStringDoubleListOption("MARKER_ISOTHERMAL", nMarker_Isothermal, Marker_Isothermal, Isothermal_Temperature);
+  /*!\brief MARKER_SOLIDFUEL DESCRIPTION: Solid Fuel wall boundary marker(s)\n
+   * Format: ( solidfuel marker, wall temperature (static), ... ) \ingroup Config  */
+  addStringDoubleListOption("MARKER_SOLIDFUEL", nMarker_SolidFuel, Marker_SolidFuel, SolidFuel_Temperature);
   /*!\brief MARKER_HEATFLUX  \n DESCRIPTION: Specified heat flux wall boundary marker(s)
    Format: ( Heat flux marker, wall heat flux (static), ... ) \ingroup Config*/
   addStringDoubleListOption("MARKER_HEATFLUX", nMarker_HeatFlux, Marker_HeatFlux, Heat_Flux);
@@ -5742,6 +5748,7 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
   iMarker_NearFieldBound, iMarker_Fluid_InterfaceBound,
   iMarker_Inlet, iMarker_Riemann, iMarker_Giles, iMarker_Outlet,
   iMarker_Smoluchowski_Maxwell,
+  iMarker_SolidFuel,
   iMarker_Isothermal,iMarker_HeatFlux,iMarker_HeatTansfer,
   iMarker_EngineInflow, iMarker_EngineExhaust, iMarker_Damper,
   iMarker_Displacement, iMarker_Load, iMarker_Internal,
@@ -5759,7 +5766,7 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
   nMarker_CfgFile = nMarker_Euler + nMarker_FarField + nMarker_SymWall +
   nMarker_PerBound + nMarker_NearFieldBound + nMarker_Fluid_InterfaceBound +
   nMarker_CHTInterface + nMarker_Inlet + nMarker_Riemann + nMarker_Smoluchowski_Maxwell +
-  nMarker_Giles + nMarker_Outlet + nMarker_Isothermal +
+  nMarker_Giles + nMarker_Outlet + nMarker_Isothermal + nMarker_SolidFuel +
   nMarker_HeatFlux + nMarker_HeatTransfer +
   nMarker_EngineInflow + nMarker_EngineExhaust + nMarker_Internal +
   nMarker_Supersonic_Inlet + nMarker_Supersonic_Outlet + nMarker_Displacement + nMarker_Load +
@@ -6062,6 +6069,12 @@ void CConfig::SetMarkers(SU2_COMPONENT val_software) {
     iMarker_CfgFile++;
   }
 
+  for (iMarker_SolidFuel = 0; iMarker_SolidFuel < nMarker_SolidFuel; iMarker_SolidFuel++) {
+    Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_SolidFuel[iMarker_SolidFuel];
+    Marker_CfgFile_KindBC[iMarker_CfgFile] = SOLID_FUEL;
+    iMarker_CfgFile++;
+  }
+
   for (iMarker_HeatTansfer = 0; iMarker_HeatTansfer < nMarker_HeatTransfer; iMarker_HeatTansfer++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_HeatTransfer[iMarker_HeatTansfer];
     Marker_CfgFile_KindBC[iMarker_CfgFile] = HEAT_TRANSFER;
@@ -6316,6 +6329,7 @@ void CConfig::SetOutput(SU2_COMPONENT val_software, unsigned short val_izone) {
   iMarker_Deform_Mesh, iMarker_Deform_Mesh_Sym_Plane, iMarker_Deform_Mesh_Internal,
   iMarker_Fluid_Load, iMarker_Smoluchowski_Maxwell, iWall_Catalytic,
   iMarker_Giles, iMarker_Outlet, iMarker_Isothermal, iMarker_HeatFlux, iMarker_HeatTransfer,
+  iMarker_SolidFuel,
   iMarker_EngineInflow, iMarker_EngineExhaust, iMarker_Displacement, iMarker_Damper,
   iMarker_Load, iMarker_Internal, iMarker_Monitoring,
   iMarker_Designing, iMarker_GeoEval, iMarker_Plotting, iMarker_Analyze, iMarker_DV, iDV_Value,
@@ -7755,6 +7769,15 @@ void CConfig::SetOutput(SU2_COMPONENT val_software, unsigned short val_izone) {
     BoundaryTable.PrintFooter();
   }
 
+  if (nMarker_SolidFuel != 0) {
+    BoundaryTable << "Solid Fuel wall";
+    for (iMarker_SolidFuel = 0; iMarker_SolidFuel < nMarker_SolidFuel; iMarker_SolidFuel++) {
+      BoundaryTable << Marker_SolidFuel[iMarker_SolidFuel];
+      if (iMarker_SolidFuel < nMarker_SolidFuel-1)  BoundaryTable << " ";
+    }
+    BoundaryTable.PrintFooter();
+  }
+
   if (nMarker_HeatFlux != 0) {
     BoundaryTable << "Heat flux wall";
     for (iMarker_HeatFlux = 0; iMarker_HeatFlux < nMarker_HeatFlux; iMarker_HeatFlux++) {
@@ -8229,7 +8252,8 @@ bool CConfig::GetViscous_Wall(unsigned short iMarker) const {
           Marker_All_KindBC[iMarker] == ISOTHERMAL ||
           Marker_All_KindBC[iMarker] == HEAT_TRANSFER ||
           Marker_All_KindBC[iMarker] == SMOLUCHOWSKI_MAXWELL ||
-          Marker_All_KindBC[iMarker] == CHT_WALL_INTERFACE);
+          Marker_All_KindBC[iMarker] == CHT_WALL_INTERFACE ||
+          Marker_All_KindBC[iMarker] == SOLID_FUEL);
 }
 
 bool CConfig::GetCatalytic_Wall(unsigned short iMarker) const {
@@ -9486,6 +9510,15 @@ su2double CConfig::GetIsothermal_Temperature(const string& val_marker) const {
       return Isothermal_Temperature[iMarker_Isothermal];
 
   return Isothermal_Temperature[0];
+}
+
+su2double CConfig::GetSolidFuel_Temperature(const string& val_marker) const {
+
+  for (unsigned short iMarker_SolidFuel = 0; iMarker_SolidFuel < nMarker_SolidFuel; iMarker_SolidFuel++)
+    if (Marker_SolidFuel[iMarker_SolidFuel] == val_marker)
+      return SolidFuel_Temperature[iMarker_SolidFuel];
+
+  return SolidFuel_Temperature[0];
 }
 
 su2double CConfig::GetWall_HeatFlux(const string& val_marker) const {
