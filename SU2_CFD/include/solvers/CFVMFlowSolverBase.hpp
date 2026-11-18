@@ -181,6 +181,7 @@ class CFVMFlowSolverBase : public CSolver {
   vector<vector<su2double> > YPlus;             /*!< \brief Yplus for each boundary and vertex. */
   vector<vector<su2double> > UTau;                 /*!< \brief UTau for each boundary and vertex. */
   vector<vector<su2double> > EddyViscWall;         /*!< \brief Eddy viscosuty at the wall for each boundary and vertex. */
+  vector<vector<su2double> > RegressionWall;    /*!< \brief Solid (Fuel) regression for each boundary and vertex. */
 
   bool space_centered;       /*!< \brief True if space centered scheme used. */
   bool euler_implicit;       /*!< \brief True if euler implicit scheme used. */
@@ -2437,6 +2438,16 @@ class CFVMFlowSolverBase : public CSolver {
    */
   inline su2double GetEddyViscWall(unsigned short val_marker, unsigned long val_vertex) const final {
     return EddyViscWall[val_marker][val_vertex];
+  }
+
+   /*!
+   * \brief Get the wall regression at the wall.
+   * \param[in] val_marker - Surface marker where the coefficient is computed.
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the coefficient is evaluated.
+   * \return Value of the wall regression.
+   */
+  inline su2double GetRegressionWall(unsigned short val_marker, unsigned long val_vertex) const final {
+    return RegressionWall[val_marker][val_vertex];
   }
 
   /*!

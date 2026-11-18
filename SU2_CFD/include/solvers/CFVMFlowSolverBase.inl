@@ -188,6 +188,10 @@ void CFVMFlowSolverBase<V, R>::Allocate(const CConfig& config) {
 
   AllocVectorOfVectors(nVertex, WallShearStress);
 
+  /*--- Surface regression in all the markers ---*/
+
+  AllocVectorOfVectors(nVertex, RegressionWall);
+
   /*--- Store the values of the temperature and the heat flux density at the boundaries,
    used for coupling with a solid donor cell ---*/
   constexpr auto nHeatConjugateVar = 4u;

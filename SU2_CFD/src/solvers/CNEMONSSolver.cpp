@@ -1016,6 +1016,8 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
         Vector[iDim] = mdot_s/rho * UnitNormal[iDim]; // change this rho to the imposed one?
         //std::cout << mdot_s/rho * UnitNormal[iDim] << std::endl;
       }
+      su2double rdot = mdot_s/900; //hard coded to be 900 kg/s at the moment -- change to something that can be read from the parameters file
+      RegressionWall[val_marker][iVertex] = rdot;
       
       nodes->SetVelocity_Old(iPoint,Vector);
 
