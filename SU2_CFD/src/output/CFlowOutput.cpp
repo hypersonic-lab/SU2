@@ -1661,6 +1661,7 @@ void CFlowOutput::LoadSurfaceData(CConfig *config, CGeometry *geometry, CSolver 
     SetVolumeOutputValue("SKIN_FRICTION-Z", iPoint, solver[FLOW_SOL]->GetCSkinFriction(iMarker, iVertex, 2));
   SetVolumeOutputValue("HEAT_FLUX", iPoint, solver[heat_sol]->GetHeatFlux(iMarker, iVertex));
   SetVolumeOutputValue("Y_PLUS", iPoint, solver[FLOW_SOL]->GetYPlus(iMarker, iVertex));
+  SetVolumeOutputValue("SURFACE_REGRESSION", iPoint, solver[FLOW_SOL]->GetRegressionWall(iMarker, iVertex));
 }
 
 void CFlowOutput::AddAerodynamicCoefficients(const CConfig* config) {

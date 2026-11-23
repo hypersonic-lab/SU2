@@ -157,6 +157,9 @@ void CIntegration::Space_Integration(CGeometry *geometry,
       case HEAT_FLUX:
         solver_container[MainSolver]->BC_HeatFlux_Wall(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
         break;
+      case SOLID_FUEL:
+        solver_container[MainSolver]->BC_SolidFuel_Wall(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
+        break;
       case HEAT_TRANSFER:
         solver_container[MainSolver]->BC_HeatTransfer_Wall(geometry, config, iMarker);
         break;

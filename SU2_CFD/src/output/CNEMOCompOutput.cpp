@@ -261,6 +261,7 @@ void CNEMOCompOutput::SetVolumeOutputFields(CConfig *config){
     AddVolumeOutput("THERMAL_CONDUCTIVITY_VE", "Thermal_Conductivity_ve", "PRIMITIVE", "Vibrational-electronic thermal conductivity");
     AddVolumeOutput("HEAT_FLUX", "Heat_Flux", "PRIMITIVE", "Heat-flux");
     AddVolumeOutput("Y_PLUS", "Y_Plus", "PRIMITIVE", "Non-dim. wall distance (Y-Plus)");
+    AddVolumeOutput("SURFACE_REGRESSION", "Surface_Regression", "PRIMITIVE", "Solid Surface Regression");
 
   }
   if (config->GetKind_Solver() == MAIN_SOLVER::NEMO_RANS) {

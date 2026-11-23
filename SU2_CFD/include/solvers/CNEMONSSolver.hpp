@@ -201,6 +201,21 @@ public:
                                    CConfig *config, unsigned short val_marker);
 
   /*!
+   * \brief Impose the Solid Fuel (Mass Energy Balance) boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method for convective terms.
+   * \param[in] visc_numerics - Description of the numerical method for viscous terms.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_SolidFuel_Wall(CGeometry *geometry,
+                                   CSolver **solver_container,
+                                   CNumerics *conv_numerics,
+                                   CNumerics *visc_numerics,
+                                   CConfig *config, unsigned short val_marker);
+  
+  /*!
    * \brief Impose the Navier-Stokes boundary condition (strong).
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.

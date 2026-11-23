@@ -30,3 +30,4 @@ option('librom_root', type : 'string', value : '', description: 'libROM base dir
 option('enable-librom', type : 'boolean', value : false, description: 'enable LLNL libROM support')
 option('static-cgns-deps', type : 'boolean', value : false, description: 'prefer static or dynamic (default) libraries for CGNS dependencies')
 option('enable-tracy', type: 'boolean', value: false, description: 'Enable Tracy profiling support')
+option('enable-chemgen',  type : 'boolean', value : false, description: 'enable ChemGen chemistry calculations')

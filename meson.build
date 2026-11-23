@@ -334,6 +334,10 @@ if omp and get_option('enable-autodiff')
   endif
 endif
 
+if get_option('enable-chemgen')
+  su2_cpp_args += '-DHAVE_CHEMGEN'
+endif
+
 # compile common library
 subdir('Common/src')
 # compile SU2_CFD executable

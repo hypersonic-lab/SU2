@@ -566,6 +566,7 @@ void CTurbSSTSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, C
                               CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
 
   const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  const bool nemo = (config->GetKind_Solver() == MAIN_SOLVER::NEMO_RANS);
 
   /*--- Loop over all the vertices on this boundary marker ---*/
 
@@ -610,7 +611,19 @@ void CTurbSSTSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, C
         /*--- Obtain flow velocity vector at inlet boundary node ---*/
 
         const su2double* Velocity_Inlet = &V_inlet[prim_idx.Velocity()];
-        su2double Density_Inlet;
+        su2double Density_Inlet, Laminar_Viscosity_Inlet; 
+        if (nemo) {
+          unsigned short nSpecies = config->GetnSpecies();
+          vector<su2double> rhos;
+          rhos.resize(nSpecies,0.0);
+          CNEMOGas* NEMOFluidModel = static_cast<CNEMOGas*>(FluidModel);
+          Density_Inlet = V_inlet[prim_idx.Density()];
+          for (auto iSpecies = 0u; iSpecies< nSpecies; iSpecies++){
+            rhos[iSpecies] = V_inlet[iSpecies];
+          }
+          NEMOFluidModel->SetTDStateRhosTTv(rhos, V_inlet[prim_idx.Temperature()], V_inlet[prim_idx.Temperature()+1]);
+          Laminar_Viscosity_Inlet = NEMOFluidModel->GetViscosity();
+        } else {
         if (config->GetKind_Regime() == ENUM_REGIME::COMPRESSIBLE) {
           Density_Inlet = V_inlet[prim_idx.Density()];
           FluidModel->SetTDState_Prho(V_inlet[prim_idx.Pressure()], Density_Inlet);
@@ -622,7 +635,8 @@ void CTurbSSTSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, C
           FluidModel->SetTDState_T(V_inlet[prim_idx.Temperature()], Scalar_Inlet);
           Density_Inlet = FluidModel->GetDensity();
         }
-        const su2double Laminar_Viscosity_Inlet = FluidModel->GetLaminarViscosity();
+        Laminar_Viscosity_Inlet = FluidModel->GetLaminarViscosity();
+        }
         const su2double* Turb_Properties = config->GetInlet_TurbVal(config->GetMarker_All_TagBound(val_marker));
         const su2double Intensity = Turb_Properties[0];
         const su2double viscRatio = Turb_Properties[1];
