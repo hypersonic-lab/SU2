@@ -637,7 +637,13 @@ void CNEMONSSolver::BC_IsothermalNonCatalytic_Wall(CGeometry *geometry,
     if (implicit) {
       Jacobian.SubtractBlock2Diag(iPoint, Jacobian_i);
 
-      for (auto iVar = 1u; iVar <= nDim; iVar++) {
+      // note the rather silly mistake here where the isothermal jacobians only work for 1 species lol
+      //for (auto iVar = 1u; iVar <= nDim; iVar++) {
+      //  auto total_index = iPoint*nVar+iVar;
+      //  Jacobian.DeleteValsRowi(total_index);
+      //}
+      // fix
+      for (auto iVar = nSpecies; iVar < nSpecies+nDim; iVar++) {
         auto total_index = iPoint*nVar+iVar;
         Jacobian.DeleteValsRowi(total_index);
       }
@@ -954,6 +960,14 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
   for (auto iVar = 0ul; iVar < nVar; iVar++)
     dVdU[iVar] = new su2double[nVar];
 
+  //// Create Jacobian for implicit time-marching // or inherit it from CSolver idk anymore
+  //su2double **Jacobian_i = nullptr;
+  //if (implicit) {
+  //  Jacobian_i = new su2double* [nVar];
+  //  for (auto iVar = 0ul; iVar < nVar; iVar++)
+  //    Jacobian_i[iVar] = new su2double [nVar] ();
+  // }
+
   /*--- Loop over all of the vertices on this boundary marker ---*/
   for (auto iVertex = 0ul; iVertex < geometry->nVertex[val_marker]; iVertex++) {
 
@@ -974,6 +988,7 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
       const auto Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
       const su2double Area = GeometryToolbox::Norm(nDim, Normal);
       su2double UnitNormal[MAXNDIM] = {0.0};
+      su2double Vector_v[MAXNDIM] = {0.0};
       for (auto iDim = 0ul; iDim < nDim; iDim++)
       UnitNormal[iDim] = Normal[iDim]/Area;
 
@@ -1015,28 +1030,33 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
       su2double mdot_s = std::max((-(ktr*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
       /*--- Store the Blowing Velocity at the wall ---*/
       for (auto iDim = 0ul; iDim < nDim; iDim++){
-        Vector[iDim] = mdot_s/rho * UnitNormal[iDim]; // change this rho to the imposed one?
+        Vector_v[iDim] = mdot_s/rho * UnitNormal[iDim]; // change this rho to the imposed one?
         //std::cout << mdot_s/rho * UnitNormal[iDim] << std::endl;
       }
       su2double rdot = mdot_s/900; //hard coded to be 900 kg/s at the moment -- change to something that can be read from the parameters file
       RegressionWall[val_marker][iVertex] = rdot;
       
-      nodes->SetVelocity_Old(iPoint,Vector);
+      nodes->SetVelocity_Old(iPoint,Vector_v);
 
       for (auto iDim = 0ul; iDim < nDim; iDim++) LinSysRes(iPoint, nSpecies+iDim) = 0.0;
       nodes->SetVel_ResTruncError_Zero(iPoint);
 
       /*--- Enforce the no-slip boundary condition in a strong way by
       modifying the velocity-rows of the Jacobian (1 on the diagonal).
-      And add the contributions to the Jacobian due to energy. ---*/
-      //if (implicit) {
+      And add the contributions to the Jacobian due to energy (commented out). ---*/
+      // Add Implicit Support Here
+      if (implicit) {
+        for (auto iVar = nSpecies; iVar < nSpecies+nDim; iVar++) {
+        auto total_index = iPoint*nVar+iVar;
+        Jacobian.DeleteValsRowi(total_index);
+        }
       //  Jacobian.SubtractBlock2Diag(iPoint, Jacobian_i);
 
       //  for (auto iVar = nSpecies; iVar <= nDim; iVar++) {
       //    auto total_index = iPoint*nVar+iVar;
       //    Jacobian.DeleteValsRowi(total_index);
       //  }
-      // }
+      }
 
       if (NoFuelSurfaceDiffusion) {
 

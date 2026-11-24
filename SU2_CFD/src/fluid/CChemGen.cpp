@@ -167,7 +167,7 @@ vector<su2double>& CChemGen::ComputeNetProductionRates(bool implicit, const su2d
   // std::cout << ws1[8] << std::endl;
   for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) ws[iSpecies] = ws1[iSpecies+1] * MolarMass[iSpecies]; // convert from molar to mass production rates
 
-  //if(implicit) ChemistryJacobian(0, V, eve, cvve, dTdU, dTvedU, val_jacobian);
+  if(implicit) ChemistryJacobian(0, V, eve, cvve, dTdU, dTvedU, val_jacobian);
   return ws;
 }
 
@@ -179,15 +179,33 @@ void CChemGen::ChemistryJacobian(unsigned short iReaction, const su2double *V, c
 
   /* TEMPORARY: RUNNING ONLY EXPLICIT AS A FIRST STEP
   mix->jacobianRho(JacRho.data());
-  mix->jacobianT(JacT.data());
+  mix->jacobianT(JacT.data()); */
+
+  std::array<double, n_species> conc_s;
+  std::array<double, n_species+1> chemstate;
+  std::array<std::array<double, n_species+1>, n_species+1> JacConc;
+  double int_energy;
+
+  //for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) conc_s[iSpecies] = rhos[iSpecies]/MolarMass[iSpecies];
+  // added a small non-zero to zero concentrations to avoid having NaN values appear in the source term Jacobians
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) conc_s[iSpecies] = std::max((rhos[iSpecies]/MolarMass[iSpecies]), 1.0e-14);
+
+  //int_energy = internal_energy_volume_specific(conc_s, T);
+  //chemstate = set_chemical_state(int_energy, conc_s);
+  //for(iSpecies = 0; iSpecies <nSpecies+1; iSpecies++) chemstate[iSpecies] = std::max(chemstate[iSpecies], 1.0e-14);
+
+  //JacConc = source_jacobian(chemstate, T);
+  JacConc = source_jacobian(conc_s, T);
+   
 
   for(iSpecies = 0; iSpecies < nSpecies; iSpecies++){
       for(jSpecies = 0; jSpecies < nSpecies; jSpecies++){ 
-          val_jacobian[iSpecies][jSpecies] = JacRho[iSpecies*nSpecies+jSpecies];}
+          val_jacobian[iSpecies][jSpecies] = JacConc[iSpecies+1][jSpecies+1] * MolarMass[iSpecies]/MolarMass[jSpecies];
+          //std::cout << "i="<<iSpecies+1<<" j="<<jSpecies+1<<" J="<< JacConc[iSpecies+1][jSpecies+1] << std::endl;
+        }
       for(iVar = 0; iVar < nVar; iVar++){
-          val_jacobian[iSpecies][iVar] += JacT[iSpecies]*dTdU[iVar];}
+          val_jacobian[iSpecies][iVar] += JacConc[iSpecies+1][0]*dTdU[iVar]* MolarMass[iSpecies];}
   }
-  */
 
   // For ChemGen, for the moment only doing 1T
   /* 
