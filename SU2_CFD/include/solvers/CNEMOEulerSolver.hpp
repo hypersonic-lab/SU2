@@ -43,7 +43,8 @@ protected:
 
   su2double
   Prandtl_Lam = 0.0,              /*!< \brief Laminar Prandtl number. */
-  Prandtl_Turb = 0.0;             /*!< \brief Turbulent Prandtl number. */
+  Prandtl_Turb = 0.0,             /*!< \brief Turbulent Prandtl number. */
+  Schmidt_Turb = 0.0;             /*!< \brief Turbulent Schmidt number. */
 
   unsigned short nSpecies;        /*!< \brief Number of species in the gas mixture. */
 

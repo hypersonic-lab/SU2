@@ -888,6 +888,7 @@ private:
   nThermal_Conductivity_Constant,/*!< \brief Number of species constant thermal conductivity. */
   nPrandtl_Lam,                  /*!< \brief Number of species laminar Prandtl number. */
   nPrandtl_Turb,                 /*!< \brief Number of species turbulent Prandtl number. */
+  nSchmidt_Turb,                 /*!< \brief Number of species turbulent Schmidt number. */
   nConstant_Lewis_Number;       /*!< \brief Number of species Lewis Number. */
   su2double Diffusivity_Constant;   /*!< \brief Constant mass diffusivity for scalar transport.  */
   su2double Diffusivity_ConstantND; /*!< \brief Non-dim. constant mass diffusivity for scalar transport.  */
@@ -926,6 +927,7 @@ private:
   wallModel_MinYplus;               /*!< \brief minimum Y+ value, below which the wall model is not used anymore */
   su2double *Prandtl_Lam,      /*!< \brief Laminar Prandtl number for the gas.  */
   *Prandtl_Turb,               /*!< \brief Turbulent Prandtl number for the gas.  */
+  *Schmidt_Turb,               /*!< \brief Turbulent Schmidt number for the gas.  */
   Length_Ref,                 /*!< \brief Reference length for non-dimensionalization. */
   Pressure_Ref,               /*!< \brief Reference pressure for non-dimensionalization.  */
   Temperature_Ref,            /*!< \brief Reference temperature for non-dimensionalization.*/
@@ -1822,6 +1824,12 @@ public:
    * \return Turbulent Prandtl number.
    */
   su2double GetPrandtl_Turb(unsigned short val_index = 0) const { return Prandtl_Turb[val_index]; }
+
+  /*!
+   * \brief Get the value of the turbulent Schmidt number.
+   * \return Turbulent Schmidt number.
+   */
+  su2double GetSchmidt_Turb(unsigned short val_index = 0) const { return Schmidt_Turb[val_index]; }
 
   /*!
    * \brief Get the value of the von Karman constant kappa for turbulence wall modeling.

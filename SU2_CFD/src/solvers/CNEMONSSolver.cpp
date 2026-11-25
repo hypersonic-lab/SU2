@@ -41,6 +41,7 @@ CNEMONSSolver::CNEMONSSolver(CGeometry *geometry, CConfig *config, unsigned shor
   Viscosity_Inf      = config->GetViscosity_FreeStreamND();
   Prandtl_Lam        = config->GetPrandtl_Lam();
   Prandtl_Turb       = config->GetPrandtl_Turb();
+  Schmidt_Turb       = config->GetSchmidt_Turb();
 
   /*--- Initialize the secondary values for direct derivative approxiations ---*/
   switch(config->GetDirectDiff()) {
@@ -951,6 +952,8 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
   //if (IsothermalFuel){
     const su2double Twall = config->GetSolidFuel_Temperature(Marker_Tag); // only way to make the BC explicit
   //}
+  const su2double Prandtl_Turb = config->GetPrandtl_Turb();
+  const su2double Schmidt_Turb = config->GetSchmidt_Turb();
 
   /*--- Allocate arrays ---*/
   GradY = new su2double*[nSpecies];
@@ -1018,8 +1021,15 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
       /*--- Calculate the gradient of temperature ---*/
       su2double dTdn = (Twall - Tj)/dij;
       su2double dTvedn = (Twall - Tvej)/dij;
+       /*--- Get transport coefficients ---*/
+      su2double Mass = 0.0;
+      for (auto iSpecies=0ul; iSpecies<nSpecies; iSpecies++) {
+        Mass += Vi[iSpecies]/rho*Ms[iSpecies];} // copied from raghava's cnemonumerics
+      su2double Cp_tr = Vi[RHOCVTR_INDEX]/rho + UNIVERSAL_GAS_CONSTANT*1000.0/Mass;
+      su2double eddy_viscosity       = nodes->GetEddyViscosity(iPoint);
+      su2double ktr_eff = nodes->GetThermalConductivity(iPoint) + Cp_tr * eddy_viscosity / Prandtl_Turb;
       /*--- Impose the Temperature at the Wall by applying to linear system ---*/
-      Res_Visc[nSpecies+nDim]   = (ktr*dTdn + kve*dTvedn)*Area;
+      Res_Visc[nSpecies+nDim]   = (ktr_eff*dTdn + kve*dTvedn)*Area;
       Res_Visc[nSpecies+nDim+1] = (kve*dTvedn)*Area;
       //Res_Visc[nSpecies+nDim]   = ((ktr*(Ti-Tj)    + kve*(Tvei-Tvej)) + 
       //                             (ktr*(Twall-Ti) + kve*(Twall-Tvei))*C)*Area/dij;
@@ -1027,7 +1037,7 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
 
       /*--- Calculating the mass flux of solid into the gas ---*/
       const auto& Lv = 1460.0*1000.0; // J/kg // config->GetLatent_Heat_Vaporization(); // need to add this to parameters file // Lv = 1460 kJ/kg in simplest case
-      su2double mdot_s = std::max((-(ktr*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
+      su2double mdot_s = std::max((-(ktr_eff*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
       /*--- Store the Blowing Velocity at the wall ---*/
       for (auto iDim = 0ul; iDim < nDim; iDim++){
         Vector_v[iDim] = mdot_s/rho * UnitNormal[iDim]; // change this rho to the imposed one?

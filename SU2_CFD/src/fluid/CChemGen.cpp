@@ -184,7 +184,7 @@ void CChemGen::ChemistryJacobian(unsigned short iReaction, const su2double *V, c
   std::array<double, n_species> conc_s;
   std::array<double, n_species+1> chemstate;
   std::array<std::array<double, n_species+1>, n_species+1> JacConc;
-  double int_energy;
+  //double int_energy;
 
   //for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) conc_s[iSpecies] = rhos[iSpecies]/MolarMass[iSpecies];
   // added a small non-zero to zero concentrations to avoid having NaN values appear in the source term Jacobians

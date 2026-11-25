@@ -1335,6 +1335,8 @@ void CConfig::SetConfig_Options() {
   addDoubleListOption("PRANDTL_LAM", nPrandtl_Lam , Prandtl_Lam);
   /*!\brief PRANDTL_TURB \n DESCRIPTION: Turbulent Prandtl number (0.9 (air), only for compressible flows) \n DEFAULT 0.90 \ingroup Config*/
   addDoubleListOption("PRANDTL_TURB", nPrandtl_Turb , Prandtl_Turb);
+  /*!\brief PRANDTL_TURB \n DESCRIPTION: Turbulent Schmidt number (0.9 (air), only for compressible flows) \n DEFAULT 0.90 \ingroup Config*/
+  addDoubleListOption("SCHMIDT_TURB", nSchmidt_Turb , Schmidt_Turb);
 
   /*--- Options related to wall models. ---*/
 
@@ -4001,6 +4003,7 @@ void CConfig::SetPostprocessing(SU2_COMPONENT val_software, unsigned short val_i
   const su2double Thermal_Conductivity_Constant_Default = (SystemMeasurements == SI) ? 2.57E-2 : (2.57E-2 * 0.577789317);
   const su2double Prandtl_Lam_Default = 0.72;
   const su2double Prandtl_Turb_Default = 0.9;
+  const su2double Schmidt_Turb_Default = 0.9;
   const su2double Lewis_Number_Default = 1.0;
 
   auto SetDefaultIfEmpty = [](su2double*& array, unsigned short& size, const su2double& default_val) {
@@ -4023,6 +4026,7 @@ void CConfig::SetPostprocessing(SU2_COMPONENT val_software, unsigned short val_i
                     Thermal_Conductivity_Constant_Default);
   SetDefaultIfEmpty(Prandtl_Lam, nPrandtl_Lam, Prandtl_Lam_Default);
   SetDefaultIfEmpty(Prandtl_Turb, nPrandtl_Turb, Prandtl_Turb_Default);
+  SetDefaultIfEmpty(Schmidt_Turb, nSchmidt_Turb, Schmidt_Turb_Default);
   SetDefaultIfEmpty(Constant_Lewis_Number, nConstant_Lewis_Number, Lewis_Number_Default);
 
   Variable_Density = ((Kind_DensityModel == INC_DENSITYMODEL::VARIABLE) || (Kind_DensityModel == INC_DENSITYMODEL::FLAMELET));

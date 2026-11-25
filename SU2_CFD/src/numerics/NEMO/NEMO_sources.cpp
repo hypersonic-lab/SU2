@@ -271,9 +271,12 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
   if (viscous) {
     if (!rans){ turb_ke_i = 0.0; }
 
+    /*--- Added for NEMO_RANS by Alex B. ---*/
+    const su2double D_turb = Eddy_Viscosity_i/(Schmidt_Turb*rho);
+
     su2double Vector = 0.0;
     for (auto iSpecies = 0ul; iSpecies < nHeavy; iSpecies++)
-      Vector += rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][1];
+      Vector += rho*(Ds[iSpecies]+D_turb)*GV[RHOS_INDEX+iSpecies][1];
 
     su2double Mass = 0.0;
     for (auto iSpecies=0ul; iSpecies<nSpecies; iSpecies++)
@@ -296,8 +299,8 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeAxisymmetric(const CConfig *confi
     su2double sumJhs_y, sumJeve_y;
     sumJhs_y = sumJeve_y = 0.0;
     for (auto iSpecies = 0ul; iSpecies < nHeavy; iSpecies++) {
-      sumJhs_y  += -(rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][1] - V_i[RHOS_INDEX+iSpecies]*Vector) * hs[iSpecies];
-      sumJeve_y += -(rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][1] - V_i[RHOS_INDEX+iSpecies]*Vector) * eve_i[iSpecies];
+      sumJhs_y  += -(rho*(Ds[iSpecies]+D_turb)*GV[RHOS_INDEX+iSpecies][1] - V_i[RHOS_INDEX+iSpecies]*Vector) * hs[iSpecies];
+      sumJeve_y += -(rho*(Ds[iSpecies]+D_turb)*GV[RHOS_INDEX+iSpecies][1] - V_i[RHOS_INDEX+iSpecies]*Vector) * eve_i[iSpecies];
     }
 
     for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++)

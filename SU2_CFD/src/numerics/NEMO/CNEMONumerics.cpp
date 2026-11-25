@@ -262,7 +262,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& Cs = fluidmodel->GetSpeciesCharge();
 
-/* Added by RSCD for NEMO_RANS ---*/
+  /*--- Added by RSCD for NEMO_RANS ---*/
   su2double Mass = 0.0;
   for (auto iSpecies=0ul; iSpecies<nSpecies; iSpecies++)
     Mass += V_i[iSpecies]/rho*Ms[iSpecies];
@@ -271,12 +271,14 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   const su2double cp_ve = V[RHOCVVE_INDEX]/rho;
   const su2double ktr_eff = ktr + val_eddy_viscosity*cp_tr/Prandtl_Turb;
   const su2double kve_eff = kve + val_eddy_viscosity*cp_ve/Prandtl_Turb;
+  /*--- Added for NEMO_RANS by Alex B. ---*/
+  const su2double D_turb = val_eddy_viscosity/(Schmidt_Turb*rho);
 
   /*--- Pre-compute mixture quantities ---*/  //TODO
   su2double Vector[MAXNDIM] = {0.0};
   for (auto iDim = 0; iDim < nDim; iDim++) {
     for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
-      Vector[iDim] += rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim];
+      Vector[iDim] += rho*(Ds[iSpecies]+D_turb)*GV[RHOS_INDEX+iSpecies][iDim];
     }
   }
 
@@ -289,7 +291,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
     /*--- Species diffusion velocity ---*/
     if (nEl == 1) Flux_Tensor[0][iDim] = 0.0; // Ambipolar diffusion for electron is handled differently than heavy species below
     for (auto iSpecies = nEl; iSpecies < nSpecies; iSpecies++) {
-      Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
+      Flux_Tensor[iSpecies][iDim] = rho*(Ds[iSpecies]+D_turb)*GV[RHOS_INDEX+iSpecies][iDim]
           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
       if (nEl == 1){                   
         Flux_Tensor[0][iDim] += -1.0 * Ms[0] * Flux_Tensor[iSpecies][iDim] * Cs[iSpecies] / Ms[iSpecies];

@@ -239,6 +239,8 @@ public:
     const su2double cp_ve = val_Mean_PrimVar[RHOCVVE_INDEX]/rho_mean;
     const su2double ktr_eff = ktr + val_eddy_viscosity*cp_tr/Prandtl_Turb;
     const su2double kve_eff = kve + val_eddy_viscosity*cp_ve/Prandtl_Turb;
+    /*--- Added for NEMO_RANS by Alex B. ---*/
+    const su2double D_turb = val_eddy_viscosity/(Schmidt_Turb*rho_i);
 
     /*--- Calculate useful diffusion parameters ---*/
     // Mass fraction and summation of diffusion fluxes
@@ -250,9 +252,9 @@ public:
       Ys_i[iSpecies] = V_i[RHOS_INDEX+iSpecies]/V_i[RHO_INDEX];
       Ys_j[iSpecies] = V_j[RHOS_INDEX+iSpecies]/V_j[RHO_INDEX];
 
-      sumY_i += Ds[iSpecies]*theta/dij*Ys_i[iSpecies];
-      sumY_j += Ds[iSpecies]*theta/dij*Ys_j[iSpecies];
-      sumY   += Ds[iSpecies]*theta/dij*(Ys_j[iSpecies]-Ys_i[iSpecies]);
+      sumY_i += (Ds[iSpecies]+D_turb)*theta/dij*Ys_i[iSpecies];
+      sumY_j += (Ds[iSpecies]+D_turb)*theta/dij*Ys_j[iSpecies];
+      sumY   += (Ds[iSpecies]+D_turb)*theta/dij*(Ys_j[iSpecies]-Ys_i[iSpecies]);
     }
 
     su2double vel[MAXNDIM];
@@ -263,10 +265,10 @@ public:
       for (auto jSpecies  = 0; jSpecies < nSpecies; jSpecies++) {
 
         // first term
-        dJdr_j[iSpecies][jSpecies] +=  0.5*(Ds[iSpecies]*theta/dij *
+        dJdr_j[iSpecies][jSpecies] +=  0.5*((Ds[iSpecies]+D_turb)*theta/dij *
                                            (Ys_j[iSpecies]*rho_i/rho_j +
                                             Ys_i[iSpecies]));
-        dJdr_i[iSpecies][jSpecies] += -0.5*(Ds[iSpecies]*theta/dij *
+        dJdr_i[iSpecies][jSpecies] += -0.5*((Ds[iSpecies]+D_turb)*theta/dij *
                                            (Ys_j[iSpecies] +
                                             Ys_i[iSpecies]*rho_j/rho_i));
 
@@ -283,8 +285,8 @@ public:
       }
 
       // first term
-      dJdr_j[iSpecies][iSpecies] += -0.5*Ds[iSpecies]*theta/dij*(1+rho_i/rho_j);
-      dJdr_i[iSpecies][iSpecies] +=  0.5*Ds[iSpecies]*theta/dij*(1+rho_j/rho_i);
+      dJdr_j[iSpecies][iSpecies] += -0.5*(Ds[iSpecies]+D_turb)*theta/dij*(1+rho_i/rho_j);
+      dJdr_i[iSpecies][iSpecies] +=  0.5*(Ds[iSpecies]+D_turb)*theta/dij*(1+rho_j/rho_i);
 
       // second term
       dJdr_j[iSpecies][iSpecies] += 0.25*(1.0+rho_i/rho_j)*sumY;
