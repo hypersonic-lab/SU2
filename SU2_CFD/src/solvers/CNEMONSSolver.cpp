@@ -997,6 +997,7 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
 
       /*--- Initialize the viscous residual to zero ---*/
       for (auto iVar = 0ul; iVar < nVar; iVar++) Res_Visc[iVar] = 0.0;
+      for (auto iVar = 0ul; iVar < nVar; iVar++) Res_Conv[iVar] = 0.0;
 
       /*--- Get primitive information ---*/
       const auto& Vi = nodes->GetPrimitive(iPoint);
@@ -1007,7 +1008,19 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
       const su2double rho = Vi[RHO_INDEX];
       const auto& dTdU = nodes->GetdTdU(iPoint);
       const auto& dTvedU = nodes->GetdTvedU(iPoint);
+
       /*--- Get additional primitive information ---*/
+      su2double pressure = nodes->GetPressure(iPoint);
+      su2double laminar_viscosity = nodes->GetLaminarViscosity(iPoint);
+      su2double eddy_viscosity = nodes->GetEddyViscosity(iPoint);
+      su2double total_viscosity = laminar_viscosity + eddy_viscosity;
+      su2double energy = nodes->GetEnergy(iPoint);
+
+      /*--- Gett---*/
+
+      /*--- Compute the viscous stress tensor ---*/
+      su2double tau[MAXNDIM][MAXNDIM] = {{0.0}};
+      CNumerics::ComputeStressTensor(nDim, tau, nodes->GetVelocityGradient(iPoint), total_viscosity);
 
       /*--- Obtain temperatures at wall node (i) and nearest normal neighbor (j) ---*/
       const su2double Ti   = nodes->GetTemperature(iPoint); // could replace this with appropriate indices in primitives?
@@ -1026,7 +1039,6 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
       for (auto iSpecies=0ul; iSpecies<nSpecies; iSpecies++) {
         Mass += Vi[iSpecies]/rho*Ms[iSpecies];} // copied from raghava's cnemonumerics
       su2double Cp_tr = Vi[RHOCVTR_INDEX]/rho + UNIVERSAL_GAS_CONSTANT*1000.0/Mass;
-      su2double eddy_viscosity       = nodes->GetEddyViscosity(iPoint);
       su2double ktr_eff = nodes->GetThermalConductivity(iPoint) + Cp_tr * eddy_viscosity / Prandtl_Turb;
       /*--- Impose the Temperature at the Wall by applying to linear system ---*/
       Res_Visc[nSpecies+nDim]   = (ktr_eff*dTdn + kve*dTvedn)*Area;
@@ -1085,7 +1097,10 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
         for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
           dYdn = (Yst[iSpecies]-Vj[RHOS_INDEX+iSpecies]/Vj[RHO_INDEX])/dij;
           Res_Visc[iSpecies]  = -(-rho*Di[iSpecies]*dYdn+Yst[iSpecies]*SdYdn)*Area;
+          Res_Conv[iSpecies]  = (rho*Yst[iSpecies]*(mdot_s/rho))*Area; // due to blowing
         }
+
+
 
         if (implicit) {
           /*--- Initialize the transformation matrix ---*/
@@ -1151,14 +1166,19 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
         SU2_MPI::Error("BC SolidFuel w/ diffusion to solid surface: Not operational yet in NEMO.", CURRENT_FUNCTION);
       }
 
+
+
       for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++) {
         Res_Visc[nSpecies+nDim]   += (Res_Visc[iSpecies]*hs[iSpecies]);
         Res_Visc[nSpecies+nDim+1] += (Res_Visc[iSpecies]*eves[iSpecies]);
       }
+      Res_Conv[nSpecies+nDim] = (energy*mdot_s + pressure*(mdot_s/rho))*Area; // energy equation convective residual due to blowing
+      // Res_Visc[nSpecies+nDim] += GeometryToolbox::DotProduct(nDim, tau_vel, UnitNormal) * Area; // ignore this for now
 
       /*--- Viscous contribution to the residual at the wall ---*/
       LinSysRes.SubtractBlock(iPoint, Res_Visc);
       /*--- Convective contribution to the residual at the wall (due to blowing) ---*/
+      LinSysRes.AddBlock(iPoint, Res_Conv);
       //LinSysRes(iPoint, nDim+1) += Res_Conv - Res_Visc;
     }
   }
