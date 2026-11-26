@@ -1037,7 +1037,8 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
 
       /*--- Calculating the mass flux of solid into the gas ---*/
       const auto& Lv = 1460.0*1000.0; // J/kg // config->GetLatent_Heat_Vaporization(); // need to add this to parameters file // Lv = 1460 kJ/kg in simplest case
-      su2double mdot_s = std::max((-(ktr_eff*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
+      //su2double mdot_s = std::max((-(ktr_eff*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
+      su2double mdot_s = std::max((-(ktr*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
       /*--- Store the Blowing Velocity at the wall ---*/
       for (auto iDim = 0ul; iDim < nDim; iDim++){
         Vector_v[iDim] = mdot_s/rho * UnitNormal[iDim]; // change this rho to the imposed one?
