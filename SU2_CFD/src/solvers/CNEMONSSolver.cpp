@@ -1051,12 +1051,17 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
       const auto& Lv = 1460.0*1000.0; // J/kg // config->GetLatent_Heat_Vaporization(); // need to add this to parameters file // Lv = 1460 kJ/kg in simplest case
       //su2double mdot_s = std::max((-(ktr_eff*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
       su2double mdot_s = std::max((-(ktr*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
+      su2double rdot = mdot_s/900; //hard coded to be 900 kg/m3 at the moment -- change to something that can be read from the parameters file
+      if (rdot > 1.0e-3){
+        mdot_s = 1.0e-3 * 900;
+        std::cout << "Warning: Regression rate limited for stability" << std::endl;
+      }
       /*--- Store the Blowing Velocity at the wall ---*/
       for (auto iDim = 0ul; iDim < nDim; iDim++){
         Vector_v[iDim] = mdot_s/rho * UnitNormal[iDim]; // change this rho to the imposed one?
         //std::cout << mdot_s/rho * UnitNormal[iDim] << std::endl;
       }
-      su2double rdot = mdot_s/900; //hard coded to be 900 kg/s at the moment -- change to something that can be read from the parameters file
+      
       RegressionWall[val_marker][iVertex] = rdot;
       
       nodes->SetVelocity_Old(iPoint,Vector_v);
