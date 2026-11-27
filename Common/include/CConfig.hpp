@@ -1258,6 +1258,7 @@ private:
   *SolidFuel_Wall_Composition,              /*!< \brief Solid Fuel wall mass fractions [dimensionless]. */
   pnorm_heat;                               /*!< \brief pnorm for heat-flux. */
   bool frozen,                              /*!< \brief Flag for determining if mixture is frozen. */
+  EDM,                                      /*!< \brief Flag for determining if EDM is used as the combustion model. */
   ionization,                               /*!< \brief Flag for determining if free electron gas is in the mixture. */
   vt_transfer_res_limit,                    /*!< \brief Flag for determining if residual limiting for source term VT-transfer is used. */
   monoatomic,                               /*!< \brief Flag for monoatomic mixture. */
@@ -5659,6 +5660,11 @@ public:
    * \brief Indicates whether the flow is frozen (chemistry deactivated).
    */
   bool GetFrozen(void) const { return frozen; }
+
+  /*!
+   * \brief Indicates whether the EDM turbulence-chemistry model is used.
+   */
+  bool GetEDM(void) const { return EDM; }
 
   /*!
    * \brief Indicates whether electron gas is present in the gas mixture.

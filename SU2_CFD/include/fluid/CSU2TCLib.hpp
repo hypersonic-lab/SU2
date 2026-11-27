@@ -172,7 +172,9 @@ public:
    */
   vector<su2double>& ComputeNetProductionRates(bool implicit, const su2double *V, const su2double* eve,
                                                const su2double* cvve, const su2double* dTdU, const su2double* dTvedU,
-                                               su2double **val_jacobian) final;
+                                               su2double **val_jacobian,
+                                               const su2double val_tke, const su2double eddy_viscosity, const su2double val_omega,
+                                               bool edm) final;
 
   /*!
    * \brief Compute chemical source term jacobian.

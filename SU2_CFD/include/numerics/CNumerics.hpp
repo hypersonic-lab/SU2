@@ -80,6 +80,9 @@ protected:
   turb_ke_i,  /*!< \brief Turbulent kinetic energy at point i. */
   turb_ke_j;  /*!< \brief Turbulent kinetic energy at point j. */
   su2double
+  omega_i,  /*!< \brief Turbulent specific dissipation rate at point i. */
+  omega_j;  /*!< \brief Turbulent specific dissipation rate at point i. */
+  su2double
   intermittency_eff_i, /*!< \brief effective intermittency at point i. */
   intermittency_i; /*!< \brief intermittency at point i. */
   su2double
@@ -816,6 +819,16 @@ public:
   inline void SetTurbKineticEnergy(su2double val_turb_ke_i, su2double val_turb_ke_j) {
     turb_ke_i = val_turb_ke_i;
     turb_ke_j = val_turb_ke_j;
+  }
+
+  /*!
+   * \brief Set the specific dissipation rate omega.
+   * \param[in] val_omega_i - Value of the specific dissipation rate at point i.
+   * \param[in] val_omega_j - Value of the specific dissipation rate at point j.
+   */
+  inline void SetTurbOmega(su2double val_omega_i, su2double val_omega_j) {
+    omega_i = val_omega_i;
+    omega_j = val_omega_j;
   }
 
   /*!

@@ -157,8 +157,11 @@ vector<su2double>& CChemGen::ComputeSpeciesEve(su2double val_T, bool vibe_only){
 
 vector<su2double>& CChemGen::ComputeNetProductionRates(bool implicit, const su2double *V, const su2double* eve,
                                                const su2double* cvve, const su2double* dTdU, const su2double* dTvedU,
-                                               su2double **val_jacobian){
+                                               su2double **val_jacobian,
+                                               const su2double val_tke, const su2double eddy_viscosity, const su2double val_omega,
+                                               bool edm){
 
+  /*--- For Finite Rate Chemistry---*/
   // mix->netProductionRates(ws.data());
   std::array<double, n_species+1> ws1;
   std::array<double, n_species> conc_s; // note that n_species is from ChemGen -- it's not SU2's species count nSpecies (but it should be equal)
@@ -168,6 +171,38 @@ vector<su2double>& CChemGen::ComputeNetProductionRates(bool implicit, const su2d
   for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) ws[iSpecies] = ws1[iSpecies+1] * MolarMass[iSpecies]; // convert from molar to mass production rates
 
   if(implicit) ChemistryJacobian(0, V, eve, cvve, dTdU, dTvedU, val_jacobian);
+
+  if (edm) {
+  //return ws;
+
+  /*--- For Infinite Rate EDC / EDM ---*/
+  double omegaF, taustar, xi, gamma_L2, turb_dissipation, eddy_nu_viscosity, minimumY, Y_P;
+  const double betastar = 0.09, Ctau = 0.41, Cgamma2 = 4.6; // same as in default SST model -- make it such that it's not hard-coded
+  std::array<double, n_species> ws2 = {0.0};
+
+  eddy_nu_viscosity = eddy_viscosity/Density;
+  turb_dissipation = betastar * val_tke * val_omega;
+  taustar = Ctau*std::sqrt(eddy_nu_viscosity/turb_dissipation);
+  gamma_L2 = Cgamma2*(std::sqrt(eddy_nu_viscosity*turb_dissipation))/val_tke;
+
+  // hardcode these for now, but they will have to be read from the parameters file soon enough
+  const int indexF = 1, indexOx = 0, indexP1 = 3, indexP2 = 4; // C4H6, O2, CO2, N2;
+  const double s_stoich = 5.5*MolarMass[indexOx]/MolarMass[indexF];
+
+  Y_P = MassFrac[indexP1]+MassFrac[indexP2];
+  minimumY = std::min({MassFrac[indexF], MassFrac[indexOx]/s_stoich, (Y_P)/(1+s_stoich)});
+  xi = ((Y_P)/(1+s_stoich))/(minimumY + (Y_P)/(1+s_stoich));
+  if (std::isnan(xi)) xi = 1;
+  omegaF = std::abs((1/taustar)*(xi*gamma_L2/(1-xi*gamma_L2))*minimumY);
+  
+  ws2[indexF] = -omegaF;
+  ws2[indexOx] = -omegaF*s_stoich;
+  ws2[indexP1] = omegaF*4*MolarMass[indexP1]/MolarMass[indexF]; // for CO2
+  ws2[indexP1] = omegaF*3*MolarMass[indexP2]/MolarMass[indexF]; // for H2O // hardcoded! need to fix in future!
+
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) ws[iSpecies] = ws2[iSpecies];
+  }
+
   return ws;
 }
 

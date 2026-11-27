@@ -805,6 +805,17 @@ void CNEMOEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_con
 
     if(!monoatomic){
       if(!frozen){
+
+        /*--- If necessary, set variables needed for turbulence-chemistry interaction ---*/
+
+        numerics->SetEddyViscosity(nodes->GetEddyViscosity(iPoint), 0.0);
+        /*--- Set turbulence kinetic energy ---*/
+        if (rans){
+          CVariable* turbNodes = solver_container[TURB_SOL]->GetNodes();
+          numerics->SetTurbKineticEnergy(turbNodes->GetSolution(iPoint,0), 0.0);
+          numerics->SetTurbOmega(turbNodes->GetSolution(iPoint,1), 0.0);
+        }
+        
         /*--- Compute the non-equilibrium chemistry ---*/
         auto residual = numerics->ComputeChemistry(config);
 

@@ -1255,6 +1255,8 @@ void CConfig::SetConfig_Options() {
   addDoubleOption("INLET_TEMPERATURE_VE", Inlet_Temperature_ve, 0.0);
   /* DESCRIPTION: Specify if mixture is frozen */
   addBoolOption("FROZEN_MIXTURE", frozen, false);
+  /* DESCRIPTION: Specify if EDM turbulence-chemistry model is used */
+  addBoolOption("EDM", EDM, false);
   /* DESCRIPTION: Specify if there is ionization */
   addBoolOption("IONIZATION", ionization, false);
   /* DESCRIPTION: Specify if there is VT transfer residual limiting */

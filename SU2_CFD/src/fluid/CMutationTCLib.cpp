@@ -201,7 +201,9 @@ vector<su2double>& CMutationTCLib::ComputeSpeciesEve(su2double val_T, bool vibe_
 
 vector<su2double>& CMutationTCLib::ComputeNetProductionRates(bool implicit, const su2double *V, const su2double* eve,
                                                const su2double* cvve, const su2double* dTdU, const su2double* dTvedU,
-                                               su2double **val_jacobian){
+                                               su2double **val_jacobian,
+                                               const su2double val_tke, const su2double eddy_viscosity, const su2double val_omega,
+                                               bool edm){
 
   mix->netProductionRates(ws.data());
 

@@ -68,6 +68,12 @@ CSource_NEMO::~CSource_NEMO() {
 
 CNumerics::ResidualType<> CSource_NEMO::ComputeChemistry(const CConfig *config) {
 
+  const bool rans = (config->GetKind_Solver() == MAIN_SOLVER::NEMO_RANS);
+  const bool edm = (config->GetEDM()); 
+  //std::cout << turb_ke_i << std::endl;
+  //std::cout << Eddy_Viscosity_i << std::endl;
+  //std::cout << omega_i << std::endl;
+
   /*--- Nonequilibrium chemistry ---*/
   vector<su2double> rhos;
   rhos.resize(nSpecies,0.0);
@@ -91,8 +97,12 @@ CNumerics::ResidualType<> CSource_NEMO::ComputeChemistry(const CConfig *config) 
   fluidmodel->SetTDStateRhosTTv(rhos, T, Tve);
 
   /*---Compute Prodcution/destruction terms ---*/
+  //const auto& ws = fluidmodel->ComputeNetProductionRates(implicit, V_i, eve_i, Cvve_i,
+  //                                                       dTdU_i, dTvedU_i, jacobian);
+                                                      
   const auto& ws = fluidmodel->ComputeNetProductionRates(implicit, V_i, eve_i, Cvve_i,
-                                                         dTdU_i, dTvedU_i, jacobian);
+                                                         dTdU_i, dTvedU_i, jacobian, turb_ke_i, Eddy_Viscosity_i, omega_i,
+                                                         edm);
 
   for (auto iSpecies = 0ul; iSpecies < nSpecies; iSpecies++){
     residual[iSpecies] = ws[iSpecies] * Volume;}
