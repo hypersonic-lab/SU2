@@ -198,7 +198,7 @@ vector<su2double>& CChemGen::ComputeNetProductionRates(bool implicit, const su2d
   ws2[indexF] = -omegaF;
   ws2[indexOx] = -omegaF*s_stoich;
   ws2[indexP1] = omegaF*4*MolarMass[indexP1]/MolarMass[indexF]; // for CO2
-  ws2[indexP1] = omegaF*3*MolarMass[indexP2]/MolarMass[indexF]; // for H2O // hardcoded! need to fix in future!
+  ws2[indexP2] = omegaF*3*MolarMass[indexP2]/MolarMass[indexF]; // for H2O // hardcoded! need to fix in future!
 
   for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) ws[iSpecies] = ws2[iSpecies];
   }
