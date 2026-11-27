@@ -1053,6 +1053,7 @@ void CNEMONSSolver::BC_SolidFuel_Wall(CGeometry *geometry,
       su2double mdot_s = std::max((-(ktr*dTdn)/Lv), 0.0); // u_normal = mdot_s/rho;
       su2double rdot = mdot_s/900; //hard coded to be 900 kg/m3 at the moment -- change to something that can be read from the parameters file
       if (rdot > 1.0e-3){
+        rdot = 1.0e-3;
         mdot_s = 1.0e-3 * 900;
         std::cout << "Warning: Regression rate limited for stability" << std::endl;
       }
